@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "node",
+    "test-suite",
+    "merkle-tree",
+    "p2p",
+    "kv-store",
+    "consensus",
+]
