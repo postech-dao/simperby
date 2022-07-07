@@ -25,7 +25,7 @@ pub trait AuthorizedNetwork {
     async fn broadcast(&self, message: &[u8]) -> Result<(), String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
-    /// Provides an estimated lists of live nodes that are eligible and identified by their public keys.
+    /// Provides the estimated lists of live nodes that are eligible and identified by their public keys.
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()>;
 }
 
@@ -38,11 +38,11 @@ pub trait UnauthorizedNetwork {
     async fn new(known_peers: Vec<std::net::Ipv4Addr>, network_id: String) -> Result<Self, String>
     where
         Self: Sized;
-    /// Broadcasts a message to the network, after signed by the key given to this instance.
+    /// Broadcasts a message to the network.
     async fn broadcast(&self, message: &[u8]) -> Result<(), String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
-    /// Provides an estimated lists of live nodes identified by their IP addresses
+    /// Provides the estimated lists of live nodes identified by their IP addresses
     async fn get_live_list(&self) -> Result<Vec<std::net::Ipv4Addr>, ()>;
 }
 
@@ -62,10 +62,10 @@ pub trait KVStore {
     /// Records the current state to the persistent storage.
     async fn commit_checkpoint(&mut self) -> Result<(), ()>;
     /// Reverts all the changes made since the last checkpoint.
-    async fn reset_to_latest_checkpoint(&mut self) -> Result<(), ()>;
+    async fn revert_to_latest_checkpoint(&mut self) -> Result<(), ()>;
     /// Inserts a key-value pair into the store. If exists, it will be overwritten.
-    async fn insert(&mut self, key: Hash256, value: &[u8]) -> Result<(), ()>;
-    /// Remove a key-value pair from the store. If not exists, it will fail.
+    async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), ()>;
+    /// Removes a key-value pair from the store. If not exists, it will fail.
     async fn remove(&mut self, key: Hash256) -> Result<(), ()>;
     /// Retrieves the value associated with the key. If not exists, it will return `None`.
     async fn get(&self, key: Hash256) -> Result<Option<Vec<u8>>, ()>;
