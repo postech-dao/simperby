@@ -121,7 +121,6 @@ pub enum StateTransition {
         value: String,
     },
     RemoveData(String),
-    Noop,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -129,8 +128,10 @@ pub struct Transaction {
     /// The siganture of this transaction.
     pub signature: Signature,
     /// The instruction to perform on the blockchain state.
-    pub state_transition: StateTransition,
+    pub state_transition: Option<StateTransition>,
     /// An optional field to store data, which is not part of the state but still useful as it can be verified with the Merkle root.
+    ///
+    /// Note that it must not be `None` if the `state_transition` is `None`, which just makes the transaction pointless.
     pub data: Option<String>,
 }
 
