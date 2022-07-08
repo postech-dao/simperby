@@ -16,7 +16,7 @@ pub trait AuthorizedNetwork {
         public_key: PublicKey,
         private_key: PrivateKey,
         known_ids: Vec<PublicKey>,
-        known_peers: Vec<std::net::Ipv4Addr>,
+        known_peers: Vec<std::net::SocketAddrV4>,
         network_id: String,
     ) -> Result<Self, String>
     where
@@ -35,7 +35,10 @@ pub trait AuthorizedNetwork {
 #[async_trait]
 pub trait UnauthorizedNetwork {
     /// Joins the network with an authorized identity.
-    async fn new(known_peers: Vec<std::net::Ipv4Addr>, network_id: String) -> Result<Self, String>
+    async fn new(
+        known_peers: Vec<std::net::SocketAddrV4>,
+        network_id: String,
+    ) -> Result<Self, String>
     where
         Self: Sized;
     /// Broadcasts a message to the network.
@@ -43,7 +46,7 @@ pub trait UnauthorizedNetwork {
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
     /// Provides the estimated list of live nodes identified by their IP addresses
-    async fn get_live_list(&self) -> Result<Vec<std::net::Ipv4Addr>, ()>;
+    async fn get_live_list(&self) -> Result<Vec<std::net::SocketAddrV4>, ()>;
 }
 
 /// TODO: Provide error types.
