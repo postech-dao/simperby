@@ -1,0 +1,11 @@
+[package]
+name = "simperby-common"
+version = "0.0.0"
+authors = ["PDAO Team <hello@postech-dao.xyz>"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+async-trait = "0.1.56"
+blake3 = "1.3.1"
+tokio = { version = "1.0", features = ["full"] }
