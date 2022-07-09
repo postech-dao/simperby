@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "common",
-    "node",
+    "simperby",
     "test-suite",
     "merkle-tree",
     "network",
