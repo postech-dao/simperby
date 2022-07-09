@@ -79,7 +79,7 @@ pub struct Header {
     /// The author of this block.
     pub author: PublicKey,
     /// The signature of the previous block.
-    pub prev_signature: Vec<Signature>,
+    pub prev_block_finalization_proof: Vec<Signature>,
     /// The hash of the previous block.
     pub previous_hash: Hash256,
     /// The height of this block.
