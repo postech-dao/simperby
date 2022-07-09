@@ -4,7 +4,7 @@ members = [
     "node",
     "test-suite",
     "merkle-tree",
-    "p2p",
+    "network",
     "kv-store",
     "consensus",
 ]
