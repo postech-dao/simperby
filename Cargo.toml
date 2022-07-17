@@ -7,4 +7,5 @@ members = [
     "network",
     "kv-store",
     "consensus",
+    "light-client"
 ]
