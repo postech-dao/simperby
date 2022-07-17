@@ -20,7 +20,7 @@ pub struct BlockHeader {
     /// The Merkle root of the state.
     pub state_merkle_root: Hash256,
     /// The hash of the set of validator & vote weight for the next block.
-    pub validator_set_hash: Hash256,
+    pub validator_set: Vec<(PublicKey, u64)>,
 }
 
 impl BlockHeader {
