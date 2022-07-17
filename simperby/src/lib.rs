@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use simperby_common::types::*;
+use simperby_common::crypto::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum StateTransition {

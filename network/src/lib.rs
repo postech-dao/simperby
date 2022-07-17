@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use simperby_common::types::*;
+use simperby_common::crypto::*;
 use tokio::sync::mpsc;
 
 /// TODO: Provide error types.
