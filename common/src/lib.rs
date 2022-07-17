@@ -22,3 +22,9 @@ pub struct BlockHeader {
     /// The hash of the set of validator & vote weight for the next block.
     pub validator_set_hash: Hash256,
 }
+
+impl BlockHeader {
+    pub fn hash(&self) -> Hash256 {
+        unimplemented!()
+    }
+}
