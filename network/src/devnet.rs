@@ -5,7 +5,7 @@ use crate::{AuthorizedNetwork, BootstrapPoint};
 use simperby_common::crypto::*;
 
 /// An instance of `simperby::network::AuthorizedNetwork`
-struct DevNet {}
+pub struct DevNet {}
 
 #[async_trait]
 impl AuthorizedNetwork for DevNet {
