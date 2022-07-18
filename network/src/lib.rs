@@ -1,8 +1,16 @@
 pub mod devnet;
 
+use std::net::SocketAddrV4;
+
 use async_trait::async_trait;
-use simperby_common::crypto::*;
 use tokio::sync::mpsc;
+
+use simperby_common::crypto::*;
+
+pub enum BootstrapPoint {
+    IPv4(SocketAddrV4),
+    PublicKey(PublicKey),
+}
 
 /// TODO: Provide error types.
 ///
@@ -13,8 +21,7 @@ pub trait AuthorizedNetwork {
     async fn new(
         public_key: PublicKey,
         private_key: PrivateKey,
-        known_ids: Vec<PublicKey>,
-        known_peers: Vec<std::net::SocketAddrV4>,
+        bootstrap_points: Vec<BootstrapPoint>,
         network_id: String,
     ) -> Result<Self, String>
     where
@@ -33,10 +40,7 @@ pub trait AuthorizedNetwork {
 #[async_trait]
 pub trait UnauthorizedNetwork {
     /// Joins the network with an authorized identity.
-    async fn new(
-        known_peers: Vec<std::net::SocketAddrV4>,
-        network_id: String,
-    ) -> Result<Self, String>
+    async fn new(bootstrap_points: Vec<BootstrapPoint>, network_id: String) -> Result<Self, String>
     where
         Self: Sized;
     /// Broadcasts a message to the network.

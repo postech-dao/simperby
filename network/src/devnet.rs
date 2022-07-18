@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-use crate::AuthorizedNetwork;
+use crate::{AuthorizedNetwork, BootstrapPoint};
 use simperby_common::crypto::*;
 
 /// An instance of `simperby::network::AuthorizedNetwork`
@@ -13,8 +13,7 @@ impl AuthorizedNetwork for DevNet {
     async fn new(
         _public_key: PublicKey,
         _private_key: PrivateKey,
-        _known_ids: Vec<PublicKey>,
-        _known_peers: Vec<std::net::SocketAddrV4>,
+        _bootstrap_points: Vec<BootstrapPoint>,
         _network_id: String,
     ) -> Result<Self, String>
     where
