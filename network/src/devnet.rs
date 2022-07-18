@@ -34,3 +34,57 @@ impl AuthorizedNetwork for DevNet {
         unimplemented!("not implemented");
     }
 }
+
+#[cfg(test)]
+mod test {
+    #[test]
+    #[ignore]
+    /// Test if this node receives a message from another node.
+    fn broadcast_once() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node receives multiple messages from another node.
+    fn broadcast_multiple_times() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node receives multiple messages from other nodes.
+    fn broadcast_from_multiple_nodes() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node receives multiple messages from other nodes,
+    /// ... when several nodes are joining and leaving the network.
+    fn broadcast_from_multiple_nodes_with_flexible_network() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node retrieves the list of all nodes in the network.
+    fn get_live_list_once() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node retrieves lists of all nodes in the network multiple times.
+    fn get_live_list_multiple_times() {
+        unimplemented!("not implemented");
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if this node retrieves the list of all nodes in the network,
+    /// ... when several nodes are joining and leaving the network.
+    fn get_live_list_with_flexible_network() {
+        unimplemented!("not implemented");
+    }
+}
