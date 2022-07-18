@@ -1,3 +1,5 @@
+pub mod devnet;
+
 use async_trait::async_trait;
 use simperby_common::crypto::*;
 use tokio::sync::mpsc;
