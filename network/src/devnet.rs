@@ -1,7 +1,9 @@
+use std::net::SocketAddrV4;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-use crate::{AuthorizedNetwork, BootstrapPoint};
+use crate::AuthorizedNetwork;
 use simperby_common::crypto::*;
 
 /// An instance of `simperby::network::AuthorizedNetwork`
@@ -13,7 +15,8 @@ impl AuthorizedNetwork for DevNet {
     async fn new(
         _public_key: PublicKey,
         _private_key: PrivateKey,
-        _bootstrap_points: Vec<BootstrapPoint>,
+        _known_peers: Vec<PublicKey>,
+        _bootstrap_points: Vec<SocketAddrV4>,
         _network_id: String,
     ) -> Result<Self, String>
     where
