@@ -7,11 +7,6 @@ use tokio::sync::mpsc;
 
 use simperby_common::crypto::*;
 
-pub enum BootstrapPoint {
-    IPv4(SocketAddrV4),
-    PublicKey(PublicKey),
-}
-
 /// TODO: Provide error types.
 ///
 /// Note: This trait is quite subject to change.
@@ -21,7 +16,8 @@ pub trait AuthorizedNetwork {
     async fn new(
         public_key: PublicKey,
         private_key: PrivateKey,
-        bootstrap_points: Vec<BootstrapPoint>,
+        known_peers: Vec<PublicKey>,
+        bootstrap_points: Vec<SocketAddrV4>,
         network_id: String,
     ) -> Result<Self, String>
     where
@@ -40,7 +36,11 @@ pub trait AuthorizedNetwork {
 #[async_trait]
 pub trait UnauthorizedNetwork {
     /// Joins the network with an authorized identity.
-    async fn new(bootstrap_points: Vec<BootstrapPoint>, network_id: String) -> Result<Self, String>
+    async fn new(
+        bootstrap_points: Vec<SocketAddrV4>,
+        known_peers: Vec<PublicKey>,
+        network_id: String,
+    ) -> Result<Self, String>
     where
         Self: Sized;
     /// Broadcasts a message to the network.
