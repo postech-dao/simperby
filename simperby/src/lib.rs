@@ -1,5 +1,7 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
+use simperby_consensus::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum StateTransition {
@@ -43,4 +45,55 @@ pub struct Transaction {
     ///
     /// Note that it must not be `None` if the `state_transition` is `None`, which just makes the transaction pointless.
     pub data: Option<String>,
+}
+
+/// An consensus item that can be voted (thus signed), if the node operator is in favor of it.
+///
+/// Due to the 'interactive' nature of the Simperby consensus,
+/// a typical block validator would manually read the content of `ConsensusVoteItem` and decide whether
+/// it is favorable or not.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct ConsensusVoteItem {
+    /// The hash of the item, which is used as the unique identifier of the it, which's also used as the sign target.
+    pub hash: Hash256,
+    /// (If exists) The block which is associated with this vote item.
+    pub block: Option<Block<Transaction>>,
+    /// A human-readable description of the item.
+    pub description: String,
+}
+
+#[async_trait]
+pub trait SimperbyApi {
+    /// Gets the current height of the blockchain.
+    async fn get_height(&self) -> u64;
+
+    /// Gets the finalized block for the given height.
+    async fn get_block(&self, height: u64) -> Result<Block<Transaction>, String>;
+
+    /// Attempts to propose a block for this round.
+    ///
+    /// Fails if the block is not valid or this node is not the current leader.
+    async fn propose_block(
+        &self,
+        block: Block<Transaction>,
+        signature: Signature,
+    ) -> Result<(), String>;
+
+    /// Reads the finlized state entry by the given key.
+    async fn read_state(&self, key: String, height: u64) -> Result<String, String>;
+
+    /// Gets the current possible consensus voting options.
+    async fn get_consensus_vote_options(&self) -> Vec<ConsensusVoteItem>;
+
+    /// Gets the current inter-finalized-block consensus state.
+    ///
+    /// TODO: define the type of the state.
+    async fn get_consensus_state(&self) -> ();
+
+    /// Submits a vote for the given item, identified by its hash.
+    async fn submit_consensus_vote(
+        &self,
+        hash: Hash256,
+        signature: Signature,
+    ) -> Result<(), String>;
 }
