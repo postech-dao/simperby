@@ -42,51 +42,52 @@ impl AuthorizedNetwork for DevNet {
 mod test {
     #[test]
     #[ignore]
-    /// Test if this node receives a message from another node.
+    /// Test if all nodes receive a message from a single broadcasting node.
     fn broadcast_once() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node receives multiple messages from another node.
+    /// Test if all nodes receive multiple messages from a single broadcasting node.
     fn broadcast_multiple_times() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node receives multiple messages from other nodes.
+    /// Test if all nodes receives multiple messages from multiple broadcasting nodes.
     fn broadcast_from_multiple_nodes() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node receives multiple messages from other nodes,
-    /// ... when several nodes are joining and leaving the network.
+    /// Test if all nodes receives multiple messages from multiple broadcasting nodes
+    /// when several nodes are joining and leaving the network.
     fn broadcast_from_multiple_nodes_with_flexible_network() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node retrieves the list of all nodes in the network.
+    /// Test if all nodes correctly retrieve the list of all nodes in the network.
     fn get_live_list_once() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node retrieves lists of all nodes in the network multiple times.
+    /// Test if all nodes correctly retrieve the list of all nodes in the network multiple times
+    /// with several time intervals.
     fn get_live_list_multiple_times() {
         unimplemented!("not implemented");
     }
 
     #[test]
     #[ignore]
-    /// Test if this node retrieves the list of all nodes in the network,
-    /// ... when several nodes are joining and leaving the network.
+    /// Test if all nodes correctly retrieve lists of all nodes in the network
+    /// whenever several nodes join and leave the network.
     fn get_live_list_with_flexible_network() {
         unimplemented!("not implemented");
     }
