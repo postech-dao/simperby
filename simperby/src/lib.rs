@@ -70,9 +70,17 @@ pub trait SimperbyApi {
     /// Gets the finalized block for the given height.
     async fn get_block(&self, height: u64) -> Result<Block<Transaction>, String>;
 
+    /// Checks the given block as the next block to be added to the current state.
+    ///
+    /// Fails if the block is invalid.
+    async fn check_block(&self, block: Block<Transaction>) -> Result<(), String>;
+
     /// Attempts to propose a block for this round.
     ///
-    /// Fails if the block is not valid or this node is not the current leader.
+    /// It fails
+    /// 1. with the same cause as `check_block`
+    /// 2. if this node is not the current leader.
+    /// 3. if this node has already proposed another block for this round.
     async fn propose_block(
         &self,
         block: Block<Transaction>,
