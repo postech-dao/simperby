@@ -6,11 +6,13 @@ use tokio::sync::mpsc;
 use crate::AuthorizedNetwork;
 use simperby_common::crypto::*;
 
-/// An instance of `simperby::network::AuthorizedNetwork`
-pub struct DevNet {}
+/// The backbone network of simperby that propagates serialized data such as blocks and votes.
+/// This network discovers peers with Kademlia([`libp2p::kad`]),
+/// and propagates data with FloodSub([`libp2p::floodsub`]).
+pub struct PropagationNetwork {}
 
 #[async_trait]
-impl AuthorizedNetwork for DevNet {
+impl AuthorizedNetwork for PropagationNetwork {
     async fn new(
         _public_key: PublicKey,
         _private_key: PrivateKey,
