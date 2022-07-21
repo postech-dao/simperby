@@ -93,10 +93,13 @@ pub trait SimperbyApi {
     /// Gets the current possible consensus voting options.
     async fn get_consensus_vote_options(&self) -> Vec<ConsensusVoteItem>;
 
-    /// Gets the current inter-finalized-block consensus state.
+    /// Gets the current status of the ongoing consensus.
+    ///
+    /// This is essential because Simperby's consensus is 'interactive', which means that the validator
+    /// has to understand what's going on and manually decide what to do regarding the consensus.
     ///
     /// TODO: define the type of the state.
-    async fn get_consensus_state(&self) -> ();
+    async fn get_consensus_status(&self) -> ();
 
     /// Submits a vote for the given item, identified by its hash.
     async fn submit_consensus_vote(
