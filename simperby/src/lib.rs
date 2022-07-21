@@ -47,14 +47,14 @@ pub struct Transaction {
     pub data: Option<String>,
 }
 
-/// An consensus item that can be voted (thus signed), if the node operator is in favor of it.
+/// A consensus item that can be voted (thus signed), if the node operator is in favor of it.
 ///
 /// Due to the 'interactive' nature of the Simperby consensus,
 /// a typical block validator would manually read the content of `ConsensusVoteItem` and decide whether
 /// it is favorable or not.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ConsensusVoteItem {
-    /// The hash of the item, which is used as the unique identifier of the it, which's also used as the sign target.
+    /// The hash of the item, which is used as the unique identifier of the it and also used as the sign target.
     pub hash: Hash256,
     /// (If exists) The block which is associated with this vote item.
     pub block: Option<Block<Transaction>>,
