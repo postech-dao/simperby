@@ -22,39 +22,46 @@ pub enum ConsensusEvent {
         proposal: BlockIdentifier,
         proposer: ValidatorIndex,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that the node is in favor of or against a proposal.
     ProposalFavor {
         proposal: BlockIdentifier,
         /// Whether this node is in favor of the proposal.
         favor: bool,
+        time: Timestamp,
     },
     /// Informs that `CreateAndBroadcastProposal` has been completed.
     BlockProposalBroadcasted {
         proposal: BlockIdentifier,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that the node has received a block prevote.
     Prevote {
         proposal: BlockIdentifier,
         signer: ValidatorIndex,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that the node has received a block precommit.
     Precommit {
         proposal: BlockIdentifier,
         signer: ValidatorIndex,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that the node has received a nil prevote.
     NilPrevote {
         signer: ValidatorIndex,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that the node has received a nil precommit.
     NilPrecommit {
         signer: ValidatorIndex,
         round: usize,
+        time: Timestamp,
     },
     /// Informs that time has passed.
     Timer { time: Timestamp },
