@@ -15,6 +15,11 @@ fn success_trivial_1() {
         proposal: 0,
         proposer: 0,
         round: 0,
+    };
+    let response = progress(&height_info, &mut state, event);
+    assert!(response.is_empty());
+    let event = ConsensusEvent::ProposalFavor {
+        proposal: 0,
         favor: true,
     };
     let response = progress(&height_info, &mut state, event);
