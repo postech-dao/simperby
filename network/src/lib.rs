@@ -1,4 +1,4 @@
-pub mod propnet;
+pub mod propagation_network;
 
 use std::net::SocketAddrV4;
 
