@@ -27,6 +27,10 @@ pub enum ConsensusEvent {
         /// Whether this node is in favor of the proposal.
         favor: bool,
     },
+    BlockProposalBroadcasted {
+        proposal: BlockIdentifier,
+        round: usize,
+    },
     Prevote {
         proposal: BlockIdentifier,
         signer: ValidatorIndex,
