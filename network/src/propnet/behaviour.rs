@@ -1,7 +1,8 @@
 use libp2p::{
+    floodsub::{Floodsub, FloodsubEvent},
     identify::{Identify, IdentifyEvent},
+    kad::{store::MemoryStore, Kademlia, KademliaEvent},
     NetworkBehaviour,
-    kad::{Kademlia, store::MemoryStore, KademliaEvent},
 };
 
 #[derive(NetworkBehaviour)]
@@ -15,12 +16,17 @@ pub struct Behaviour {
     /// Instead, kademlia continuously discovers k closest peers
     /// to maintain k connections with its neighbors.
     kademlia: Kademlia<MemoryStore>,
+    /// A network behaviour that implements PubSub message passing protocol.
+    /// It tries to propagate a message to all peers that it has connections with,
+    /// thus flooding the network with messages.
+    floodsub: Floodsub,
 }
 
 /// Network events captured from other network behaviours in [`Behaviour`].
 pub enum Event {
     Identify(IdentifyEvent),
     Kademlia(KademliaEvent),
+    Floodsub(FloodsubEvent),
 }
 
 impl From<IdentifyEvent> for Event {
@@ -32,5 +38,11 @@ impl From<IdentifyEvent> for Event {
 impl From<KademliaEvent> for Event {
     fn from(e: KademliaEvent) -> Self {
         Event::Kademlia(e)
+    }
+}
+
+impl From<FloodsubEvent> for Event {
+    fn from(e: FloodsubEvent) -> Self {
+        Event::Floodsub(e)
     }
 }
