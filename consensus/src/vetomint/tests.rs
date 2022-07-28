@@ -25,7 +25,7 @@ fn success_trivial_1() {
         }]
     );
 
-    // STEP 1: Prevote.
+    // STEP 2: Prevote.
     for validator_index in 0..=4 {
         let event = ConsensusEvent::Prevote {
             proposal: 0,
@@ -49,7 +49,7 @@ fn success_trivial_1() {
         }]
     );
 
-    // STEP 2: Prevote.
+    // STEP 3: Prevote.
     for validator_index in 0..=4 {
         let event = ConsensusEvent::Precommit {
             proposal: 0,
