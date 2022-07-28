@@ -56,6 +56,7 @@ pub trait Consensus<E: BlockExecutor> {
     /// Peforms an one-block consensus.
     ///
     /// This method finishes when the next block is finalized.
+    /// TODO: Not so complete for now.
     async fn progress(
         &mut self,
         block_to_propose: Option<Block<E::Transaction>>,
