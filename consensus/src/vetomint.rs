@@ -86,6 +86,9 @@ pub struct HeightInfo {
 
     /// The index of this node
     pub this_node_index: ValidatorIndex,
+
+    /// The timestamp of the beginning of the round 0.
+    pub timestamp: Timestamp,
 }
 
 /// The state of the consensus during a single height.
