@@ -15,12 +15,14 @@ fn success_trivial_1() {
         proposal: 0,
         proposer: 0,
         round: 0,
+        time: 1,
     };
     let response = progress(&height_info, &mut state, event);
     assert!(response.is_empty());
     let event = ConsensusEvent::ProposalFavor {
         proposal: 0,
         favor: true,
+        time: 2,
     };
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
@@ -37,6 +39,7 @@ fn success_trivial_1() {
             proposal: 0,
             round: 0,
             signer: validator_index,
+            time: 3,
         };
         let response = progress(&height_info, &mut state, event);
         assert!(response.is_empty());
@@ -45,6 +48,7 @@ fn success_trivial_1() {
         proposal: 0,
         round: 0,
         signer: 5,
+        time: 3,
     };
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
@@ -61,6 +65,7 @@ fn success_trivial_1() {
             proposal: 0,
             round: 0,
             signer: validator_index,
+            time: 4,
         };
         let response = progress(&height_info, &mut state, event);
         assert!(response.is_empty());
@@ -69,6 +74,7 @@ fn success_trivial_1() {
         proposal: 0,
         round: 0,
         signer: 5,
+        time: 4,
     };
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
