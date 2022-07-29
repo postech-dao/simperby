@@ -1,11 +1,8 @@
 pub mod propagation_network;
-
-use std::net::SocketAddrV4;
-
 use async_trait::async_trait;
-use tokio::sync::mpsc;
-
 use simperby_common::crypto::*;
+use std::net::SocketAddrV4;
+use tokio::sync::mpsc;
 
 /// TODO: Provide error types.
 ///
