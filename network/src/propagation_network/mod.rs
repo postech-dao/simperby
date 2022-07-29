@@ -9,15 +9,15 @@ use simperby_common::crypto::*;
 mod behaviour;
 use behaviour::Behaviour;
 
-/**
-The backbone network of simperby that propagates serialized data such as blocks and votes.
-This network discovers peers with Kademlia([`libp2p::kad`]),
-and propagates data with FloodSub([`libp2p::floodsub`]).
-*/
+/// The backbone network of simperby that propagates serialized data such as blocks and votes.
+///
+/// This network discovers peers with Kademlia([`libp2p::kad`]),
+/// and propagates data with FloodSub([`libp2p::floodsub`]).
 pub struct PropagationNetwork {
-    /// A custom network behaviour that collects other [`libp2p`] network behaviours
-    /// to extend their functionalities.
-    /// It implements [`libp2p::swarm::NetworkBehaviour`] as well as its field members.
+    /// A custom libp2p network behaviour.
+    /// 
+    /// It collects other network behaviours to extend their functionalities,
+    /// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
     _behaviour: Mutex<Behaviour>,
 }
 
