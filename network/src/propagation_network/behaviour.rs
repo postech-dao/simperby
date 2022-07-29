@@ -29,10 +29,11 @@ pub struct Behaviour {
 
 impl Behaviour {
     /// Constructor with default configuration.
-    pub fn _new(local_public_key: PublicKey) -> Self {
+    pub fn new(local_public_key: PublicKey) -> Self {
         let local_peer_id = local_public_key.to_peer_id();
 
-        let identify_config = IdentifyConfig::new("/simperby/identify".to_string(), local_public_key);
+        let identify_config =
+            IdentifyConfig::new("/simperby/identify".to_string(), local_public_key);
 
         // Create a key-value store, which will not be used in this crate, for Kademlia DHT.
         let store = MemoryStore::new(local_peer_id);
