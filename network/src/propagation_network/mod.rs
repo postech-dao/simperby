@@ -23,9 +23,14 @@ pub struct PropagationNetwork {
     _behaviour: Mutex<Behaviour>,
 
     /// A join handle for background network task.
-    /// 
+    ///
     /// The task running behind this handle is the main routine of [`PropagationNetwork`].
     _task_join_handle: task::JoinHandle<()>,
+
+    /// A message queue that collects broadcasted messages through the network.
+    ///
+    /// A simperby node can obtain this queue by calling [`PropagationNetwork::create_receive_queue`].
+    receive_queue: mpsc::Receiver<Vec<u8>>,
 }
 
 #[async_trait]
@@ -43,13 +48,18 @@ impl AuthorizedNetwork for PropagationNetwork {
         // Note: This is a dummy implementation.
         // Todo: Convert `public_key` into `libp2p::identity::PublicKey`,
         let local_keypair = Keypair::generate_ed25519();
-        
+
         let behaviour = Mutex::new(Behaviour::new(local_keypair.public()));
-        let _task_join_handle = task::spawn(run_background_task());
+
+        // Create a message queue that a simperby node will use to receive messages from other nodes.
+        // Todo: Choose a proper buffer size for `mpsc::channel`.
+        let (send_queue, receive_queue) = mpsc::channel::<Vec<u8>>(100);
+        let _task_join_handle = task::spawn(run_background_task(send_queue));
 
         Ok(Self {
             _behaviour: behaviour,
             _task_join_handle,
+            receive_queue,
         })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
@@ -65,19 +75,25 @@ impl AuthorizedNetwork for PropagationNetwork {
         unimplemented!();
     }
     async fn create_recv_queue(&self) -> Result<&mpsc::Receiver<Vec<u8>>, ()> {
-        unimplemented!("not implemented");
+        Ok(&self.receive_queue)
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
         unimplemented!("not implemented");
     }
 }
 
-async fn run_background_task() {
+async fn run_background_task(send_queue: mpsc::Sender<Vec<u8>>) {
     // Note: This is a dummy logic.
     // Todo: Loop to listen on `libp2p::Swarm::SwarmEvent`.
     //       Simperby network logic will be based on SwarmEvents.
     loop {
-        unimplemented!("dummy logic");
+        if send_queue
+            .send("some value".as_bytes().to_vec())
+            .await
+            .is_err()
+        {
+            panic!("Receive end is closed");
+        }
     }
 }
 
