@@ -6,7 +6,10 @@ use behaviour::Behaviour;
 use libp2p::identity::Keypair;
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
-use tokio::sync::{mpsc, Mutex};
+use tokio::{
+    sync::{mpsc, Mutex},
+    task,
+};
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
 ///
@@ -18,6 +21,11 @@ pub struct PropagationNetwork {
     /// It collects other network behaviours to extend their functionalities,
     /// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
     _behaviour: Mutex<Behaviour>,
+
+    /// A join handle for background network task.
+    /// 
+    /// The task running behind this handle is the main routine of [`PropagationNetwork`].
+    _task_join_handle: task::JoinHandle<()>,
 }
 
 #[async_trait]
@@ -35,10 +43,13 @@ impl AuthorizedNetwork for PropagationNetwork {
         // Note: This is a dummy implementation.
         // Todo: Convert `public_key` into `libp2p::identity::PublicKey`,
         let local_keypair = Keypair::generate_ed25519();
-
+        
         let behaviour = Mutex::new(Behaviour::new(local_keypair.public()));
+        let _task_join_handle = task::spawn(run_background_task());
+
         Ok(Self {
             _behaviour: behaviour,
+            _task_join_handle,
         })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
@@ -58,6 +69,15 @@ impl AuthorizedNetwork for PropagationNetwork {
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
         unimplemented!("not implemented");
+    }
+}
+
+async fn run_background_task() {
+    // Note: This is a dummy logic.
+    // Todo: Loop to listen on `libp2p::Swarm::SwarmEvent`.
+    //       Simperby network logic will be based on SwarmEvents.
+    loop {
+        unimplemented!("dummy logic");
     }
 }
 
