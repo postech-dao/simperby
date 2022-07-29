@@ -7,6 +7,10 @@ use libp2p::{
 };
 use std::time::Duration;
 
+/// A libp2p network behaviour.
+///
+/// It collects other network behaviours to extend their functionalities,
+/// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct Behaviour {
@@ -28,11 +32,12 @@ pub struct Behaviour {
 }
 
 impl Behaviour {
-    /// Constructor with default configuration.
-    pub fn _new(local_public_key: PublicKey) -> Self {
+    /// A constructor with default configuration.
+    pub fn new(local_public_key: PublicKey) -> Self {
         let local_peer_id = local_public_key.to_peer_id();
 
-        let identify_config = IdentifyConfig::new("/simperby/identify".to_string(), local_public_key);
+        let identify_config =
+            IdentifyConfig::new("/simperby/identify".to_string(), local_public_key);
 
         // Create a key-value store, which will not be used in this crate, for Kademlia DHT.
         let store = MemoryStore::new(local_peer_id);
@@ -50,7 +55,7 @@ impl Behaviour {
             floodsub: Floodsub::new(local_peer_id),
         }
     }
-    // Todo: constructor with configuration
+    // Todo: Add constructor taking a configuration as an argument.
 }
 
 /// Network events captured from other network behaviours in [`Behaviour`].

@@ -3,28 +3,45 @@ mod behaviour;
 use super::*;
 use async_trait::async_trait;
 use behaviour::Behaviour;
+use futures::StreamExt;
+use libp2p::{
+    development_transport,
+    identity::{ed25519, Keypair},
+    swarm::Swarm,
+    PeerId,
+};
 use simperby_common::crypto::*;
-use std::net::SocketAddrV4;
-
-use tokio::sync::{broadcast, Mutex};
+use std::{net::SocketAddrV4, sync::Arc, time::Duration};
+use tokio::{
+    sync::{broadcast, Mutex},
+    task, time,
+};
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
 ///
 /// This network discovers peers with Kademlia([`libp2p::kad`]),
 /// and propagates data with FloodSub([`libp2p::floodsub`]).
 pub struct PropagationNetwork {
-    /// A custom libp2p network behaviour.
+    /// A join handle for background network task.
     ///
-    /// It collects other network behaviours to extend their functionalities,
-    /// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
-    _behaviour: Mutex<Behaviour>,
+    /// The task running behind this handle is the main routine of [`PropagationNetwork`].
+    _task_join_handle: task::JoinHandle<()>,
+
+    /// A sending endpoint of the queue that collects broadcasted messages through the network
+    /// and sends it to the simperby node.
+    ///
+    /// The receiving endpoint of the queue can be obtained using [`PropagationNetwork::create_receive_queue`].
+    sender: broadcast::Sender<Vec<u8>>,
+
+    /// A top-level network interface provided by libp2p.
+    _swarm: Arc<Mutex<Swarm<Behaviour>>>,
 }
 
 #[async_trait]
 impl AuthorizedNetwork for PropagationNetwork {
     async fn new(
-        _public_key: PublicKey,
-        _private_key: PrivateKey,
+        public_key: PublicKey,
+        private_key: PrivateKey,
         _known_peers: Vec<PublicKey>,
         _bootstrap_points: Vec<SocketAddrV4>,
         _network_id: String,
@@ -32,7 +49,42 @@ impl AuthorizedNetwork for PropagationNetwork {
     where
         Self: Sized,
     {
-        unimplemented!("not implemented");
+        let mut keypair_bytes = private_key.as_ref().to_vec();
+        keypair_bytes.extend(public_key.as_ref());
+        // Todo: Handle returned error.
+        let local_keypair = Keypair::Ed25519(
+            ed25519::Keypair::decode(&mut keypair_bytes).expect("invalid keypair was given"),
+        );
+        let local_peer_id = PeerId::from(local_keypair.public());
+
+        let behaviour = Behaviour::new(local_keypair.public());
+
+        let transport = match development_transport(local_keypair).await {
+            Ok(transport) => transport,
+            // Todo: Use an error type of this crate.
+            Err(_) => return Err("Failed to create a transport.".to_string()),
+        };
+
+        let swarm = Arc::new(Mutex::new(Swarm::new(transport, behaviour, local_peer_id)));
+        let mut swarm_inner = swarm.lock().await;
+
+        // Create listener(s).
+        // Todo: Pass possible error to the `PropagationNetwork`.
+        // Todo: Take listen address from network configurations.
+        swarm_inner
+            .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+            .expect("Failed to start listening");
+
+        // Create a message queue that a simperby node will use to receive messages from other nodes.
+        // Todo: Choose a proper buffer size for the buffer size.
+        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(100);
+        let _task_join_handle = task::spawn(run_background_task(swarm.clone(), sender.clone()));
+
+        Ok(Self {
+            _task_join_handle,
+            sender,
+            _swarm: swarm.clone(),
+        })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
         unimplemented!("not implemented");
@@ -47,10 +99,34 @@ impl AuthorizedNetwork for PropagationNetwork {
         unimplemented!();
     }
     async fn create_recv_queue(&self) -> Result<broadcast::Receiver<Vec<u8>>, ()> {
-        unimplemented!("not implemented");
+        Ok(self.sender.subscribe())
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
         unimplemented!("not implemented");
+    }
+}
+
+async fn run_background_task(
+    swarm: Arc<Mutex<Swarm<Behaviour>>>,
+    _sender: broadcast::Sender<Vec<u8>>,
+) {
+    // This timer guarantees that the lock for swarm will be released
+    // regularly and within a finite time.
+    let mut lock_release_timer = time::interval(Duration::from_millis(100));
+    lock_release_timer.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+
+    // Todo: Bootstrap with already known addresses.
+    // Todo: Create a timer for regular bootstrapping.
+
+    loop {
+        let mut swarm = swarm.lock().await;
+        tokio::select! {
+            // Listen on swarm events.
+            _event = swarm.select_next_some() => {}
+            // Release the lock so that other tasks can use swarm.
+            _ = lock_release_timer.tick() => ()
+        }
+        // The lock for swarm is automatically released here.
     }
 }
 
