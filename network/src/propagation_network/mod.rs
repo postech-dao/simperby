@@ -31,8 +31,8 @@ impl AuthorizedNetwork for PropagationNetwork {
     where
         Self: Sized,
     {
+        // Note: This is a dummy implementation.
         // Todo: Convert `public_key` into `libp2p::identity::PublicKey`,
-        //       and remove this dummy implementation.
         let local_keypair = Keypair::generate_ed25519();
 
         let behaviour = Mutex::new(Behaviour::new(local_keypair.public()));

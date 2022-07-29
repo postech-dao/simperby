@@ -28,7 +28,7 @@ pub struct Behaviour {
 }
 
 impl Behaviour {
-    /// Constructor with default configuration.
+    /// A constructor with default configuration.
     pub fn new(local_public_key: PublicKey) -> Self {
         let local_peer_id = local_public_key.to_peer_id();
 
@@ -51,7 +51,7 @@ impl Behaviour {
             floodsub: Floodsub::new(local_peer_id),
         }
     }
-    // Todo: constructor with configuration
+    // Todo: Add constructor taking a configuration as an argument.
 }
 
 /// Network events captured from other network behaviours in [`Behaviour`].
