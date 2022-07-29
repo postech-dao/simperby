@@ -35,7 +35,7 @@ pub trait AuthorizedNetwork {
     /// Gets the current status of a broadcasting message.
     async fn get_broadcast_status(&self, token: BroadcastToken) -> Result<BroadcastStatus, String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
-    async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
+    async fn create_recv_queue(&self) -> Result<&mpsc::Receiver<Vec<u8>>, ()>;
     /// Provides the estimated list of live nodes that are eligible and identified by their public keys.
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()>;
 }
@@ -56,7 +56,7 @@ pub trait UnauthorizedNetwork {
     /// Broadcasts a message to the network.
     async fn broadcast(&self, message: &[u8]) -> Result<(), String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
-    async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
+    async fn create_recv_queue(&self) -> Result<&mpsc::Receiver<Vec<u8>>, ()>;
     /// Provides the estimated list of live nodes identified by their IP addresses
     async fn get_live_list(&self) -> Result<Vec<std::net::SocketAddrV4>, ()>;
 }

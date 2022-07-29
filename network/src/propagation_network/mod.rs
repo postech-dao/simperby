@@ -53,7 +53,7 @@ impl AuthorizedNetwork for PropagationNetwork {
     ) -> Result<BroadcastStatus, String> {
         unimplemented!();
     }
-    async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()> {
+    async fn create_recv_queue(&self) -> Result<&mpsc::Receiver<Vec<u8>>, ()> {
         unimplemented!("not implemented");
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
