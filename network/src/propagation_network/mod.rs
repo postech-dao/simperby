@@ -2,6 +2,7 @@ mod behaviour;
 use crate::AuthorizedNetwork;
 use async_trait::async_trait;
 use behaviour::Behaviour;
+use libp2p::identity::Keypair;
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
 use tokio::sync::{mpsc, Mutex};
@@ -30,7 +31,14 @@ impl AuthorizedNetwork for PropagationNetwork {
     where
         Self: Sized,
     {
-        unimplemented!("not implemented");
+        // Todo: Convert `public_key` into `libp2p::identity::PublicKey`,
+        //       and remove this dummy implementation.
+        let local_keypair = Keypair::generate_ed25519();
+
+        let behaviour = Mutex::new(Behaviour::new(local_keypair.public()));
+        Ok(Self {
+            _behaviour: behaviour,
+        })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<(), String> {
         unimplemented!("not implemented");
