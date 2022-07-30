@@ -1,11 +1,17 @@
 pub mod propagation_network;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
 use tokio::sync::mpsc;
 
 pub type BroadcastToken = u64;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BroadcastStatus {
+    relayed_nodes: Vec<PublicKey>,
+}
 
 /// TODO: Provide error types.
 ///
@@ -26,6 +32,8 @@ pub trait AuthorizedNetwork {
     async fn broadcast(&self, message: &[u8]) -> Result<BroadcastToken, String>;
     /// Stops a currently broadcasting message.
     async fn stop_braodcast(&self, token: BroadcastToken) -> Result<(), String>;
+    /// Gets the current status of a broadcasting message.
+    async fn get_broadcast_status(&self, token: BroadcastToken) -> Result<BroadcastStatus, String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
     /// Provides the estimated list of live nodes that are eligible and identified by their public keys.
