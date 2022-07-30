@@ -36,7 +36,7 @@ impl AuthorizedNetwork for PropagationNetwork {
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
         unimplemented!("not implemented");
     }
-    async fn stop_braodcast(&self, _token: BroadcastToken) -> Result<(), String> {
+    async fn stop_broadcast(&self, _token: BroadcastToken) -> Result<(), String> {
         unimplemented!();
     }
     async fn get_broadcast_status(

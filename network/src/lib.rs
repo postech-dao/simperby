@@ -31,7 +31,7 @@ pub trait AuthorizedNetwork {
     /// Broadcasts a message to the network, after signed by the key given to this instance.
     async fn broadcast(&self, message: &[u8]) -> Result<BroadcastToken, String>;
     /// Stops a currently broadcasting message.
-    async fn stop_braodcast(&self, token: BroadcastToken) -> Result<(), String>;
+    async fn stop_broadcast(&self, token: BroadcastToken) -> Result<(), String>;
     /// Gets the current status of a broadcasting message.
     async fn get_broadcast_status(&self, token: BroadcastToken) -> Result<BroadcastStatus, String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
