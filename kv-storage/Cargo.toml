@@ -16,3 +16,4 @@ log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
 thiserror = "1.0.32"
 rocksdb = "0.18.0"
+mktemp = "0.3.1"
