@@ -1,4 +1,5 @@
 mod behaviour;
+
 use crate::AuthorizedNetwork;
 use async_trait::async_trait;
 use behaviour::Behaviour;

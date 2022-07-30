@@ -1,4 +1,5 @@
 pub mod propagation_network;
+
 use async_trait::async_trait;
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
