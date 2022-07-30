@@ -5,6 +5,8 @@ use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
 use tokio::sync::mpsc;
 
+pub type BroadcastToken = u64;
+
 /// TODO: Provide error types.
 ///
 /// Note: This trait is quite subject to change.
@@ -21,7 +23,9 @@ pub trait AuthorizedNetwork {
     where
         Self: Sized;
     /// Broadcasts a message to the network, after signed by the key given to this instance.
-    async fn broadcast(&self, message: &[u8]) -> Result<(), String>;
+    async fn broadcast(&self, message: &[u8]) -> Result<BroadcastToken, String>;
+    /// Stops a currently broadcasting message.
+    async fn stop_braodcast(&self, token: BroadcastToken) -> Result<(), String>;
     /// Creates a receiver for every message broadcasted to the network, except the one sent by this instance.
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()>;
     /// Provides the estimated list of live nodes that are eligible and identified by their public keys.

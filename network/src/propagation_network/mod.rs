@@ -1,6 +1,6 @@
 mod behaviour;
 
-use crate::AuthorizedNetwork;
+use super::*;
 use async_trait::async_trait;
 use behaviour::Behaviour;
 use simperby_common::crypto::*;
@@ -33,8 +33,11 @@ impl AuthorizedNetwork for PropagationNetwork {
     {
         unimplemented!("not implemented");
     }
-    async fn broadcast(&self, _message: &[u8]) -> Result<(), String> {
+    async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
         unimplemented!("not implemented");
+    }
+    async fn stop_braodcast(&self, _token: BroadcastToken) -> Result<(), String> {
+        unimplemented!();
     }
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()> {
         unimplemented!("not implemented");
