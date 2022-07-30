@@ -39,6 +39,12 @@ impl AuthorizedNetwork for PropagationNetwork {
     async fn stop_braodcast(&self, _token: BroadcastToken) -> Result<(), String> {
         unimplemented!();
     }
+    async fn get_broadcast_status(
+        &self,
+        _token: BroadcastToken,
+    ) -> Result<BroadcastStatus, String> {
+        unimplemented!();
+    }
     async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()> {
         unimplemented!("not implemented");
     }
