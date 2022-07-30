@@ -1,15 +1,22 @@
-use std::net::SocketAddrV4;
-
-use async_trait::async_trait;
-use tokio::sync::mpsc;
-
+mod behaviour;
 use crate::AuthorizedNetwork;
+use async_trait::async_trait;
+use behaviour::Behaviour;
 use simperby_common::crypto::*;
+use std::net::SocketAddrV4;
+use tokio::sync::{mpsc, Mutex};
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
+///
 /// This network discovers peers with Kademlia([`libp2p::kad`]),
 /// and propagates data with FloodSub([`libp2p::floodsub`]).
-pub struct PropagationNetwork {}
+pub struct PropagationNetwork {
+    /// A custom libp2p network behaviour.
+    ///
+    /// It collects other network behaviours to extend their functionalities,
+    /// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
+    _behaviour: Mutex<Behaviour>,
+}
 
 #[async_trait]
 impl AuthorizedNetwork for PropagationNetwork {
