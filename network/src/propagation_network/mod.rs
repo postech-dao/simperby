@@ -88,7 +88,7 @@ impl AuthorizedNetwork for PropagationNetwork {
         })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
     async fn stop_broadcast(&self, _token: BroadcastToken) -> Result<(), String> {
         unimplemented!();
@@ -103,7 +103,7 @@ impl AuthorizedNetwork for PropagationNetwork {
         Ok(self.sender.subscribe())
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 }
 
@@ -173,21 +173,21 @@ mod test {
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.
     fn broadcast_once() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
     #[ignore]
     /// Test if all nodes receive multiple messages from a single broadcasting node.
     fn broadcast_multiple_times() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes.
     fn broadcast_from_multiple_nodes() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
@@ -195,14 +195,14 @@ mod test {
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes
     /// when several nodes are joining and leaving the network.
     fn broadcast_from_multiple_nodes_with_flexible_network() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
     #[ignore]
     /// Test if all nodes correctly retrieve the list of all nodes in the network.
     fn get_live_list_once() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
@@ -210,7 +210,7 @@ mod test {
     /// Test if all nodes correctly retrieve the list of all nodes in the network multiple times
     /// with several time intervals.
     fn get_live_list_multiple_times() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 
     #[test]
@@ -218,6 +218,6 @@ mod test {
     /// Test if all nodes correctly retrieve lists of all nodes in the network
     /// whenever several nodes join and leave the network.
     fn get_live_list_with_flexible_network() {
-        unimplemented!("not implemented");
+        unimplemented!();
     }
 }
