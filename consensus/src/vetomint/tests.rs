@@ -35,7 +35,7 @@ fn success_trivial_1() {
     );
 
     // STEP 2: Prevote.
-    for validator_index in 0..=4 {
+    for validator_index in 0..=2 {
         let event = ConsensusEvent::Prevote {
             proposal: 0,
             round: 0,
@@ -48,7 +48,7 @@ fn success_trivial_1() {
     let event = ConsensusEvent::Prevote {
         proposal: 0,
         round: 0,
-        signer: 5,
+        signer: 3,
         time: 3,
     };
     let response = progress(&height_info, &mut state, event);
@@ -61,7 +61,7 @@ fn success_trivial_1() {
     );
 
     // STEP 3: Prevote.
-    for validator_index in 0..=4 {
+    for validator_index in 0..=2 {
         let event = ConsensusEvent::Precommit {
             proposal: 0,
             round: 0,
@@ -74,7 +74,7 @@ fn success_trivial_1() {
     let event = ConsensusEvent::Precommit {
         proposal: 0,
         round: 0,
-        signer: 5,
+        signer: 3,
         time: 4,
     };
     let response = progress(&height_info, &mut state, event);
