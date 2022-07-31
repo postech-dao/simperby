@@ -108,11 +108,11 @@ async fn run_background_task(send_queue: mpsc::Sender<Vec<u8>>) {
 mod test {
     use std::collections::HashSet;
 
-    use futures::executor::block_on;
-    use rand;
-    use libp2p::{PeerId, multiaddr::Protocol};
-    use simperby_common::crypto;
     use super::*;
+    use futures::executor::block_on;
+    use libp2p::{multiaddr::Protocol, PeerId};
+    use rand;
+    use simperby_common::crypto;
 
     /// A helper struct for the tests.
     struct Node {
@@ -154,7 +154,8 @@ mod test {
                 Vec::new(),
                 bootstrap_points.clone(),
                 "test".to_string(),
-            )).expect("Failed to construct PropagationNetwork");
+            ))
+            .expect("Failed to construct PropagationNetwork");
             node.network = Some(network);
 
             // Add newly joined node to the bootstrap points.
@@ -168,7 +169,9 @@ mod test {
                     }
                 };
                 let ipv4_addr = loop {
-                    if let Protocol::Ip4(ipv4_addr) = multiaddr.pop().expect("It should use IPv4 address") {
+                    if let Protocol::Ip4(ipv4_addr) =
+                        multiaddr.pop().expect("It should use IPv4 address")
+                    {
                         break ipv4_addr;
                     }
                 };
