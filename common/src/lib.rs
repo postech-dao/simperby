@@ -84,7 +84,7 @@ impl BlockHeader {
         for (public_key, signature) in block_finalization_proof {
             if !signature.verify(self.hash(), public_key) {
                 return Err(format!(
-                    "Invalid finalization proof: {}, {}",
+                    "Invalid finalization proof - signature verification failure {}, {}",
                     public_key, signature
                 ));
             }
@@ -98,7 +98,7 @@ impl BlockHeader {
         }
         if voted_voting_power * 3 <= total_voting_power * 2 {
             return Err(format!(
-                "Invalid finalization proof: voted voting power is too low: {} / {}",
+                "Invalid finalization proof - voted voting power is too low: {} / {}",
                 voted_voting_power, total_voting_power
             ));
         }
