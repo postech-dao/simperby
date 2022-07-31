@@ -7,6 +7,7 @@ fn success_trivial_1() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
+        consensus_params: ConsensusParams { timeout_ms: 1000 },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
