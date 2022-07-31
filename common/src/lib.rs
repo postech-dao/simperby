@@ -90,12 +90,12 @@ impl BlockHeader {
             }
             voted_validators.insert(public_key);
         }
-        let mut voted_voting_power: u64 = 0;
-        for (validator, voting_power) in &self.validator_set {
-            if voted_validators.contains(validator) {
-                voted_voting_power += voting_power;
-            }
-        }
+        let voted_voting_power: u64 = self
+            .validator_set
+            .iter()
+            .filter(|(v, _)| voted_validators.contains(v))
+            .map(|(_, power)| power)
+            .sum();
         if voted_voting_power * 3 <= total_voting_power * 2 {
             return Err(format!(
                 "Invalid finalization proof - voted voting power is too low: {} / {}",
