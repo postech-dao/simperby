@@ -5,15 +5,21 @@ use std::fmt;
 /// A cryptographic hash.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Hash256 {
-    pub dummy: String,
+    pub hash: [u8; 32],
 }
 
 impl Hash256 {
     /// Hashes the given data.
-    pub fn hash(_data: impl AsRef<[u8]>) -> Self {
+    pub fn hash(data: impl AsRef<[u8]>) -> Self {
         Hash256 {
-            dummy: "".to_string(),
+            hash: *blake3::hash(data.as_ref()).as_bytes(),
         }
+    }
+}
+
+impl std::convert::AsRef<[u8]> for Hash256 {
+    fn as_ref(&self) -> &[u8] {
+        &self.hash
     }
 }
 
