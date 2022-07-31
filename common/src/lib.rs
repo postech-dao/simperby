@@ -1,5 +1,7 @@
 pub mod crypto;
 
+use std::collections::BTreeSet;
+
 use crypto::*;
 use serde::{Deserialize, Serialize};
 
@@ -26,5 +28,78 @@ pub struct BlockHeader {
 impl BlockHeader {
     pub fn hash(&self) -> Hash256 {
         unimplemented!()
+    }
+
+    /// Verifies whether the given block header is a valid successor of this block.
+    ///
+    /// Note that you still need to verify the block body and the finalization proof.
+    pub fn verify_next_block(&self, header: &BlockHeader) -> Result<(), String> {
+        if header.height != self.height + 1 {
+            return Err(format!(
+                "Invalid height: expected {}, got {}",
+                self.height + 1,
+                header.height
+            ));
+        }
+        if header.previous_hash != self.hash() {
+            return Err(format!(
+                "Invalid previous hash: expected {}, got {}",
+                self.hash(),
+                header.previous_hash
+            ));
+        }
+        if !self
+            .validator_set
+            .iter()
+            .any(|(pk, _)| pk == &header.author)
+        {
+            return Err(format!("Invalid author: got {}", header.author));
+        }
+        if header.timestamp < self.timestamp {
+            return Err(format!(
+                "Invalid timestamp: expected larger than {}, got {}",
+                self.timestamp, header.timestamp
+            ));
+        }
+        for (public_key, signature) in &header.prev_block_finalization_proof {
+            if !signature.verify(self.hash(), public_key) {
+                return Err(format!(
+                    "Invalid prev_block_finalization_proof: {}, {}",
+                    public_key, signature
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn verify_finalization_proof(
+        &self,
+        block_finalization_proof: &[(PublicKey, Signature)],
+    ) -> Result<(), String> {
+        let total_voting_power: u64 = self.validator_set.iter().map(|(_, v)| v).sum();
+        // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
+        let mut voted_validators = BTreeSet::new();
+        for (public_key, signature) in block_finalization_proof {
+            if !signature.verify(self.hash(), public_key) {
+                return Err(format!(
+                    "Invalid finalization proof: {}, {}",
+                    public_key, signature
+                ));
+            }
+            voted_validators.insert(public_key);
+        }
+        let mut voted_voting_power: u64 = 0;
+        for (validator, votin_power) in &self.validator_set {
+            if voted_validators.contains(validator) {
+                voted_voting_power += votin_power;
+            }
+        }
+        if voted_voting_power * 3 <= total_voting_power * 2 {
+            return Err(format!(
+                "Invalid finalization proof: voted voting power is too low: {} / {}",
+                voted_voting_power, total_voting_power
+            ));
+        }
+        Ok(())
     }
 }
