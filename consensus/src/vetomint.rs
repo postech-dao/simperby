@@ -2,12 +2,19 @@ mod progress;
 #[cfg(test)]
 mod tests;
 
+use serde::{Deserialize, Serialize};
+
 /// An index of the validator, which is for a single height. (Mapping from the actual public key to the index may differ for different heights.)
 pub type ValidatorIndex = usize;
 /// An identifier of the block, which is uniquely mapped to a block. Like `ValidatorIndex`, it is for a single height. (Mapping from the actual block to the index may differ for different heights.)
 pub type BlockIdentifier = usize;
 /// A UNIX timestamp measured in milliseconds.
 pub type Timestamp = i64;
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ConsensusParams {
+    pub timeout_ms: u64,
+}
 
 /// An event that (potentially) triggers a state transition of `StateMachine`.
 ///
@@ -110,6 +117,9 @@ pub struct HeightInfo {
 
     /// The timestamp of the beginning of the round 0.
     pub timestamp: Timestamp,
+
+    /// The consensus parameters
+    pub consensus_params: ConsensusParams,
 }
 
 /// The state of the consensus during a single height.
