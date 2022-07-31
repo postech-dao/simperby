@@ -21,7 +21,9 @@ pub struct BlockHeader {
     pub tx_merkle_root: Hash256,
     /// The Merkle root of the state.
     pub state_merkle_root: Hash256,
-    /// The hash of the set of validator & vote weight for the next block.
+    /// The set of validator & voteing power for the next block.
+    ///
+    /// The order here is same as the order of leaders in each round.
     pub validator_set: Vec<(PublicKey, u64)>,
 }
 
