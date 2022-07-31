@@ -3,7 +3,7 @@ mod behaviour;
 use super::*;
 use async_trait::async_trait;
 use behaviour::Behaviour;
-use libp2p::identity::Keypair;
+use libp2p::{development_transport, identity::Keypair, swarm::Swarm, PeerId};
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
 use tokio::{
@@ -16,11 +16,10 @@ use tokio::{
 /// This network discovers peers with Kademlia([`libp2p::kad`]),
 /// and propagates data with FloodSub([`libp2p::floodsub`]).
 pub struct PropagationNetwork {
-    /// A custom libp2p network behaviour.
+    /// A libp2p network status manager.
     ///
-    /// It collects other network behaviours to extend their functionalities,
-    /// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
-    _behaviour: Mutex<Behaviour>,
+    /// Contains the state of the network and the way it should behave.
+    _swarm: Mutex<Swarm<Behaviour>>,
 
     /// A join handle for background network task.
     ///
@@ -48,8 +47,16 @@ impl AuthorizedNetwork for PropagationNetwork {
         // Note: This is a dummy implementation.
         // Todo: Convert `public_key` into `libp2p::identity::PublicKey`,
         let local_keypair = Keypair::generate_ed25519();
+        let local_peer_id = PeerId::from(local_keypair.public());
 
-        let behaviour = Mutex::new(Behaviour::new(local_keypair.public()));
+        let behaviour = Behaviour::new(local_keypair.public());
+
+        let transport = match development_transport(local_keypair).await {
+            Ok(transport) => transport,
+            // Todo: Use an error type of this crate.
+            Err(_) => return Err("Failed to create a transport.".to_string()),
+        };
+        let swarm = Mutex::new(Swarm::new(transport, behaviour, local_peer_id));
 
         // Create a message queue that a simperby node will use to receive messages from other nodes.
         // Todo: Choose a proper buffer size for `mpsc::channel`.
@@ -57,7 +64,7 @@ impl AuthorizedNetwork for PropagationNetwork {
         let _task_join_handle = task::spawn(run_background_task(send_queue));
 
         Ok(Self {
-            _behaviour: behaviour,
+            _swarm: swarm,
             _task_join_handle,
             receive_queue,
         })
