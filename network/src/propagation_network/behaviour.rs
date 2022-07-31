@@ -7,6 +7,10 @@ use libp2p::{
 };
 use std::time::Duration;
 
+/// A libp2p network behaviour.
+///
+/// It collects other network behaviours to extend their functionalities,
+/// and implements [`libp2p::swarm::NetworkBehaviour`] as well.
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct Behaviour {
