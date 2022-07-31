@@ -57,7 +57,7 @@ impl BlockHeader {
         {
             return Err(format!("Invalid author: got {}", header.author));
         }
-        if header.timestamp < self.timestamp {
+        if header.timestamp <= self.timestamp {
             return Err(format!(
                 "Invalid timestamp: expected larger than {}, got {}",
                 self.timestamp, header.timestamp
