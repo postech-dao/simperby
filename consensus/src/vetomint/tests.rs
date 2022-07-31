@@ -1,7 +1,5 @@
 use super::*;
 
-const TIMEOUT: i64 = 1;
-
 #[ignore]
 #[test]
 fn success_trivial_1() {
@@ -93,6 +91,7 @@ fn success_trivial_2() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
+        consensus_params: ConsensusParams { timeout_ms: 1000 },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
@@ -136,7 +135,8 @@ fn success_trivial_2() {
         signer: 4,
         time: 3,
     };
-    let event = ConsensusEvent::Timer { time: 3 + TIMEOUT };
+    let timeout_ms_height = height_info.consensus_params.timeout_ms as i64;
+    let event = ConsensusEvent::Timer { time: timeout_ms_height };
 
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
@@ -153,7 +153,7 @@ fn success_trivial_2() {
             proposal: 0,
             round: 0,
             signer: validator_index,
-            time: 5,
+            time: timeout_ms_height + 1,
         };
         let response = progress(&height_info, &mut state, event);
         assert!(response.is_empty());
@@ -162,7 +162,7 @@ fn success_trivial_2() {
         proposal: 0,
         round: 0,
         signer: 4,
-        time: 5,
+        time: timeout_ms_height + 1,
     };
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
@@ -178,6 +178,7 @@ fn success_trivial_nil_1() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
+        consensus_params: ConsensusParams { timeout_ms: 1000 },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
@@ -255,6 +256,7 @@ fn success_trivial_nil_2() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
+        consensus_params: ConsensusParams { timeout_ms: 1000 },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
@@ -336,6 +338,7 @@ fn success_trivial_nil_3() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
+        consensus_params: ConsensusParams { timeout_ms: 1000 },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
@@ -378,7 +381,8 @@ fn success_trivial_nil_3() {
         time: 3,
     };
 
-    let event = ConsensusEvent::Timer { time: 3 + TIMEOUT };
+    let timeout_ms_height = height_info.consensus_params.timeout_ms as i64;
+    let event = ConsensusEvent::Timer {time: timeout_ms_height};
 
     let response = progress(&height_info, &mut state, event);
     assert_eq!(
@@ -394,7 +398,7 @@ fn success_trivial_nil_3() {
         let event = ConsensusEvent::NilPrecommit {
             round: 0,
             signer: validator_index,
-            time: 5,
+            time: timeout_ms_height + 1,
         };
         let response = progress(&height_info, &mut state, event);
         assert!(response.is_empty());
@@ -402,7 +406,7 @@ fn success_trivial_nil_3() {
     let event = ConsensusEvent::NilPrecommit {
         round: 0,
         signer: 5,
-        time: 5,
+        time: timeout_ms_height + 1,
     };
     let response = progress(&height_info, &mut state, event);
     assert_ne!(
