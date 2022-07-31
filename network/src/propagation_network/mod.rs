@@ -169,6 +169,107 @@ impl PropagationNetwork {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use rand;
+    use std::collections::HashSet;
+
+    /// A helper struct for the tests.
+    struct Node {
+        public_key: PublicKey,
+        private_key: PrivateKey,
+        id: PeerId,
+        network: Option<PropagationNetwork>,
+    }
+
+    impl Node {
+        /// Generate a node with random key.
+        fn new_random() -> Self {
+            let seed: Vec<u8> = (0..16).map(|_| rand::random()).collect();
+            let (public_key, private_key) = generate_keypair(seed);
+            Self {
+                id: PeerId::from(convert_public_key(&public_key, &private_key)),
+                public_key,
+                private_key,
+                network: None,
+            }
+        }
+    }
+
+    /// A helper function with type conversion.
+    fn convert_public_key(
+        public_key: &PublicKey,
+        private_key: &PrivateKey,
+    ) -> libp2p::identity::PublicKey {
+        let mut keypair_bytes = private_key.as_ref().to_vec();
+        keypair_bytes.extend(public_key.as_ref());
+        // Todo: Handle returned error.
+        let keypair = Keypair::Ed25519(
+            ed25519::Keypair::decode(&mut keypair_bytes).expect("invalid keypair was given"),
+        );
+        keypair.public()
+    }
+
+    /// A helper test function with an argument.
+    async fn discovery_with_n_nodes_sequential(n: usize) {
+        let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
+        let mut bootstrap_points = Vec::new();
+
+        // Create n nodes.
+        for i in 0..n {
+            let node = nodes.get_mut(i).unwrap();
+            let network = PropagationNetwork::new(
+                node.public_key.clone(),
+                node.private_key.clone(),
+                Vec::new(),
+                bootstrap_points.clone(),
+                "test".to_string(),
+            )
+            .await
+            .expect("Failed to construct PropagationNetwork");
+            node.network = Some(network);
+
+            // Add newly joined node to the bootstrap points.
+            let network = node.network.as_ref().unwrap();
+            for listen_address in network.get_listen_addresses().await {
+                bootstrap_points.push(listen_address);
+            }
+        }
+
+        // Test if every node has filled its routing table correctly.
+        for node in &nodes {
+            let network = node.network.as_ref().unwrap();
+            let connected_peers = network
+                .get_connected_peers()
+                .await
+                .into_iter()
+                .collect::<HashSet<PeerId>>();
+            for peer in &nodes {
+                if peer.id == node.id {
+                    continue;
+                }
+                assert!(connected_peers.contains(&peer.id));
+            }
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a tiny network when they join the network sequentially.
+    /// (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20)
+    async fn discovery_with_tiny_network_sequential() {
+        discovery_with_n_nodes_sequential(5).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a small network when they join the network sequentially.
+    /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
+    async fn discovery_with_small_network_sequential() {
+        discovery_with_n_nodes_sequential(libp2p::kad::K_VALUE.into()).await;
+    }
+
     #[tokio::test]
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.

@@ -15,3 +15,6 @@ futures = "0.3"
 log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
 libp2p = "0.46.1"
+
+[dev-dependencies]
+rand = "0.8.5"
