@@ -106,6 +106,107 @@ async fn run_background_task(send_queue: mpsc::Sender<Vec<u8>>) {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashSet;
+
+    use futures::executor::block_on;
+    use rand;
+    use libp2p::{PeerId, multiaddr::Protocol};
+    use simperby_common::crypto;
+    use super::*;
+
+    /// A helper struct for the tests.
+    struct Node {
+        public_key: crypto::PublicKey,
+        private_key: crypto::PrivateKey,
+        id: PeerId,
+        network: Option<PropagationNetwork>,
+    }
+
+    impl Node {
+        /// Generate a node with random key.
+        fn new_random() -> Self {
+            let seed: Vec<u8> = (0..16).map(|_| rand::random()).collect();
+            let (public_key, private_key) = simperby_common::crypto::generate_keypair(seed);
+            Self {
+                id: PeerId::from(convert_public_key(&public_key)),
+                public_key,
+                private_key,
+                network: None,
+            }
+        }
+    }
+
+    /// A helper function with type conversion.
+    fn convert_public_key(_simperby_public_key: &crypto::PublicKey) -> libp2p::identity::PublicKey {
+        unimplemented!();
+    }
+
+    /// A helper test function with an argument.
+    fn discovery_with_n_nodes(n: usize) {
+        let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
+        let mut bootstrap_points = Vec::new();
+        // Create n nodes.
+        for i in 0..n {
+            let node = nodes.get_mut(i).unwrap();
+            let network = block_on(PropagationNetwork::new(
+                node.public_key.clone(),
+                node.private_key.clone(),
+                Vec::new(),
+                bootstrap_points.clone(),
+                "test".to_string(),
+            )).expect("Failed to construct PropagationNetwork");
+            node.network = Some(network);
+
+            // Add newly joined node to the bootstrap points.
+            let network = node.network.as_ref().unwrap();
+            let swarm = block_on(network._swarm.lock());
+            for multiaddr in swarm.listeners() {
+                let mut multiaddr = multiaddr.clone();
+                let port = loop {
+                    if let Protocol::Tcp(port) = multiaddr.pop().expect("It should listen on TCP") {
+                        break port;
+                    }
+                };
+                let ipv4_addr = loop {
+                    if let Protocol::Ip4(ipv4_addr) = multiaddr.pop().expect("It should use IPv4 address") {
+                        break ipv4_addr;
+                    }
+                };
+                let address = SocketAddrV4::new(ipv4_addr, port);
+                bootstrap_points.push(address);
+            }
+        }
+
+        // Test if every node has filled its routing table correctly.
+        for node in &nodes {
+            let network = node.network.as_ref().unwrap();
+            let swarm = block_on(network._swarm.lock());
+            let connected_peers = swarm.connected_peers().collect::<HashSet<&PeerId>>();
+            for peer in &nodes {
+                if peer.id == node.id {
+                    continue;
+                }
+                assert!(connected_peers.contains(&peer.id));
+            }
+        }
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a tiny network (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20).
+    fn discovery_with_tiny_network() {
+        discovery_with_n_nodes(5);
+    }
+
+    #[test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a small network (network_size = [`libp2p::kad::K_VALUE`] = 20).
+    fn discovery_with_small_network() {
+        discovery_with_n_nodes(libp2p::kad::K_VALUE.into());
+    }
+
     #[test]
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.
