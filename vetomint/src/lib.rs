@@ -1,6 +1,4 @@
 mod progress;
-#[cfg(test)]
-mod tests;
 
 use serde::{Deserialize, Serialize};
 

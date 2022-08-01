@@ -6,6 +6,6 @@ members = [
     "merkle-tree",
     "network",
     "kv-store",
-    "consensus",
+    "vetomint",
     "light-client"
 ]
