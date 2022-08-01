@@ -45,21 +45,21 @@ impl KVStore for RocksDB {
         unimplemented!("not implemented");
     }
     async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), ()> {
-        let result = self.db.put(key.dummy, value);
+        let result = self.db.put(key.as_ref(), value);
         match result {
             Ok(_) => Ok(()),
             Err(_) => Err(()),
         }
     }
     async fn remove(&mut self, key: Hash256) -> Result<(), ()> {
-        let result = self.db.delete(key.dummy);
+        let result = self.db.delete(key.as_ref());
         match result {
             Ok(_) => Ok(()),
             Err(_) => Err(()),
         }
     }
     async fn get(&self, key: Hash256) -> Result<Option<Vec<u8>>, ()> {
-        let result = self.db.get(key.dummy);
+        let result = self.db.get(key.as_ref());
         match result {
             Ok(v) => Ok(v),
             Err(_) => Err(()),
