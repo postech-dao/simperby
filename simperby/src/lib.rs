@@ -1,7 +1,25 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
-use simperby_consensus::*;
+use simperby_common::*;
+use simperby_kv_store::KVStore;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct Block<T> {
+    pub header: BlockHeader,
+    pub transactions: Vec<T>,
+}
+
+/// A state transition function.
+#[async_trait]
+pub trait BlockExecutor {
+    type Transaction;
+    async fn execute(
+        &self,
+        store: &mut dyn KVStore,
+        transaction: Self::Transaction,
+    ) -> Result<(), ()>;
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum StateTransition {
