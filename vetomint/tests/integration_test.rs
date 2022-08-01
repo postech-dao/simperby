@@ -1,4 +1,4 @@
-use super::*;
+use vetomint::*;
 
 #[ignore]
 #[test]
