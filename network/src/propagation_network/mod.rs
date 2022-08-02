@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use behaviour::Behaviour;
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
-use tokio::sync::{mpsc, Mutex};
+
+use tokio::sync::{broadcast, Mutex};
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
 ///
@@ -45,7 +46,7 @@ impl AuthorizedNetwork for PropagationNetwork {
     ) -> Result<BroadcastStatus, String> {
         unimplemented!();
     }
-    async fn create_recv_queue(&self) -> Result<mpsc::Receiver<Vec<u8>>, ()> {
+    async fn create_recv_queue(&self) -> Result<broadcast::Receiver<Vec<u8>>, ()> {
         unimplemented!("not implemented");
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
