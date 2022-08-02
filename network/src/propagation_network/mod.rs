@@ -7,7 +7,7 @@ use libp2p::{development_transport, identity::Keypair, swarm::Swarm, PeerId};
 use simperby_common::crypto::*;
 use std::net::SocketAddrV4;
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::{broadcast, Mutex},
     task,
 };
 
@@ -26,10 +26,11 @@ pub struct PropagationNetwork {
     /// The task running behind this handle is the main routine of [`PropagationNetwork`].
     _task_join_handle: task::JoinHandle<()>,
 
-    /// A message queue that collects broadcasted messages through the network.
+    /// A sending endpoint of the queue that collects broadcasted messages through the network
+    /// and sends it to the simperby node.
     ///
-    /// A simperby node can obtain this queue by calling [`PropagationNetwork::create_receive_queue`].
-    receive_queue: mpsc::Receiver<Vec<u8>>,
+    /// The receiving endpoint of the queue can be obtained using [`PropagationNetwork::create_receive_queue`].
+    sender: broadcast::Sender<Vec<u8>>,
 }
 
 #[async_trait]
@@ -60,13 +61,13 @@ impl AuthorizedNetwork for PropagationNetwork {
 
         // Create a message queue that a simperby node will use to receive messages from other nodes.
         // Todo: Choose a proper buffer size for `mpsc::channel`.
-        let (send_queue, receive_queue) = mpsc::channel::<Vec<u8>>(100);
-        let _task_join_handle = task::spawn(run_background_task(send_queue));
+        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(100);
+        let _task_join_handle = task::spawn(run_background_task(sender.clone()));
 
         Ok(Self {
             _swarm: swarm,
             _task_join_handle,
-            receive_queue,
+            sender,
         })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
@@ -81,24 +82,21 @@ impl AuthorizedNetwork for PropagationNetwork {
     ) -> Result<BroadcastStatus, String> {
         unimplemented!();
     }
-    async fn create_recv_queue(&self) -> Result<&mpsc::Receiver<Vec<u8>>, ()> {
-        Ok(&self.receive_queue)
+    async fn create_recv_queue(&self) -> Result<broadcast::Receiver<Vec<u8>>, ()> {
+        // pub fn subscribe(&self) -> Receiver<T>
+        Ok(self.sender.subscribe())
     }
     async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
         unimplemented!();
     }
 }
 
-async fn run_background_task(send_queue: mpsc::Sender<Vec<u8>>) {
+async fn run_background_task(send_queue: broadcast::Sender<Vec<u8>>) {
     // Note: This is a dummy logic.
     // Todo: Loop to listen on `libp2p::Swarm::SwarmEvent`.
     //       Simperby network logic will be based on SwarmEvents.
     loop {
-        if send_queue
-            .send("some value".as_bytes().to_vec())
-            .await
-            .is_err()
-        {
+        if send_queue.send("some value".as_bytes().to_vec()).is_err() {
             panic!("Receive end is closed");
         }
     }
