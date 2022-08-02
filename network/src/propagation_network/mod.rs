@@ -104,13 +104,14 @@ async fn run_background_task(send_queue: broadcast::Sender<Vec<u8>>) {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
-
     use super::*;
     use futures::executor::block_on;
     use libp2p::{multiaddr::Protocol, PeerId};
     use rand;
     use simperby_common::crypto;
+    use std::collections::HashSet;
+    use std::thread::sleep;
+    use std::time::Duration;
 
     /// A helper struct for the tests.
     struct Node {
@@ -140,9 +141,10 @@ mod test {
     }
 
     /// A helper test function with an argument.
-    fn discovery_with_n_nodes(n: usize) {
+    fn discovery_with_n_nodes(n: usize, sleep_duration: Duration) {
         let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
         let mut bootstrap_points = Vec::new();
+
         // Create n nodes.
         for i in 0..n {
             let node = nodes.get_mut(i).unwrap();
@@ -178,6 +180,9 @@ mod test {
             }
         }
 
+        // Wait for a possibly short duration for the nodes to finish bootstrapping.
+        sleep(sleep_duration);
+
         // Test if every node has filled its routing table correctly.
         for node in &nodes {
             let network = node.network.as_ref().unwrap();
@@ -197,7 +202,7 @@ mod test {
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a tiny network (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20).
     fn discovery_with_tiny_network() {
-        discovery_with_n_nodes(5);
+        discovery_with_n_nodes(5, Duration::from_secs(1));
     }
 
     #[test]
@@ -205,7 +210,7 @@ mod test {
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a small network (network_size = [`libp2p::kad::K_VALUE`] = 20).
     fn discovery_with_small_network() {
-        discovery_with_n_nodes(libp2p::kad::K_VALUE.into());
+        discovery_with_n_nodes(libp2p::kad::K_VALUE.into(), Duration::from_secs(1));
     }
 
     #[test]
