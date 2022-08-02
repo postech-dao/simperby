@@ -105,13 +105,13 @@ async fn run_background_task(send_queue: broadcast::Sender<Vec<u8>>) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use futures::executor::block_on;
     use libp2p::{multiaddr::Protocol, PeerId};
     use rand;
     use simperby_common::crypto;
     use std::collections::HashSet;
     use std::thread::sleep;
     use std::time::Duration;
+    use tokio;
 
     /// A helper struct for the tests.
     struct Node {
@@ -141,26 +141,27 @@ mod test {
     }
 
     /// A helper test function with an argument.
-    fn discovery_with_n_nodes(n: usize, sleep_duration: Duration) {
+    async fn discovery_with_n_nodes(n: usize, sleep_duration: Duration) {
         let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
         let mut bootstrap_points = Vec::new();
 
         // Create n nodes.
         for i in 0..n {
             let node = nodes.get_mut(i).unwrap();
-            let network = block_on(PropagationNetwork::new(
+            let network = PropagationNetwork::new(
                 node.public_key.clone(),
                 node.private_key.clone(),
                 Vec::new(),
                 bootstrap_points.clone(),
                 "test".to_string(),
-            ))
+            )
+            .await
             .expect("Failed to construct PropagationNetwork");
             node.network = Some(network);
 
             // Add newly joined node to the bootstrap points.
             let network = node.network.as_ref().unwrap();
-            let swarm = block_on(network._swarm.lock());
+            let swarm = network._swarm.lock().await;
             for multiaddr in swarm.listeners() {
                 let mut multiaddr = multiaddr.clone();
                 let port = loop {
@@ -186,7 +187,7 @@ mod test {
         // Test if every node has filled its routing table correctly.
         for node in &nodes {
             let network = node.network.as_ref().unwrap();
-            let swarm = block_on(network._swarm.lock());
+            let swarm = network._swarm.lock().await;
             let connected_peers = swarm.connected_peers().collect::<HashSet<&PeerId>>();
             for peer in &nodes {
                 if peer.id == node.id {
@@ -197,71 +198,71 @@ mod test {
         }
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a tiny network (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20).
-    fn discovery_with_tiny_network() {
-        discovery_with_n_nodes(5, Duration::from_secs(1));
+    async fn discovery_with_tiny_network() {
+        discovery_with_n_nodes(5, Duration::from_secs(1)).await;
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a small network (network_size = [`libp2p::kad::K_VALUE`] = 20).
-    fn discovery_with_small_network() {
-        discovery_with_n_nodes(libp2p::kad::K_VALUE.into(), Duration::from_secs(1));
+    async fn discovery_with_small_network() {
+        discovery_with_n_nodes(libp2p::kad::K_VALUE.into(), Duration::from_secs(1)).await;
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.
-    fn broadcast_once() {
+    async fn broadcast_once() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receive multiple messages from a single broadcasting node.
-    fn broadcast_multiple_times() {
+    async fn broadcast_multiple_times() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes.
-    fn broadcast_from_multiple_nodes() {
+    async fn broadcast_from_multiple_nodes() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes
     /// when several nodes are joining and leaving the network.
-    fn broadcast_from_multiple_nodes_with_flexible_network() {
+    async fn broadcast_from_multiple_nodes_with_flexible_network() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve the list of all nodes in the network.
-    fn get_live_list_once() {
+    async fn get_live_list_once() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve the list of all nodes in the network multiple times
     /// with several time intervals.
-    fn get_live_list_multiple_times() {
+    async fn get_live_list_multiple_times() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve lists of all nodes in the network
     /// whenever several nodes join and leave the network.
-    fn get_live_list_with_flexible_network() {
+    async fn get_live_list_with_flexible_network() {
         unimplemented!();
     }
 }
