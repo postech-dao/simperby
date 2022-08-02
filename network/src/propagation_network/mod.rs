@@ -169,55 +169,55 @@ impl PropagationNetwork {
 
 #[cfg(test)]
 mod test {
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.
-    fn broadcast_once() {
+    async fn broadcast_once() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receive multiple messages from a single broadcasting node.
-    fn broadcast_multiple_times() {
+    async fn broadcast_multiple_times() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes.
-    fn broadcast_from_multiple_nodes() {
+    async fn broadcast_from_multiple_nodes() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes
     /// when several nodes are joining and leaving the network.
-    fn broadcast_from_multiple_nodes_with_flexible_network() {
+    async fn broadcast_from_multiple_nodes_with_flexible_network() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve the list of all nodes in the network.
-    fn get_live_list_once() {
+    async fn get_live_list_once() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve the list of all nodes in the network multiple times
     /// with several time intervals.
-    fn get_live_list_multiple_times() {
+    async fn get_live_list_multiple_times() {
         unimplemented!();
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
     /// Test if all nodes correctly retrieve lists of all nodes in the network
     /// whenever several nodes join and leave the network.
-    fn get_live_list_with_flexible_network() {
+    async fn get_live_list_with_flexible_network() {
         unimplemented!();
     }
 }
