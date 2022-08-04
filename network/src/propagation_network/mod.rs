@@ -7,6 +7,7 @@ use futures::StreamExt;
 use libp2p::{
     development_transport,
     identity::{ed25519, Keypair},
+    multiaddr::Protocol,
     swarm::Swarm,
     PeerId,
 };
@@ -34,7 +35,7 @@ pub struct PropagationNetwork {
     sender: broadcast::Sender<Vec<u8>>,
 
     /// A top-level network interface provided by libp2p.
-    _swarm: Arc<Mutex<Swarm<Behaviour>>>,
+    swarm: Arc<Mutex<Swarm<Behaviour>>>,
 }
 
 #[async_trait]
@@ -83,7 +84,7 @@ impl AuthorizedNetwork for PropagationNetwork {
         Ok(Self {
             _task_join_handle,
             sender,
-            _swarm: swarm.clone(),
+            swarm: swarm.clone(),
         })
     }
     async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
@@ -127,6 +128,42 @@ async fn run_background_task(
             _ = lock_release_timer.tick() => ()
         }
         // The lock for swarm is automatically released here.
+    }
+}
+
+impl PropagationNetwork {
+    #[allow(dead_code)]
+    /// Returns the peers currently in contact.
+    async fn get_connected_peers(&self) -> Vec<PeerId> {
+        let swarm = self.swarm.lock().await;
+        swarm.connected_peers().copied().collect()
+    }
+
+    #[allow(dead_code)]
+    /// Returns the socketv4 addresses to which the listeners are bound.
+    async fn get_listen_addresses(&self) -> Vec<SocketAddrV4> {
+        let swarm = self.swarm.lock().await;
+
+        // Convert `Multiaddr` into `SocketAddrV4`.
+        let mut listen_addresses = Vec::new();
+        for mut multiaddr in swarm.listeners().cloned() {
+            let port = loop {
+                if let Protocol::Tcp(port) = multiaddr.pop().expect("The node should listen on TCP")
+                {
+                    break port;
+                }
+            };
+            let ipv4_addr = loop {
+                if let Protocol::Ip4(ipv4_addr) =
+                    multiaddr.pop().expect("The node should use IPv4 address")
+                {
+                    break ipv4_addr;
+                }
+            };
+            listen_addresses.push(SocketAddrV4::new(ipv4_addr, port));
+        }
+
+        listen_addresses
     }
 }
 
