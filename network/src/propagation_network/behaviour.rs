@@ -17,18 +17,18 @@ pub struct Behaviour {
     /// A network behaviour that identifies connected peers.
     ///
     /// Information of the identified peer contains its public key, listen addresses, etc.
-    identify: Identify,
+    pub(crate) identify: Identify,
     /// A network behaviour that implement Kademlia Distributed Hash Table (Kademlia DHT).
     ///
     /// Storing and retrieving items in/from the DHT do not occur in this crate.
     /// Instead, kademlia continuously discovers k closest peers
     /// to maintain k connections with its neighbors.
-    kademlia: Kademlia<MemoryStore>,
+    pub(crate) kademlia: Kademlia<MemoryStore>,
     /// A network behaviour that implements PubSub message passing protocol.
     ///
     /// It tries to propagate a message to all peers that it has connections with,
     /// thus flooding the network with messages.
-    floodsub: Floodsub,
+    pub(crate) floodsub: Floodsub,
 }
 
 impl Behaviour {
