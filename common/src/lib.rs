@@ -64,12 +64,9 @@ impl BlockHeader {
             ));
         }
         for (public_key, signature) in &header.prev_block_finalization_proof {
-            if !signature.verify(self.hash(), public_key) {
-                return Err(format!(
-                    "Invalid prev_block_finalization_proof: {}, {}",
-                    public_key, signature
-                ));
-            }
+            signature
+                .verify(self.hash(), public_key)
+                .map_err(|e| format!("Invalid prev_block_finalization_proof - {}", e))?;
         }
         Ok(())
     }
@@ -82,12 +79,9 @@ impl BlockHeader {
         // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
         let mut voted_validators = BTreeSet::new();
         for (public_key, signature) in block_finalization_proof {
-            if !signature.verify(self.hash(), public_key) {
-                return Err(format!(
-                    "Invalid finalization proof - signature verification failure {}, {}",
-                    public_key, signature
-                ));
-            }
+            signature
+                .verify(self.hash(), public_key)
+                .map_err(|e| format!("Invalid finalization proof - {}", e))?;
             voted_validators.insert(public_key);
         }
         let voted_voting_power: u64 = self
