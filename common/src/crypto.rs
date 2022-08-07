@@ -58,13 +58,12 @@ impl Signature {
             .map_err(|_| Error::InvalidFormat(format!("public key: {}", public_key)))?;
         let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key)
             .map_err(|_| Error::InvalidFormat("private key: [omitted]".to_owned()))?;
-        let signature = ed25519_dalek::Keypair {
+        let keypair = ed25519_dalek::Keypair {
             secret: private_key,
             public: public_key,
         };
-        let signature = signature.sign(data.hash.as_ref());
         Ok(Signature {
-            signature: signature.to_bytes().to_vec(),
+            signature: keypair.sign(data.hash.as_ref()).to_bytes().to_vec(),
         })
     }
 
