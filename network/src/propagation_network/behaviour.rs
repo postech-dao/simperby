@@ -58,6 +58,7 @@ impl Behaviour {
     // Todo: Add constructor taking a configuration as an argument.
 }
 
+#[derive(Debug)]
 /// Network events captured from other network behaviours in [`Behaviour`].
 pub enum Event {
     Identify(IdentifyEvent),
