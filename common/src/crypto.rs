@@ -54,6 +54,7 @@ impl Signature {
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<Self, Error> {
+        check_keypair_match(public_key, private_key)?;
         let public_key = ed25519_dalek::PublicKey::from_bytes(&public_key.key)
             .map_err(|_| Error::InvalidFormat(format!("public key: {}", public_key)))?;
         let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key)
