@@ -1,9 +1,9 @@
 pub mod crypto;
 
-use std::collections::BTreeSet;
-
 use crypto::*;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct BlockHeader {
@@ -97,5 +97,26 @@ impl BlockHeader {
             ));
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct MerkleProof {
+    // TODO
+}
+
+#[derive(Error, Debug, Serialize, Deserialize, Clone)]
+pub enum MerkleProofError {
+    /// When the proof is malformed.
+    #[error("malformed proof: {0}")]
+    MalformedProof(String),
+    /// When the root doesn't match
+    #[error("unmatched string: found {0} but expected {1}")]
+    UnmatchedRoot(String, String),
+}
+
+impl MerkleProof {
+    pub fn verify(&self, _root: Hash256, _data: &[u8]) -> Result<(), MerkleProofError> {
+        unimplemented!()
     }
 }
