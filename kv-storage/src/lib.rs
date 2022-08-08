@@ -5,7 +5,7 @@ use simperby_common::crypto::*;
 ///
 /// Note: This trait is quite subject to change.
 #[async_trait]
-pub trait KVStore {
+pub trait KVStorage {
     /// Creates an empty store with the path to newly create.
     async fn new(path: &str) -> Result<Self, ()>
     where

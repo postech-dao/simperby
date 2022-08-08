@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
-use simperby_kv_store::KVStore;
+use simperby_kv_storage::KVStorage;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Block<T> {
@@ -16,7 +16,7 @@ pub trait BlockExecutor {
     type Transaction;
     async fn execute(
         &self,
-        store: &mut dyn KVStore,
+        store: &mut dyn KVStorage,
         transaction: Self::Transaction,
     ) -> Result<(), ()>;
 }
