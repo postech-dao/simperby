@@ -5,7 +5,7 @@ members = [
     "test-suite",
     "merkle-tree",
     "network",
-    "kv-store",
+    "kv-storage",
     "vetomint",
     "light-client"
 ]

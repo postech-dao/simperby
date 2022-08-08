@@ -6,3 +6,5 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+simperby-kv-storage = { version = "0.0.0", path = "../kv-storage" }
+thiserror = "1.0.32"
