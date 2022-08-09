@@ -15,10 +15,10 @@ pub enum Error {
     StorageError(simperby_kv_storage::Error),
 }
 
-/// A state machine that interpret the given storage as a Merkle tree rooted by a specific key.
+/// A state machine that interprets the given storage as a Merkle tree rooted by a specific key.
 ///
-/// Note that there is no `get()` method as leaf nodes (which the user of this struct would like to read)
-/// are stored by their keys directly, so one can just access directly to the underlying `KVStore` using the key.
+/// Note that there is no `get()` method because leaf nodes (which the user of this struct would like to read)
+/// are stored by their keys directly, so one can just access directly to the underlying `KVStorage` using the key.
 pub struct MerkleTree<S> {
     // TODO: add the fields (for real) and remove _x (dummy)
     _x: PhantomData<S>,
