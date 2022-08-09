@@ -57,4 +57,14 @@ impl<S: KVStorage> MerkleTree<S> {
     pub async fn create_merkle_proof(&self, _key: Hash256) -> Result<MerkleProof, Error> {
         unimplemented!()
     }
+
+    /// Returns a reference to the underlting storage.
+    pub fn get_storage(&self) -> &S {
+        unimplemented!()
+    }
+
+    /// Retrieves the underlying storage by consuming the object.
+    pub fn retrieve_storage(self) -> S {
+        unimplemented!()
+    }
 }
