@@ -137,7 +137,7 @@ mod tests {
         ))
         .unwrap();
 
-        get_test(&db, "key1", "val1");
+        assert!(get_test(&db, "key1", "val1"));
     }
 
     #[test]
@@ -162,7 +162,7 @@ mod tests {
         ))
         .unwrap();
 
-        get_test(&db, "key1", "val1");
+        assert!(get_test(&db, "key1", "val1"));
     }
 
     #[test]
