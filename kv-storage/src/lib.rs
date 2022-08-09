@@ -33,4 +33,6 @@ pub trait KVStorage {
     async fn remove(&mut self, key: Hash256) -> Result<(), Error>;
     /// Retrieves the value associated with the key. If not exists, it will return `None`.
     async fn get(&self, key: Hash256) -> Result<Option<Vec<u8>>, Error>;
+    /// Checks whether the given item exists in the storage.
+    async fn contain(&self, key: Hash256) -> Result<(), Error>;
 }
