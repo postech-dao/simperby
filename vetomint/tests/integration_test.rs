@@ -7,25 +7,28 @@ fn success_trivial_1() {
         validators: vec![1, 1, 1, 1, 1, 1, 1],
         this_node_index: 6,
         timestamp: 0,
-        consensus_params: ConsensusParams { timeout_ms: 1000 },
+        consensus_params: ConsensusParams {
+            timeout_ms: 1000,
+            repeat_round_for_first_leader: 1,
+        },
     };
     let mut state = ConsensusState::new(height_info.clone());
 
     // STEP 1: Proposal.
-    let event = ConsensusEvent::BlockProposal {
+    let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
         proposer: 0,
         round: 0,
         time: 1,
     };
-    let response = progress(&height_info, &mut state, event);
+    let response = state.progress(&height_info, event).unwrap();
     assert!(response.is_empty());
     let event = ConsensusEvent::ProposalFavor {
         proposal: 0,
         favor: true,
         time: 2,
     };
-    let response = progress(&height_info, &mut state, event);
+    let response = state.progress(&height_info, event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::BroadcastPrevote {
@@ -42,7 +45,7 @@ fn success_trivial_1() {
             signer: validator_index,
             time: 3,
         };
-        let response = progress(&height_info, &mut state, event);
+        let response = state.progress(&height_info, event).unwrap();
         assert!(response.is_empty());
     }
     let event = ConsensusEvent::Prevote {
@@ -51,7 +54,7 @@ fn success_trivial_1() {
         signer: 3,
         time: 3,
     };
-    let response = progress(&height_info, &mut state, event);
+    let response = state.progress(&height_info, event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::BroadcastPrecommit {
@@ -68,7 +71,7 @@ fn success_trivial_1() {
             signer: validator_index,
             time: 4,
         };
-        let response = progress(&height_info, &mut state, event);
+        let response = state.progress(&height_info, event).unwrap();
         assert!(response.is_empty());
     }
     let event = ConsensusEvent::Precommit {
@@ -77,7 +80,7 @@ fn success_trivial_1() {
         signer: 3,
         time: 4,
     };
-    let response = progress(&height_info, &mut state, event);
+    let response = state.progress(&height_info, event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::FinalizeBlock { proposal: 0 }]
