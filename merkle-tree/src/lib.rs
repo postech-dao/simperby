@@ -37,12 +37,12 @@ impl<S: KVStorage> MerkleTree<S> {
         unimplemented!()
     }
 
-    /// Inserts a key-value pair into the store. If exists, it will be overwritten.
+    /// Inserts a key-value pair into the storage. If exists, it will be overwritten.
     pub async fn insert_or_update(&mut self, _key: Hash256, _value: &[u8]) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Removes a key-value pair from the store. If not exists, it will fail.
+    /// Removes a key-value pair from the storage. If not exists, it will fail.
     pub async fn remove(&mut self, _key: Hash256) -> Result<(), Error> {
         unimplemented!()
     }
