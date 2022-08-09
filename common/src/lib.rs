@@ -111,7 +111,7 @@ pub enum MerkleProofError {
     #[error("malformed proof: {0}")]
     MalformedProof(String),
     /// When the root doesn't match
-    #[error("unmatched string: found {0} but expected {1}")]
+    #[error("unmatched string: expected {0} but found {1}")]
     UnmatchedRoot(String, String),
 }
 
