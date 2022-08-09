@@ -16,7 +16,7 @@ pub trait BlockExecutor {
     type Transaction;
     async fn execute(
         &self,
-        store: &mut dyn KVStorage,
+        storage: &mut dyn KVStorage,
         transaction: Self::Transaction,
     ) -> Result<(), ()>;
 }
