@@ -5,10 +5,11 @@ use async_trait::async_trait;
 use behaviour::Behaviour;
 use futures::StreamExt;
 use libp2p::{
+    core::ConnectedPoint,
     development_transport,
     identity::{ed25519, Keypair},
-    multiaddr::Protocol,
-    swarm::Swarm,
+    multiaddr::{Multiaddr, Protocol},
+    swarm::{dial_opts::DialOpts, Swarm, SwarmEvent},
     PeerId,
 };
 use simperby_common::crypto::*;
@@ -44,7 +45,7 @@ impl AuthorizedNetwork for PropagationNetwork {
         public_key: PublicKey,
         private_key: PrivateKey,
         _known_peers: Vec<PublicKey>,
-        _bootstrap_points: Vec<SocketAddrV4>,
+        bootstrap_points: Vec<SocketAddrV4>,
         _network_id: String,
     ) -> Result<Self, String>
     where
@@ -75,6 +76,72 @@ impl AuthorizedNetwork for PropagationNetwork {
         swarm_inner
             .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
             .expect("Failed to start listening");
+
+        let wait_for_listener = async {
+            loop {
+                if let SwarmEvent::NewListenAddr { .. } = swarm_inner.select_next_some().await {
+                    break;
+                }
+            }
+        };
+        // Todo: Take the timeout argument from network configurations.
+        time::timeout(Duration::from_secs(1), wait_for_listener)
+            .await
+            .expect("failed to create listener");
+
+        // Add bootstrap nodes.
+        let bootstrap_addresses: Vec<Multiaddr> = bootstrap_points
+            .iter()
+            .map(|socket_addr_v4| {
+                Multiaddr::from_iter(
+                    vec![
+                        Protocol::Ip4(*socket_addr_v4.ip()),
+                        Protocol::Tcp(socket_addr_v4.port()),
+                    ]
+                    .into_iter(),
+                )
+            })
+            .collect();
+
+        let mut num_dials = 0;
+        for address in bootstrap_addresses {
+            let dial_result =
+                swarm_inner.dial(DialOpts::unknown_peer_id().address(address).build());
+            if dial_result.is_ok() {
+                num_dials += 1;
+            }
+        }
+
+        // Note: We can sleep here for a while instead of using a timeout.
+        let mut dial_attempts = 0;
+        let initial_bootstrap = async {
+            while dial_attempts < num_dials {
+                match swarm_inner.select_next_some().await {
+                    // Successfully dialed to a peer.
+                    SwarmEvent::ConnectionEstablished {
+                        peer_id,
+                        endpoint: ConnectedPoint::Dialer { address, .. },
+                        ..
+                    } => {
+                        // Add every node dialed successfully to bootstrap targets.
+                        swarm_inner
+                            .behaviour_mut()
+                            .kademlia
+                            .add_address(&peer_id, address);
+                        dial_attempts += 1;
+                    }
+                    // Dialed a peer but it failed.
+                    SwarmEvent::OutgoingConnectionError { .. } => {
+                        dial_attempts += 1;
+                    }
+                    _ => {}
+                }
+            }
+        };
+        // Note: Timeout error means no node was added to bootstrap targets.
+        // Todo: Propagate error only if `bootstrap_points.len()` != 0.
+        // Todo: Take the timeout argument from network configurations.
+        let _ = time::timeout(Duration::from_secs(3), initial_bootstrap).await;
 
         // Create a message queue that a simperby node will use to receive messages from other nodes.
         // Todo: Choose a proper buffer size for the buffer size.
@@ -116,12 +183,20 @@ async fn run_background_task(
     let mut lock_release_timer = time::interval(Duration::from_millis(100));
     lock_release_timer.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
 
-    // Todo: Bootstrap with already known addresses.
-    // Todo: Create a timer for regular bootstrapping.
+    // Todo: Construct timer with a time parameter from network configurations.
+    let mut bootstrap_timer = time::interval(Duration::from_secs(10));
 
     loop {
         let mut swarm = swarm.lock().await;
         tokio::select! {
+            // Get k-closest peers every 10 seconds.
+            // Todo: Update Floodsub publish targets to match them with the k-closest peers.
+            _ = bootstrap_timer.tick() => {
+                // Note: An `Err` is returned only if there is no known peer,
+                //       which is not considered to be an error if this node is
+                //       the first one to join the network.
+                let _ =  swarm.behaviour_mut().kademlia.bootstrap();
+            }
             // Listen on swarm events.
             _event = swarm.select_next_some() => {}
             // Release the lock so that other tasks can use swarm.
