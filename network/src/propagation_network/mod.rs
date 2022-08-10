@@ -328,7 +328,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a tiny network when they join the network sequentially.
     /// (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20)
@@ -337,7 +336,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a small network when they join the network sequentially.
     /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
