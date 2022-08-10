@@ -1,8 +1,10 @@
 mod behaviour;
+mod config;
 
 use super::*;
 use async_trait::async_trait;
 use behaviour::Behaviour;
+use config::PropagationNetworkConfig;
 use futures::StreamExt;
 use libp2p::{
     core::ConnectedPoint,
@@ -44,13 +46,54 @@ impl AuthorizedNetwork for PropagationNetwork {
     async fn new(
         public_key: PublicKey,
         private_key: PrivateKey,
-        _known_peers: Vec<PublicKey>,
+        known_peers: Vec<PublicKey>,
         bootstrap_points: Vec<SocketAddrV4>,
-        _network_id: String,
+        network_id: String,
     ) -> Result<Self, String>
     where
         Self: Sized,
     {
+        let default_config = PropagationNetworkConfig::default();
+        Self::with_config(
+            public_key,
+            private_key,
+            known_peers,
+            bootstrap_points,
+            network_id,
+            default_config,
+        )
+        .await
+    }
+    async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
+        unimplemented!();
+    }
+    async fn stop_broadcast(&self, _token: BroadcastToken) -> Result<(), String> {
+        unimplemented!();
+    }
+    async fn get_broadcast_status(
+        &self,
+        _token: BroadcastToken,
+    ) -> Result<BroadcastStatus, String> {
+        unimplemented!();
+    }
+    async fn create_recv_queue(&self) -> Result<broadcast::Receiver<Vec<u8>>, ()> {
+        // pub fn subscribe(&self) -> Receiver<T>
+        Ok(self.sender.subscribe())
+    }
+    async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
+        unimplemented!();
+    }
+}
+
+impl PropagationNetwork {
+    pub async fn with_config(
+        public_key: PublicKey,
+        private_key: PrivateKey,
+        _known_peers: Vec<PublicKey>,
+        bootstrap_points: Vec<SocketAddrV4>,
+        _network_id: String,
+        config: PropagationNetworkConfig,
+    ) -> Result<Self, String> {
         let mut keypair_bytes = private_key.as_ref().to_vec();
         keypair_bytes.extend(public_key.as_ref());
         // Todo: Handle returned error.
@@ -70,24 +113,24 @@ impl AuthorizedNetwork for PropagationNetwork {
         let swarm = Arc::new(Mutex::new(Swarm::new(transport, behaviour, local_peer_id)));
         let mut swarm_inner = swarm.lock().await;
 
-        // Create listener(s).
+        // Create a listener.
+        // Note: A single listener can have multiple listen addresses.
         // Todo: Pass possible error to the `PropagationNetwork`.
-        // Todo: Take listen address from network configurations.
         swarm_inner
-            .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-            .expect("Failed to start listening");
+            .listen_on(config.listen_address)
+            .expect("Failed to create a listener.");
 
-        let wait_for_listener = async {
-            loop {
-                if let SwarmEvent::NewListenAddr { .. } = swarm_inner.select_next_some().await {
-                    break;
-                }
-            }
-        };
-        // Todo: Take the timeout argument from network configurations.
-        time::timeout(Duration::from_secs(1), wait_for_listener)
-            .await
-            .expect("failed to create listener");
+        let swarm_event = time::timeout(
+            config.listener_creation_timeout,
+            swarm_inner.select_next_some(),
+        )
+        .await
+        .expect("Failed to create listener before the timeout");
+        
+        if let SwarmEvent::NewListenAddr { .. } = swarm_event {
+        } else {
+            unreachable!("The first SwarmEvent must be NewListenAddr.")
+        }
 
         // Add bootstrap nodes.
         let bootstrap_addresses: Vec<Multiaddr> = bootstrap_points
@@ -140,13 +183,17 @@ impl AuthorizedNetwork for PropagationNetwork {
         };
         // Note: Timeout error means no node was added to bootstrap targets.
         // Todo: Propagate error only if `bootstrap_points.len()` != 0.
-        // Todo: Take the timeout argument from network configurations.
-        let _ = time::timeout(Duration::from_secs(3), initial_bootstrap).await;
+        let _ = time::timeout(config.initial_bootstrap_timeout, initial_bootstrap).await;
 
         // Create a message queue that a simperby node will use to receive messages from other nodes.
-        // Todo: Choose a proper buffer size for the buffer size.
-        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(100);
-        let _task_join_handle = task::spawn(run_background_task(swarm.clone(), sender.clone()));
+        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(config.message_queue_capacity);
+
+        let _task_join_handle = task::spawn(run_background_task(
+            swarm.clone(),
+            sender.clone(),
+            config.lock_release_interval,
+            config.peer_discovery_interval,
+        ));
 
         Ok(Self {
             _task_join_handle,
@@ -154,42 +201,25 @@ impl AuthorizedNetwork for PropagationNetwork {
             swarm: swarm.clone(),
         })
     }
-    async fn broadcast(&self, _message: &[u8]) -> Result<BroadcastToken, String> {
-        unimplemented!();
-    }
-    async fn stop_broadcast(&self, _token: BroadcastToken) -> Result<(), String> {
-        unimplemented!();
-    }
-    async fn get_broadcast_status(
-        &self,
-        _token: BroadcastToken,
-    ) -> Result<BroadcastStatus, String> {
-        unimplemented!();
-    }
-    async fn create_recv_queue(&self) -> Result<broadcast::Receiver<Vec<u8>>, ()> {
-        Ok(self.sender.subscribe())
-    }
-    async fn get_live_list(&self) -> Result<Vec<PublicKey>, ()> {
-        unimplemented!();
-    }
 }
 
 async fn run_background_task(
     swarm: Arc<Mutex<Swarm<Behaviour>>>,
     _sender: broadcast::Sender<Vec<u8>>,
+    lock_release_interval: Duration,
+    bootstrap_interval: Duration,
 ) {
     // This timer guarantees that the lock for swarm will be released
     // regularly and within a finite time.
-    let mut lock_release_timer = time::interval(Duration::from_millis(100));
+    let mut lock_release_timer = time::interval(lock_release_interval);
     lock_release_timer.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
 
-    // Todo: Construct timer with a time parameter from network configurations.
-    let mut bootstrap_timer = time::interval(Duration::from_secs(10));
+    let mut bootstrap_timer = time::interval(bootstrap_interval);
 
     loop {
         let mut swarm = swarm.lock().await;
         tokio::select! {
-            // Get k-closest peers every 10 seconds.
+            // Get k-closest peers after every preset interval.
             // Todo: Update Floodsub publish targets to match them with the k-closest peers.
             _ = bootstrap_timer.tick() => {
                 // Note: An `Err` is returned only if there is no known peer,
