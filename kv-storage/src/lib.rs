@@ -3,8 +3,12 @@ use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use thiserror::Error;
 
+// TODO: add error types
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]
 pub enum Error {
+    /// When the given key does not exists in the storage.
+    #[error("not found")]
+    NotFound,
     /// An unknown error
     #[error("unknown: {0}")]
     Unknown(String),
@@ -29,10 +33,10 @@ pub trait KVStorage {
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error>;
     /// Inserts a key-value pair into the storage. If exists, it will be overwritten.
     async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), Error>;
-    /// Removes a key-value pair from the storage. If not exists, it will fail.
+    /// Removes a key-value pair from the storage. If not exists, it will `Err(NotFound)`.
     async fn remove(&mut self, key: Hash256) -> Result<(), Error>;
-    /// Retrieves the value associated with the key. If not exists, it will return `None`.
-    async fn get(&self, key: Hash256) -> Result<Option<Vec<u8>>, Error>;
+    /// Retrieves the value associated with the key. If not exists, it will return `Err(NotFound)`.
+    async fn get(&self, key: Hash256) -> Result<Vec<u8>, Error>;
     /// Checks whether the given item exists in the storage.
-    async fn contain(&self, key: Hash256) -> Result<(), Error>;
+    async fn contain(&self, key: Hash256) -> Result<bool, Error>;
 }
