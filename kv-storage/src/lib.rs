@@ -28,6 +28,8 @@ pub trait KVStorage {
     where
         Self: Sized;
     /// Records the current state to the persistent storage.
+    ///
+    /// Note that it may keep only the last checkpoint.
     async fn commit_checkpoint(&mut self) -> Result<(), Error>;
     /// Reverts all the changes made since the last checkpoint.
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error>;
