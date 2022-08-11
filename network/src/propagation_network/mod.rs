@@ -267,7 +267,6 @@ impl PropagationNetwork {
             };
             listen_addresses.push(SocketAddrV4::new(ipv4_addr, port));
         }
-
         listen_addresses
     }
 }
@@ -275,8 +274,9 @@ impl PropagationNetwork {
 #[cfg(test)]
 mod test {
     use super::*;
+    use futures::future::join_all;
     use rand;
-    use std::collections::HashSet;
+    use std::{collections::HashSet, iter::zip, net::Ipv4Addr};
 
     /// A helper struct for the tests.
     struct Node {
@@ -314,12 +314,33 @@ mod test {
         keypair.public()
     }
 
+    /// A helper function that checks each node's routing table
+    /// whether it has all the peers on the same network.
+    ///
+    /// Panics if the routing table does not match with expectation.
+    async fn check_routing_table(nodes: &Vec<Node>) {
+        for node in nodes {
+            let network = node.network.as_ref().unwrap();
+            let connected_peers = network
+                .get_connected_peers()
+                .await
+                .into_iter()
+                .collect::<HashSet<PeerId>>();
+            for peer in nodes {
+                if peer.id == node.id {
+                    continue;
+                }
+                assert!(connected_peers.contains(&peer.id));
+            }
+        }
+    }
+
     /// A helper test function with an argument.
     async fn discovery_with_n_nodes_sequential(n: usize) {
         let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
         let mut bootstrap_points = Vec::new();
 
-        // Create n nodes.
+        // Create n nodes sequentially.
         for i in 0..n {
             let node = nodes.get_mut(i).unwrap();
             let network = PropagationNetwork::new(
@@ -339,22 +360,46 @@ mod test {
                 bootstrap_points.push(listen_address);
             }
         }
+        // Test if every node has filled its routing table correctly.
+        check_routing_table(&nodes).await
+    }
+
+    /// A helper test function with an argument.
+    async fn discovery_with_n_nodes_concurrent(n: usize) {
+        let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
+
+        let base_port = 34017;
+        let port_interval = 100;
+        let listen_addresses: Vec<SocketAddrV4> = (0..n)
+            .map(|i| base_port + i * port_interval)
+            .map(|port| SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16))
+            .collect();
+
+        // Create n nodes asynchronously.
+        let futures = zip(&mut nodes, &listen_addresses).map(|(node, listen_address)| {
+            let mut config = PropagationNetworkConfig::default();
+            config.with_listen_address(listen_address.clone());
+            PropagationNetwork::with_config(
+                node.public_key.clone(),
+                node.private_key.clone(),
+                Vec::new(),
+                listen_addresses.clone(),
+                "test".to_string(),
+                config,
+            )
+        });
+
+        let networks = join_all(futures)
+            .await
+            .into_iter()
+            .map(|result| result.expect("Failed to construct PropagationNetwork."));
+
+        for (node, network) in zip(&mut nodes, networks) {
+            node.network = Some(network);
+        }
 
         // Test if every node has filled its routing table correctly.
-        for node in &nodes {
-            let network = node.network.as_ref().unwrap();
-            let connected_peers = network
-                .get_connected_peers()
-                .await
-                .into_iter()
-                .collect::<HashSet<PeerId>>();
-            for peer in &nodes {
-                if peer.id == node.id {
-                    continue;
-                }
-                assert!(connected_peers.contains(&peer.id));
-            }
-        }
+        check_routing_table(&nodes).await
     }
 
     #[tokio::test]
@@ -371,6 +416,24 @@ mod test {
     /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
     async fn discovery_with_small_network_sequential() {
         discovery_with_n_nodes_sequential(libp2p::kad::K_VALUE.into()).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a tiny network when they join the network at the same time.
+    /// (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20)
+    async fn discovery_with_tiny_network_concurrent() {
+        discovery_with_n_nodes_concurrent(5).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a small network when they join the network at the same time.
+    /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
+    async fn discovery_with_small_network_concurrent() {
+        discovery_with_n_nodes_concurrent(libp2p::kad::K_VALUE.into()).await;
     }
 
     #[tokio::test]
