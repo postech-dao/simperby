@@ -58,7 +58,7 @@ impl<S: KVStorage> MerkleTree<S> {
         unimplemented!()
     }
 
-    /// Returns a reference to the underlting storage.
+    /// Returns a reference to the underlying storage.
     pub fn get_storage(&self) -> &S {
         unimplemented!()
     }
