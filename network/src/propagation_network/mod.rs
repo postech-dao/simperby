@@ -15,7 +15,7 @@ use libp2p::{
     PeerId,
 };
 use simperby_common::crypto::*;
-use std::{net::SocketAddrV4, sync::Arc, time::Duration};
+use std::{collections::HashSet, net::SocketAddrV4, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, Mutex},
     task, time,
@@ -126,14 +126,14 @@ impl PropagationNetwork {
         )
         .await
         .expect("Failed to create listener before the timeout");
-        
+
         if let SwarmEvent::NewListenAddr { .. } = swarm_event {
         } else {
             unreachable!("The first SwarmEvent must be NewListenAddr.")
         }
 
         // Add bootstrap nodes.
-        let bootstrap_addresses: Vec<Multiaddr> = bootstrap_points
+        let mut bootstrap_addresses: HashSet<Multiaddr> = bootstrap_points
             .iter()
             .map(|socket_addr_v4| {
                 Multiaddr::from_iter(
@@ -146,42 +146,44 @@ impl PropagationNetwork {
             })
             .collect();
 
-        let mut num_dials = 0;
-        for address in bootstrap_addresses {
-            let dial_result =
-                swarm_inner.dial(DialOpts::unknown_peer_id().address(address).build());
-            if dial_result.is_ok() {
-                num_dials += 1;
-            }
-        }
-
-        // Note: We can sleep here for a while instead of using a timeout.
-        let mut dial_attempts = 0;
         let initial_bootstrap = async {
-            while dial_attempts < num_dials {
-                match swarm_inner.select_next_some().await {
-                    // Successfully dialed to a peer.
-                    SwarmEvent::ConnectionEstablished {
-                        peer_id,
-                        endpoint: ConnectedPoint::Dialer { address, .. },
-                        ..
-                    } => {
-                        // Add every node dialed successfully to bootstrap targets.
-                        swarm_inner
-                            .behaviour_mut()
-                            .kademlia
-                            .add_address(&peer_id, address);
-                        dial_attempts += 1;
+            // Keep dialing until we reach all given peers before the timeout.
+            while !bootstrap_addresses.is_empty() {
+                let mut checked_dials = 0;
+                let mut outgoing_dials = 0;
+                for address in &bootstrap_addresses {
+                    if swarm_inner
+                        .dial(DialOpts::unknown_peer_id().address(address.clone()).build())
+                        .is_ok()
+                    {
+                        outgoing_dials += 1;
                     }
-                    // Dialed a peer but it failed.
-                    SwarmEvent::OutgoingConnectionError { .. } => {
-                        dial_attempts += 1;
+                }
+                while checked_dials < outgoing_dials {
+                    match swarm_inner.select_next_some().await {
+                        // Successfully dialed to a peer.
+                        SwarmEvent::ConnectionEstablished {
+                            peer_id,
+                            endpoint: ConnectedPoint::Dialer { address, .. },
+                            ..
+                        } => {
+                            // Add every node dialed successfully to regular bootstrap targets.
+                            swarm_inner
+                                .behaviour_mut()
+                                .kademlia
+                                .add_address(&peer_id, address.clone());
+                            bootstrap_addresses.remove(&address);
+                            checked_dials += 1;
+                        }
+                        // Dialed a peer but it failed.
+                        SwarmEvent::OutgoingConnectionError { .. } => {
+                            checked_dials += 1;
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         };
-        // Note: Timeout error means no node was added to bootstrap targets.
         // Todo: Propagate error only if `bootstrap_points.len()` != 0.
         let _ = time::timeout(config.initial_bootstrap_timeout, initial_bootstrap).await;
 
