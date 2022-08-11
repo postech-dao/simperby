@@ -9,7 +9,7 @@ pub type BlockIdentifier = usize;
 /// A UNIX timestamp measured in milliseconds.
 pub type Timestamp = i64;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ConsensusParams {
     pub timeout_ms: u64,
 }
@@ -20,7 +20,7 @@ pub struct ConsensusParams {
 /// the lower layer's responsibility to verifiy and refine the raw messages (containing such cryptography-related info) into this abstracted data.
 /// Also all the identifiers (for blocks and validators) become integer indices here, and
 /// the lower layer will keep the mapping from the actual data to the indices.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConsensusEvent {
     /// Informs that the node has received a block proposal.
     BlockProposal {
@@ -73,7 +73,7 @@ pub enum ConsensusEvent {
 }
 
 /// A response that the consensus might emit for a given event, which must be properly handled by the lower layer.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConsensusResponse {
     /// Creation of the actual proposal is not the role of the consensus; the lower layer will take care of it.
     CreateAndBroadcastProposal {
@@ -103,7 +103,7 @@ pub enum ConsensusResponse {
 }
 
 /// An immutable set of information that is used to perform the consensus for a single height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeightInfo {
     /// The list of voting powers sorted by the leader order.
     ///
@@ -121,7 +121,7 @@ pub struct HeightInfo {
 }
 
 /// The state of the consensus during a single height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsensusState {
     round: usize,
     // TODO: One typical implementation would have some kind of a verbose `enum` of the state variants.

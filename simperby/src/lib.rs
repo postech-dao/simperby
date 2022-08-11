@@ -4,7 +4,7 @@ use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_kv_storage::KVStorage;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Block<T> {
     pub header: BlockHeader,
     pub transactions: Vec<T>,
@@ -21,7 +21,7 @@ pub trait BlockExecutor {
     ) -> Result<(), ()>;
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum StateTransition {
     InsertValidator {
         /// The public key of the validator.
@@ -53,7 +53,7 @@ pub enum StateTransition {
     RemoveData(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Transaction {
     /// The siganture of this transaction.
     pub signature: Signature,
@@ -70,7 +70,7 @@ pub struct Transaction {
 /// Due to the 'interactive' nature of the Simperby consensus,
 /// a typical block validator would manually read the content of `ConsensusVoteItem` and decide whether
 /// it is favorable or not.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct ConsensusVoteItem {
     /// The hash of the item, which is used as the unique identifier of the it and also used as the sign target.
     pub hash: Hash256,
