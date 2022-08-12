@@ -277,8 +277,51 @@ impl PropagationNetwork {
 mod test {
     use super::*;
     use futures::future::join_all;
-    use rand;
+    use rand::{self, seq::IteratorRandom};
     use std::{collections::HashSet, iter::zip, net::Ipv4Addr};
+    use tokio::sync::OnceCell;
+
+    static CELL: OnceCell<PortDispenser> = OnceCell::const_new();
+
+    /// A helper struct for the test.
+    ///
+    /// Assigns unique network ports when requested by the test functions.
+    /// Note that an assigned port doesn't mean a usable port.
+    /// Assigned ports can be used by dial attempts or other processes.
+    struct PortDispenser {
+        // 10000 ~ 65535
+        available_ports: Mutex<HashSet<u16>>,
+    }
+
+    impl PortDispenser {
+        async fn new() -> Self {
+            Self {
+                available_ports: Mutex::new(HashSet::from_iter(10000..u16::MAX)),
+            }
+        }
+
+        async fn get_random_ports(&self, n: usize) -> Result<Vec<u16>, ()> {
+            let mut available_ports = self.available_ports.lock().await;
+            let mut rng = rand::thread_rng();
+            let assigned_ports = available_ports.iter().copied().choose_multiple(&mut rng, n);
+            for port in &assigned_ports {
+                available_ports.remove(port);
+            }
+            if assigned_ports.len() == n {
+                Ok(assigned_ports)
+            } else {
+                Err(())
+            }
+        }
+    }
+
+    async fn get_random_ports(n: usize) -> Vec<u16> {
+        let port_dispenser = CELL.get_or_init(PortDispenser::new).await;
+        port_dispenser
+            .get_random_ports(n)
+            .await
+            .expect("Failed to get enough number of ports.")
+    }
 
     /// A helper struct for the tests.
     struct Node {
@@ -370,12 +413,16 @@ mod test {
     async fn discovery_with_n_nodes_concurrent(n: usize) {
         let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
 
-        let base_port = 34017;
-        let port_interval = 100;
-        let listen_addresses: Vec<SocketAddrV4> = (0..n)
-            .map(|i| base_port + i * port_interval)
-            .map(|port| SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16))
-            .collect();
+        // Assign unique ports to listen to.
+        let mut listen_addresses = Vec::new();
+        for _ in 0..n {
+            let port = *get_random_ports(1)
+                .await
+                .get(0)
+                .expect("Failed to assign a port for a node.");
+            let listen_address = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port);
+            listen_addresses.push(listen_address);
+        }
 
         // Create n nodes asynchronously.
         let futures = zip(&mut nodes, &listen_addresses).map(|(node, listen_address)| {
