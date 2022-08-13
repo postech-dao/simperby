@@ -1,3 +1,5 @@
+pub mod oneshot;
+
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::Hash256;
 use simperby_common::MerkleProof;
