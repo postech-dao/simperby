@@ -181,7 +181,7 @@ impl BlockHeader {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MerkleProof {
-    // TODO
+    pub proof: Vec<(Hash256, u8)>,
 }
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]

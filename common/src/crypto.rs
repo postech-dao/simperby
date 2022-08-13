@@ -31,6 +31,10 @@ impl Hash256 {
             hash: *blake3::hash(data.as_ref()).as_bytes(),
         }
     }
+
+    pub fn aggregate(&self, other: &Self) -> Self {
+        Self::hash([self.hash, other.hash].concat())
+    }
 }
 
 impl std::convert::AsRef<[u8]> for Hash256 {
