@@ -1,10 +1,13 @@
 use super::*;
 use mktemp::Temp;
 use rocksdb::{checkpoint, DB};
+use std::path::PathBuf;
 
 pub struct RocksDB {
     db: DB,
-    checkpoint: Option<Temp>,
+    origin_path: PathBuf,
+    current_db_path: Temp,
+    checkpoint_db_path: Temp,
 }
 
 #[async_trait]
@@ -13,9 +16,26 @@ impl KVStore for RocksDB {
     where
         Self: Sized,
     {
+        let origin_path = PathBuf::from(path);
+        let current_db_path = Temp::new_dir().unwrap();
+        let checkpoint_db_path = Temp::new_dir().unwrap();
+        {
+            let db = DB::open_default(origin_path.to_str().unwrap()).unwrap();
+            let checkpoint_db = checkpoint::Checkpoint::new(&db).unwrap();
+
+            checkpoint_db
+                .create_checkpoint(current_db_path.to_path_buf().to_str().unwrap())
+                .unwrap();
+            checkpoint_db
+                .create_checkpoint(checkpoint_db_path.to_path_buf().to_str().unwrap())
+                .unwrap();
+        }
+
         Ok(RocksDB {
-            db: DB::open_default(path).unwrap(),
-            checkpoint: None,
+            db: DB::open_default(current_db_path.to_path_buf().to_str().unwrap()).unwrap(),
+            origin_path: origin_path,
+            current_db_path: current_db_path,
+            checkpoint_db_path: checkpoint_db_path,
         })
     }
 
@@ -23,9 +43,26 @@ impl KVStore for RocksDB {
     where
         Self: Sized,
     {
+        let origin_path = PathBuf::from(path);
+        let current_db_path = Temp::new_dir().unwrap();
+        let checkpoint_db_path = Temp::new_dir().unwrap();
+        {
+            let db = DB::open_default(origin_path.to_str().unwrap()).unwrap();
+            let checkpoint_db = checkpoint::Checkpoint::new(&db).unwrap();
+
+            checkpoint_db
+                .create_checkpoint(current_db_path.to_path_buf().to_str().unwrap())
+                .unwrap();
+            checkpoint_db
+                .create_checkpoint(checkpoint_db_path.to_path_buf().to_str().unwrap())
+                .unwrap();
+        }
+
         Ok(RocksDB {
-            db: DB::open_default(path).unwrap(),
-            checkpoint: None,
+            db: DB::open_default(current_db_path.to_path_buf().to_str().unwrap()).unwrap(),
+            origin_path: origin_path,
+            current_db_path: current_db_path,
+            checkpoint_db_path: checkpoint_db_path,
         })
     }
 
