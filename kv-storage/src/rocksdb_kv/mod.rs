@@ -1,6 +1,6 @@
 use super::*;
 use mktemp::Temp;
-use rocksdb::{checkpoint, DB};
+use rocksdb::{checkpoint, Options, DB};
 use std::path::PathBuf;
 
 pub struct RocksDB {
@@ -67,18 +67,19 @@ impl KVStore for RocksDB {
     }
 
     async fn commit_checkpoint(&mut self) -> Result<(), ()> {
-        let result = Temp::new_dir();
-        match result {
-            Ok(path) => {
-                let chk_point = checkpoint::Checkpoint::new(&self.db).unwrap();
-                chk_point
-                    .create_checkpoint(path.to_path_buf().display().to_string())
-                    .unwrap();
-                self.checkpoint = Some(path);
-                Ok(())
-            }
-            Err(_) => Err(()),
-        }
+        let new_checkpoint_db_path = Temp::new_dir().unwrap();
+        let checkpoint_db = checkpoint::Checkpoint::new(&self.db).unwrap();
+
+        DB::destroy(&Options::default(), self.origin_path.to_str().unwrap()).unwrap();
+        checkpoint_db
+            .create_checkpoint(self.origin_path.to_str().unwrap())
+            .unwrap();
+        checkpoint_db
+            .create_checkpoint(new_checkpoint_db_path.to_path_buf().to_str().unwrap())
+            .unwrap();
+        self.checkpoint_db_path = new_checkpoint_db_path;
+
+        Ok(())
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), ()> {
