@@ -6,8 +6,8 @@ use std::path::PathBuf;
 pub struct RocksDB {
     db: DB,
     origin_path: PathBuf,
-    current_db_path: Temp,
-    checkpoint_db_path: Temp,
+    current_db_dir: Temp,
+    checkpoint_db_dir: Temp,
 }
 
 #[async_trait]
@@ -17,25 +17,25 @@ impl KVStore for RocksDB {
         Self: Sized,
     {
         let origin_path = PathBuf::from(path);
-        let current_db_path = Temp::new_dir().unwrap();
-        let checkpoint_db_path = Temp::new_dir().unwrap();
+        let current_db_dir = Temp::new_dir().unwrap();
+        let checkpoint_db_dir = Temp::new_dir().unwrap();
         {
             let db = DB::open_default(origin_path.to_str().unwrap()).unwrap();
             let checkpoint_db = checkpoint::Checkpoint::new(&db).unwrap();
 
             checkpoint_db
-                .create_checkpoint(current_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
             checkpoint_db
-                .create_checkpoint(checkpoint_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
         }
 
         Ok(RocksDB {
-            db: DB::open_default(current_db_path.to_path_buf().to_str().unwrap()).unwrap(),
+            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db")).unwrap(),
             origin_path: origin_path,
-            current_db_path: current_db_path,
-            checkpoint_db_path: checkpoint_db_path,
+            current_db_dir: current_db_dir,
+            checkpoint_db_dir: checkpoint_db_dir,
         })
     }
 
@@ -44,30 +44,30 @@ impl KVStore for RocksDB {
         Self: Sized,
     {
         let origin_path = PathBuf::from(path);
-        let current_db_path = Temp::new_dir().unwrap();
-        let checkpoint_db_path = Temp::new_dir().unwrap();
+        let current_db_dir = Temp::new_dir().unwrap();
+        let checkpoint_db_dir = Temp::new_dir().unwrap();
         {
             let db = DB::open_default(origin_path.to_str().unwrap()).unwrap();
             let checkpoint_db = checkpoint::Checkpoint::new(&db).unwrap();
 
             checkpoint_db
-                .create_checkpoint(current_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
             checkpoint_db
-                .create_checkpoint(checkpoint_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
         }
 
         Ok(RocksDB {
-            db: DB::open_default(current_db_path.to_path_buf().to_str().unwrap()).unwrap(),
+            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db")).unwrap(),
             origin_path: origin_path,
-            current_db_path: current_db_path,
-            checkpoint_db_path: checkpoint_db_path,
+            current_db_dir: current_db_dir,
+            checkpoint_db_dir: checkpoint_db_dir,
         })
     }
 
     async fn commit_checkpoint(&mut self) -> Result<(), ()> {
-        let new_checkpoint_db_path = Temp::new_dir().unwrap();
+        let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         let checkpoint_db = checkpoint::Checkpoint::new(&self.db).unwrap();
 
         DB::destroy(&Options::default(), self.origin_path.to_str().unwrap()).unwrap();
@@ -75,32 +75,33 @@ impl KVStore for RocksDB {
             .create_checkpoint(self.origin_path.to_str().unwrap())
             .unwrap();
         checkpoint_db
-            .create_checkpoint(new_checkpoint_db_path.to_path_buf().to_str().unwrap())
+            .create_checkpoint(new_checkpoint_db_dir.to_path_buf().as_path().join("db"))
             .unwrap();
-        self.checkpoint_db_path = new_checkpoint_db_path;
+        self.checkpoint_db_dir = new_checkpoint_db_dir;
 
         Ok(())
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), ()> {
-        let new_current_db_path = Temp::new_dir().unwrap();
-        let new_checkpoint_db_path = Temp::new_dir().unwrap();
+        let new_current_db_dir = Temp::new_dir().unwrap();
+        let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         {
             let new_db =
-                DB::open_default(self.checkpoint_db_path.to_path_buf().to_str().unwrap()).unwrap();
+                DB::open_default(self.checkpoint_db_dir.to_path_buf().as_path().join("db"))
+                    .unwrap();
             let checkpoint_db = checkpoint::Checkpoint::new(&new_db).unwrap();
 
             checkpoint_db
-                .create_checkpoint(new_current_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(new_current_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
             checkpoint_db
-                .create_checkpoint(new_checkpoint_db_path.to_path_buf().to_str().unwrap())
+                .create_checkpoint(new_checkpoint_db_dir.to_path_buf().as_path().join("db"))
                 .unwrap();
         }
 
-        self.db = DB::open_default(new_current_db_path.to_path_buf().to_str().unwrap()).unwrap();
-        self.current_db_path = new_current_db_path;
-        self.checkpoint_db_path = new_checkpoint_db_path;
+        self.db = DB::open_default(new_current_db_dir.to_path_buf().as_path().join("db")).unwrap();
+        self.current_db_dir = new_current_db_dir;
+        self.checkpoint_db_dir = new_checkpoint_db_dir;
 
         Ok(())
     }
