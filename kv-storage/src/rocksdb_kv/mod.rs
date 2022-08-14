@@ -164,6 +164,8 @@ mod tests {
         put_test(&mut db, "key3", "val3");
         put_test(&mut db, "key4", "val4");
 
+        block_on(db.commit_checkpoint()).unwrap();
+
         tmp_folder
     }
 
