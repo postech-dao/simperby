@@ -83,17 +83,23 @@ impl KVStore for RocksDB {
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), ()> {
-        let new_db =
-            DB::open_default(self.checkpoint_db_path.to_path_buf().to_str().unwrap()).unwrap();
+        let new_current_db_path = Temp::new_dir().unwrap();
         let new_checkpoint_db_path = Temp::new_dir().unwrap();
         {
+            let new_db =
+                DB::open_default(self.checkpoint_db_path.to_path_buf().to_str().unwrap()).unwrap();
             let checkpoint_db = checkpoint::Checkpoint::new(&new_db).unwrap();
+
+            checkpoint_db
+                .create_checkpoint(new_current_db_path.to_path_buf().to_str().unwrap())
+                .unwrap();
             checkpoint_db
                 .create_checkpoint(new_checkpoint_db_path.to_path_buf().to_str().unwrap())
                 .unwrap();
         }
 
-        self.db = new_db;
+        self.db = DB::open_default(new_current_db_path.to_path_buf().to_str().unwrap()).unwrap();
+        self.current_db_path = new_current_db_path;
         self.checkpoint_db_path = new_checkpoint_db_path;
 
         Ok(())
