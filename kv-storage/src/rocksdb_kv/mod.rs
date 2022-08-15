@@ -198,6 +198,10 @@ mod tests {
         block_on(db.remove(Hash256::hash(key))).unwrap()
     }
 
+    fn revert_test(db: &mut RocksDB) {
+        block_on(db.revert_to_latest_checkpoint()).unwrap();
+    }
+
     #[test]
     fn get_once_with_open() {
         let tmp_folder = init_db_ver1();
@@ -285,5 +289,33 @@ mod tests {
         assert!(get_test(&db, "key1", "val1"));
         remove_test(&mut db, "key1");
         assert!(!get_test(&db, "key1", "val1"));
+    }
+
+    #[test]
+    fn revert_once() {
+        let tmp_folder = init_db_ver1();
+        let mut db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
+
+        assert!(get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key2", "val2"));
+        assert!(get_test(&db, "key3", "val3"));
+        assert!(get_test(&db, "key4", "val4"));
+        assert!(!get_test(&db, "key5", "val5"));
+
+        put_test(&mut db, "key5", "val5");
+
+        assert!(get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key2", "val2"));
+        assert!(get_test(&db, "key3", "val3"));
+        assert!(get_test(&db, "key4", "val4"));
+        assert!(get_test(&db, "key5", "val5"));
+
+        revert_test(&mut db);
+
+        assert!(get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key2", "val2"));
+        assert!(get_test(&db, "key3", "val3"));
+        assert!(get_test(&db, "key4", "val4"));
+        assert!(!get_test(&db, "key5", "val5"));
     }
 }
