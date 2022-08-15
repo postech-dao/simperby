@@ -205,10 +205,7 @@ mod tests {
     #[test]
     fn get_once_with_open() {
         let tmp_folder = init_db_ver1();
-        let db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
     }
@@ -216,10 +213,7 @@ mod tests {
     #[test]
     fn get_all_with_open() {
         let tmp_folder = init_db_ver1();
-        let db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
         assert!(get_test(&db, "key2", "val2"));
@@ -230,10 +224,7 @@ mod tests {
     #[test]
     fn get_once_with_new() {
         let tmp_folder = init_db_ver2();
-        let db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
     }
@@ -241,10 +232,7 @@ mod tests {
     #[test]
     fn get_all_with_new() {
         let tmp_folder = init_db_ver2();
-        let db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
         assert!(get_test(&db, "key2", "val2"));
@@ -255,10 +243,7 @@ mod tests {
     #[test]
     fn insert_once() {
         let tmp_folder = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let mut db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(!get_test(&db, "key5", "val5"));
         put_test(&mut db, "key5", "val5");
@@ -268,10 +253,7 @@ mod tests {
     #[test]
     fn update_once() {
         let tmp_folder = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let mut db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
         put_test(&mut db, "key1", "val5");
@@ -281,10 +263,7 @@ mod tests {
     #[test]
     fn remove_once() {
         let tmp_folder = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_folder.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let mut db = block_on(RocksDB::open(&tmp_folder.to_path_buf().to_str().unwrap())).unwrap();
 
         assert!(get_test(&db, "key1", "val1"));
         remove_test(&mut db, "key1");
