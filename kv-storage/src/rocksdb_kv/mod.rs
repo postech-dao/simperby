@@ -12,7 +12,7 @@ pub struct RocksDB {
 
 #[async_trait]
 impl KVStorage for RocksDB {
-    async fn new(path: &str) -> Result<Self, Error>
+    async fn new(path: &str) -> Result<Self, super::Error>
     where
         Self: Sized,
     {
@@ -39,7 +39,7 @@ impl KVStorage for RocksDB {
         })
     }
 
-    async fn open(path: &str) -> Result<Self, Error>
+    async fn open(path: &str) -> Result<Self, super::Error>
     where
         Self: Sized,
     {
@@ -66,7 +66,7 @@ impl KVStorage for RocksDB {
         })
     }
 
-    async fn commit_checkpoint(&mut self) -> Result<(), Error> {
+    async fn commit_checkpoint(&mut self) -> Result<(), super::Error> {
         let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         let checkpoint_db = checkpoint::Checkpoint::new(&self.db).unwrap();
 
@@ -82,7 +82,7 @@ impl KVStorage for RocksDB {
         Ok(())
     }
 
-    async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error> {
+    async fn revert_to_latest_checkpoint(&mut self) -> Result<(), super::Error> {
         let new_current_db_dir = Temp::new_dir().unwrap();
         let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         {
@@ -106,7 +106,7 @@ impl KVStorage for RocksDB {
         Ok(())
     }
 
-    async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), Error> {
+    async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), super::Error> {
         let result = self.db.put(key.as_ref(), value);
         match result {
             Ok(_) => Ok(()),
@@ -114,7 +114,7 @@ impl KVStorage for RocksDB {
         }
     }
 
-    async fn remove(&mut self, key: Hash256) -> Result<(), Error> {
+    async fn remove(&mut self, key: Hash256) -> Result<(), super::Error> {
         let result = self.db.delete(key.as_ref());
         match result {
             Ok(_) => Ok(()),
@@ -122,7 +122,7 @@ impl KVStorage for RocksDB {
         }
     }
 
-    async fn get(&self, key: Hash256) -> Result<Vec<u8>, Error> {
+    async fn get(&self, key: Hash256) -> Result<Vec<u8>, super::Error> {
         let result = self.db.get(key.as_ref());
         match result {
             Ok(v) => Ok(v),
@@ -130,7 +130,7 @@ impl KVStorage for RocksDB {
         }
     }
 
-    async fn contain(&self, key: Hash256) -> Result<bool, Error> {
+    async fn contain(&self, key: Hash256) -> Result<bool, super::Error> {
         unimplemented!();
     }
 }
