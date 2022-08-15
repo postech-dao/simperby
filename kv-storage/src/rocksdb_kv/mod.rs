@@ -33,9 +33,9 @@ impl KVStorage for RocksDB {
 
         Ok(RocksDB {
             db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db")).unwrap(),
-            origin_path: origin_path,
-            current_db_dir: current_db_dir,
-            checkpoint_db_dir: checkpoint_db_dir,
+            origin_path,
+            current_db_dir,
+            checkpoint_db_dir,
         })
     }
 
@@ -60,9 +60,9 @@ impl KVStorage for RocksDB {
 
         Ok(RocksDB {
             db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db")).unwrap(),
-            origin_path: origin_path,
-            current_db_dir: current_db_dir,
-            checkpoint_db_dir: checkpoint_db_dir,
+            origin_path,
+            current_db_dir,
+            checkpoint_db_dir,
         })
     }
 
