@@ -12,7 +12,7 @@ pub struct RocksDB {
 
 #[async_trait]
 impl KVStorage for RocksDB {
-    async fn new(path: &str) -> Result<Self, ()>
+    async fn new(path: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -39,7 +39,7 @@ impl KVStorage for RocksDB {
         })
     }
 
-    async fn open(path: &str) -> Result<Self, ()>
+    async fn open(path: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -66,7 +66,7 @@ impl KVStorage for RocksDB {
         })
     }
 
-    async fn commit_checkpoint(&mut self) -> Result<(), ()> {
+    async fn commit_checkpoint(&mut self) -> Result<(), Error> {
         let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         let checkpoint_db = checkpoint::Checkpoint::new(&self.db).unwrap();
 
@@ -82,7 +82,7 @@ impl KVStorage for RocksDB {
         Ok(())
     }
 
-    async fn revert_to_latest_checkpoint(&mut self) -> Result<(), ()> {
+    async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error> {
         let new_current_db_dir = Temp::new_dir().unwrap();
         let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         {
@@ -106,7 +106,7 @@ impl KVStorage for RocksDB {
         Ok(())
     }
 
-    async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), ()> {
+    async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), Error> {
         let result = self.db.put(key.as_ref(), value);
         match result {
             Ok(_) => Ok(()),
@@ -114,7 +114,7 @@ impl KVStorage for RocksDB {
         }
     }
 
-    async fn remove(&mut self, key: Hash256) -> Result<(), ()> {
+    async fn remove(&mut self, key: Hash256) -> Result<(), Error> {
         let result = self.db.delete(key.as_ref());
         match result {
             Ok(_) => Ok(()),
@@ -122,12 +122,16 @@ impl KVStorage for RocksDB {
         }
     }
 
-    async fn get(&self, key: Hash256) -> Result<Option<Vec<u8>>, ()> {
+    async fn get(&self, key: Hash256) -> Result<Vec<u8>, Error> {
         let result = self.db.get(key.as_ref());
         match result {
             Ok(v) => Ok(v),
             Err(_) => Err(()),
         }
+    }
+
+    async fn contain(&self, key: Hash256) -> Result<bool, Error> {
+        unimplemented!();
     }
 }
 
