@@ -11,7 +11,7 @@ pub struct RocksDB {
 }
 
 #[async_trait]
-impl KVStore for RocksDB {
+impl KVStorage for RocksDB {
     async fn new(path: &str) -> Result<Self, ()>
     where
         Self: Sized,
@@ -134,7 +134,7 @@ impl KVStore for RocksDB {
 #[cfg(test)]
 mod tests {
     use super::RocksDB;
-    use crate::KVStore;
+    use crate::KVStorage;
     use futures::executor::block_on;
     use mktemp::Temp;
     use rocksdb::DB;
