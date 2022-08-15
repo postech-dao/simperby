@@ -178,11 +178,12 @@ mod tests {
     }
 
     fn get_test(db: &RocksDB, key: &str, value: &str) -> bool {
-        let result = block_on(db.get(Hash256::hash(key))).unwrap();
-        match result {
-            None => false,
-            Some(v) => {
-                let str_v = std::str::from_utf8(&v).unwrap();
+        let has_value = block_on(db.contain(Hash256::hash(key))).unwrap();
+        match has_value {
+            false => false,
+            true => {
+                let val = block_on(db.get(Hash256::hash(key))).unwrap();
+                let str_v = std::str::from_utf8(&val).unwrap();
                 assert_eq!(str_v, value);
                 true
             }
