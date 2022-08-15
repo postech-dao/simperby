@@ -131,10 +131,10 @@ impl KVStorage for RocksDB {
     }
 
     async fn contain(&self, key: Hash256) -> Result<bool, super::Error> {
-        let result = self.db.get(key.as_ref());
+        let result = self.db.get(key.as_ref()).unwrap();
         match result {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+            Some(_) => Ok(true),
+            None => Ok(false),
         }
     }
 }
