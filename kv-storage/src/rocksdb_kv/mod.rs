@@ -110,7 +110,7 @@ impl KVStorage for RocksDB {
         let result = self.db.put(key.as_ref(), value);
         match result {
             Ok(_) => Ok(()),
-            Err(_) => Err(()),
+            Err(_) => Err(super::Error::Unknown("unknown error".to_string())),
         }
     }
 
@@ -118,20 +118,24 @@ impl KVStorage for RocksDB {
         let result = self.db.delete(key.as_ref());
         match result {
             Ok(_) => Ok(()),
-            Err(_) => Err(()),
+            Err(_) => Err(super::Error::NotFound),
         }
     }
 
     async fn get(&self, key: Hash256) -> Result<Vec<u8>, super::Error> {
         let result = self.db.get(key.as_ref());
         match result {
-            Ok(v) => Ok(v),
-            Err(_) => Err(()),
+            Ok(v) => Ok(v.unwrap()),
+            Err(_) => Err(super::Error::NotFound),
         }
     }
 
     async fn contain(&self, key: Hash256) -> Result<bool, super::Error> {
-        unimplemented!();
+        let result = self.db.get(key.as_ref());
+        match result {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
     }
 }
 
