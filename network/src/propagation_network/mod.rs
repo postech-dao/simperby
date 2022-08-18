@@ -94,55 +94,98 @@ impl PropagationNetwork {
         _network_id: String,
         config: PropagationNetworkConfig,
     ) -> Result<Self, String> {
+        // Convert a simperby keypair into a libp2p keypair.
+        let keypair = Self::convert_keypair(public_key, private_key)?;
+
+        // Create swarm and do a series of jobs with configurable timeouts.
+        let mut swarm = Self::create_swarm(keypair).await?;
+        Self::create_listener(&mut swarm, &config).await?;
+        Self::bootstrap(&mut swarm, &config, bootstrap_points).await?;
+
+        // Wrap swarm to share it safely.
+        let swarm_mutex = Arc::new(Mutex::new(swarm));
+
+        // Create a message queue that a simperby node will use to receive messages from other nodes.
+        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(config.message_queue_capacity);
+
+        let _task_join_handle = task::spawn(run_background_task(
+            swarm_mutex.clone(),
+            sender.clone(),
+            config.lock_release_interval,
+            config.peer_discovery_interval,
+        ));
+
+        Ok(Self {
+            _task_join_handle,
+            sender,
+            swarm: swarm_mutex,
+        })
+    }
+
+    /// Convert simperby pub/priv keys into a libp2p keypair.
+    fn convert_keypair(public_key: PublicKey, private_key: PrivateKey) -> Result<Keypair, String> {
         let mut keypair_bytes = private_key.as_ref().to_vec();
         keypair_bytes.extend(public_key.as_ref());
-        // Todo: Handle returned error.
-        let local_keypair = Keypair::Ed25519(
-            ed25519::Keypair::decode(&mut keypair_bytes).expect("invalid keypair was given"),
-        );
-        let local_peer_id = PeerId::from(local_keypair.public());
+        if let Ok(keypair_inner) = ed25519::Keypair::decode(&mut keypair_bytes) {
+            Ok(Keypair::Ed25519(keypair_inner))
+        } else {
+            Err("Invalid public/private keypair was given.".to_string())
+        }
+    }
 
-        let behaviour = Behaviour::new(local_keypair.public());
-
-        let transport = match development_transport(local_keypair).await {
+    /// Create a swarm with given keypair.
+    async fn create_swarm(keypair: Keypair) -> Result<Swarm<Behaviour>, String> {
+        let transport = match development_transport(keypair.clone()).await {
             Ok(transport) => transport,
-            // Todo: Use an error type of this crate.
             Err(_) => return Err("Failed to create a transport.".to_string()),
         };
+        let behaviour = Behaviour::new(keypair.public());
+        let local_peer_id = PeerId::from(keypair.public());
 
-        let swarm = Arc::new(Mutex::new(Swarm::new(transport, behaviour, local_peer_id)));
-        let mut swarm_inner = swarm.lock().await;
+        Ok(Swarm::new(transport, behaviour, local_peer_id))
+    }
 
-        // Create a listener.
-        // Note: A single listener can have multiple listen addresses.
-        // Todo: Pass possible error to the `PropagationNetwork`.
-        swarm_inner
-            .listen_on(config.listen_address)
-            .expect("Failed to create a listener.");
+    /// Create a listener for incoming connection requests.
+    /// Note that a single listener can have multiple listen addresses.
+    async fn create_listener(
+        swarm: &mut Swarm<Behaviour>,
+        config: &PropagationNetworkConfig,
+    ) -> Result<(), String> {
+        if swarm.listen_on(config.listen_address.to_owned()).is_err() {
+            return Err("Failed to create a listener.".to_string());
+        }
 
-        let swarm_event = time::timeout(
-            config.listener_creation_timeout,
-            swarm_inner.select_next_some(),
-        )
-        .await
-        .expect("Failed to create listener before the timeout");
+        let swarm_event =
+            match time::timeout(config.listener_creation_timeout, swarm.select_next_some()).await {
+                Ok(e) => e,
+                Err(_) => return Err("Failed to create listener before the timeout".to_string()),
+            };
 
         if let SwarmEvent::NewListenAddr { .. } = swarm_event {
+            Ok(())
         } else {
             unreachable!("The first SwarmEvent must be NewListenAddr.")
         }
+    }
 
-        // Add bootstrap nodes.
+    /// Carry out an initial bootstrap by dialing given peers to establish connections.
+    async fn bootstrap(
+        swarm: &mut Swarm<Behaviour>,
+        config: &PropagationNetworkConfig,
+        bootstrap_points: Vec<SocketAddrV4>,
+    ) -> Result<(), String> {
+        // The first node of a network cannot have a bootstrap point.
+        if bootstrap_points.is_empty() {
+            return Ok(());
+        }
+
         let mut bootstrap_addresses: HashSet<Multiaddr> = bootstrap_points
             .iter()
             .map(|socket_addr_v4| {
-                Multiaddr::from_iter(
-                    vec![
-                        Protocol::Ip4(*socket_addr_v4.ip()),
-                        Protocol::Tcp(socket_addr_v4.port()),
-                    ]
-                    .into_iter(),
-                )
+                Multiaddr::from_iter([
+                    Protocol::Ip4(*socket_addr_v4.ip()),
+                    Protocol::Tcp(socket_addr_v4.port()),
+                ])
             })
             .collect();
 
@@ -150,17 +193,17 @@ impl PropagationNetwork {
             // Keep dialing until we reach all given peers before the timeout.
             while !bootstrap_addresses.is_empty() {
                 let mut checked_dials = 0;
-                let mut outgoing_dials = 0;
-                for address in &bootstrap_addresses {
-                    if swarm_inner
-                        .dial(DialOpts::unknown_peer_id().address(address.clone()).build())
-                        .is_ok()
-                    {
-                        outgoing_dials += 1;
-                    }
-                }
+                let outgoing_dials = bootstrap_addresses
+                    .iter()
+                    .filter_map(|address| {
+                        swarm
+                            .dial(DialOpts::unknown_peer_id().address(address.clone()).build())
+                            .ok()
+                    })
+                    .count();
+
                 while checked_dials < outgoing_dials {
-                    match swarm_inner.select_next_some().await {
+                    match swarm.select_next_some().await {
                         // Successfully dialed to a peer.
                         SwarmEvent::ConnectionEstablished {
                             peer_id,
@@ -168,7 +211,7 @@ impl PropagationNetwork {
                             ..
                         } => {
                             // Add every node dialed successfully to regular bootstrap targets.
-                            swarm_inner
+                            swarm
                                 .behaviour_mut()
                                 .kademlia
                                 .add_address(&peer_id, address.clone());
@@ -182,26 +225,19 @@ impl PropagationNetwork {
                         _ => {}
                     }
                 }
+                // We've handled and ignored successes and failures.
+                // Loop to try again for failed attempts.
             }
         };
-        // Todo: Propagate error only if `bootstrap_points.len()` != 0.
         let _ = time::timeout(config.initial_bootstrap_timeout, initial_bootstrap).await;
 
-        // Create a message queue that a simperby node will use to receive messages from other nodes.
-        let (sender, _receiver) = broadcast::channel::<Vec<u8>>(config.message_queue_capacity);
-
-        let _task_join_handle = task::spawn(run_background_task(
-            swarm.clone(),
-            sender.clone(),
-            config.lock_release_interval,
-            config.peer_discovery_interval,
-        ));
-
-        Ok(Self {
-            _task_join_handle,
-            sender,
-            swarm: swarm.clone(),
-        })
+        // If no node was added, return an error.
+        // Ignore the timeout if we've reached at least one node.
+        if bootstrap_points.len() == bootstrap_addresses.len() {
+            Err("Could not connect to any of the bootstrap points.".to_string())
+        } else {
+            Ok(())
+        }
     }
 }
 
