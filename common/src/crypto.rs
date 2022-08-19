@@ -21,6 +21,10 @@ pub struct Hash256 {
 }
 
 impl Hash256 {
+    pub const fn zero() -> Self {
+        Hash256 { hash: [0; 32] }
+    }
+
     /// Hashes the given data.
     pub fn hash(data: impl AsRef<[u8]>) -> Self {
         Hash256 {
