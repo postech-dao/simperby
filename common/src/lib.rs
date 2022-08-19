@@ -195,7 +195,25 @@ pub enum MerkleProofError {
 }
 
 impl MerkleProof {
-    pub fn verify(&self, _root: Hash256, _data: &[u8]) -> Result<(), MerkleProofError> {
-        unimplemented!()
+    /// Verifies whether the given data is in the block.
+    pub fn verify(&self, root: Hash256, data: &[u8]) -> Result<(), MerkleProofError> {
+        let mut calculated_root: Hash256 = Hash256::hash(data);
+
+        for (hash, index) in &self.proof {
+            if *index == 0u8 {
+                calculated_root = Hash256::aggregate(hash, &calculated_root);
+            } else {
+                calculated_root = Hash256::aggregate(&calculated_root, hash);
+            }
+        }
+
+        if root == calculated_root {
+            Ok(())
+        } else {
+            Err(MerkleProofError::UnmatchedRoot(
+                hex::encode(root.hash),
+                hex::encode(calculated_root.hash),
+            ))
+        }
     }
 }
