@@ -67,7 +67,6 @@ pub(super) fn progress(
                     votes
                 });
                 if state.votes[&round].prevotes_total * 6 > total_voting_power * 5
-                    && !state.votes[&round].triggered_5f_prevote
                     && state.step == ConsensusStep::Prevote
                 {
                     on_5f_prevote(height_info, state, round)
@@ -129,7 +128,6 @@ fn on_5f_prevote(
     state: &mut ConsensusState,
     round: Round,
 ) -> Vec<ConsensusResponse> {
-    state.votes.get_mut(&round).unwrap().triggered_5f_prevote = true;
     let total_voting_power = height_info.validators.iter().sum::<VotingPower>();
     state.step = ConsensusStep::Precommit;
     for (proposal, prevotes_favor) in &state.votes[&round].prevotes_favor {

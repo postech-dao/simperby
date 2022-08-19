@@ -160,8 +160,6 @@ enum ConsensusStep {
 struct Votes {
     prevotes_total: VotingPower,
     prevotes_favor: BTreeMap<BlockIdentifier, VotingPower>,
-    /// If on-5f-prevotes has ever been triggered?
-    triggered_5f_prevote: bool,
     // TODO: add precommits
 }
 
