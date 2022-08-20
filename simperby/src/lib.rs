@@ -1,13 +1,16 @@
+#![allow(dead_code)]
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_kv_storage::KVStorage;
+use simperby_network::AuthorizedNetwork;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct Block<T> {
+pub struct Block {
     pub header: BlockHeader,
-    pub transactions: Vec<T>,
+    pub transactions: Vec<Transaction>,
 }
 
 /// A state transition function.
@@ -48,7 +51,7 @@ pub enum StateTransition {
     },
     InsertData {
         key: String,
-        value: String,
+        value: Vec<u8>,
     },
     RemoveData(String),
 }
@@ -75,23 +78,32 @@ pub struct ConsensusVoteItem {
     /// The hash of the item, which is used as the unique identifier of the it and also used as the sign target.
     pub hash: Hash256,
     /// (If exists) The block which is associated with this vote item.
-    pub block: Option<Block<Transaction>>,
+    pub block: Option<Block>,
     /// A human-readable description of the item.
     pub description: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct GenesisInfo {
+    pub header: BlockHeader,
+    pub chain_name: String,
+}
+
 #[async_trait]
 pub trait SimperbyApi {
+    /// Gets the genesis info of the blockchain.
+    fn get_genesis_info(&self) -> &GenesisInfo;
+
     /// Gets the current height of the blockchain.
     async fn get_height(&self) -> u64;
 
     /// Gets the finalized block for the given height.
-    async fn get_block(&self, height: u64) -> Result<Block<Transaction>, String>;
+    async fn get_block(&self, height: u64) -> Result<Block, String>;
 
     /// Checks the given block as the next block to be added to the current state.
     ///
     /// Fails if the block is invalid.
-    async fn check_block(&self, block: Block<Transaction>) -> Result<(), String>;
+    async fn check_block(&self, block: Block) -> Result<(), String>;
 
     /// Attempts to propose a block for this round.
     ///
@@ -101,12 +113,12 @@ pub trait SimperbyApi {
     /// 3. if this node has already proposed another block for this round.
     async fn propose_block(
         &self,
-        block: Block<Transaction>,
-        signature: Signature,
+        block: Block,
+        signature: TypedSignature<Block>,
     ) -> Result<(), String>;
 
     /// Reads the finlized state entry by the given key.
-    async fn read_state(&self, key: String, height: u64) -> Result<String, String>;
+    async fn read_state(&self, key: String, height: u64) -> Result<Vec<u8>, String>;
 
     /// Gets the current possible consensus voting options.
     async fn get_consensus_vote_options(&self) -> Vec<ConsensusVoteItem>;
@@ -123,6 +135,20 @@ pub trait SimperbyApi {
     async fn submit_consensus_vote(
         &self,
         hash: Hash256,
-        signature: Signature,
+        signature: TypedSignature<Hash256>,
     ) -> Result<(), String>;
+}
+
+/// Initiates a live Simperby node.
+///
+/// - `state_storage` represents the current finalized state of the blockchain.
+/// - `history_storage` is for storing a history blockchain data, such as past blocks.
+/// This is not essential to validate a incoming blocks, but used for sync protocol and queries.
+pub async fn initiate_node(
+    _genesis_info: GenesisInfo,
+    _network: Box<dyn AuthorizedNetwork>,
+    _state_storage: Box<dyn KVStorage>,
+    _history_storage: Box<dyn KVStorage>,
+) -> Box<dyn SimperbyApi> {
+    unimplemented!()
 }
