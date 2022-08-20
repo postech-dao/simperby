@@ -18,7 +18,7 @@ pub enum Error {
 ///
 /// Note: This trait is quite subject to change.
 #[async_trait]
-pub trait KVStorage {
+pub trait KVStorage: Send + Sync {
     /// Creates an empty storage with the path to newly create.
     async fn new(path: &str) -> Result<Self, Error>
     where

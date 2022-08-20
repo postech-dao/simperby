@@ -17,7 +17,7 @@ pub struct BroadcastStatus {
 ///
 /// Note: This trait is quite subject to change.
 #[async_trait]
-pub trait AuthorizedNetwork {
+pub trait AuthorizedNetwork: Send + Sync {
     /// Joins the network with an authorized identity.
     async fn new(
         public_key: PublicKey,
@@ -44,7 +44,7 @@ pub trait AuthorizedNetwork {
 ///
 /// Note: This trait is quite subject to change.
 #[async_trait]
-pub trait UnauthorizedNetwork {
+pub trait UnauthorizedNetwork: Send + Sync {
     /// Joins the network with an authorized identity.
     async fn new(
         bootstrap_points: Vec<SocketAddrV4>,
