@@ -84,6 +84,34 @@ impl Signature {
     }
 }
 
+/// A signature that is explicitly marked with the type of the signed data.
+///
+/// This implies that the signature is created by `Hash256::hash(serde_json::to_vec(T).unwrap())` where
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub struct TypedSignature<T> {
+    pub signature: Signature,
+    pub _mark: std::marker::PhantomData<T>,
+}
+
+impl<T: serde::Serialize> TypedSignature<T> {
+    /// Creates a new signature from the given data and keys.
+    pub fn sign(data: &T, public_key: &PublicKey, private_key: &PrivateKey) -> Result<Self, Error> {
+        let data = serde_json::to_vec(data).map_err(|_| Error::InvalidFormat("data".to_owned()))?;
+        let data = Hash256::hash(data);
+        Signature::sign(data, public_key, private_key).map(|signature| TypedSignature {
+            signature,
+            _mark: std::marker::PhantomData,
+        })
+    }
+
+    /// Verifies the signature against the given data and public key.
+    pub fn verify(&self, data: &T, public_key: &PublicKey) -> Result<(), Error> {
+        let data = serde_json::to_vec(data).map_err(|_| Error::InvalidFormat("data".to_owned()))?;
+        let data = Hash256::hash(data);
+        self.signature.verify(data, public_key)
+    }
+}
+
 impl std::convert::AsRef<[u8]> for Signature {
     fn as_ref(&self) -> &[u8] {
         &self.signature

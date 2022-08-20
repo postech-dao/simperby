@@ -10,7 +10,7 @@ pub struct BlockHeader {
     /// The author of this block.
     pub author: PublicKey,
     /// The signature of the previous block.
-    pub prev_block_finalization_proof: Vec<(PublicKey, Signature)>,
+    pub prev_block_finalization_proof: Vec<(PublicKey, TypedSignature<BlockHeader>)>,
     /// The hash of the previous block.
     pub previous_hash: Hash256,
     /// The height of this block.
@@ -29,7 +29,7 @@ pub struct BlockHeader {
 
 impl BlockHeader {
     pub fn hash(&self) -> Hash256 {
-        unimplemented!()
+        Hash256::hash(serde_json::to_vec(self).unwrap())
     }
 
     /// Verifies whether the given block header is a valid successor of this block.
@@ -65,7 +65,7 @@ impl BlockHeader {
         }
         for (public_key, signature) in &header.prev_block_finalization_proof {
             signature
-                .verify(self.hash(), public_key)
+                .verify(self, public_key)
                 .map_err(|e| format!("Invalid prev_block_finalization_proof - {}", e))?;
         }
         Ok(())
