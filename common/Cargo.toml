@@ -11,3 +11,4 @@ ed25519 = "1.5.2"
 ed25519-dalek = "1.0.1"
 thiserror = "1.0.32"
 rand = { version = "0.7" }
+serde_json = "1.0"

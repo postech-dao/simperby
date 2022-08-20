@@ -2,8 +2,72 @@ pub mod crypto;
 
 use crypto::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
+
+/// A set of state that is directly recorded in the header.
+///
+/// This state effects the consensus, unlike the ordinary state (which is used for data recording).
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct EssentialState {
+    /// The original validator set information before the delegation calculation.
+    ///
+    /// The order here is the priority order of the validators
+    /// which directly effects the result of `calculate_net_validator_set()`.
+    pub validator_set: Vec<(PublicKey, u64)>,
+    /// The protocol version that must be used from next block.
+    ///
+    /// It must be a valid semantic version (e.g., `0.2.3`).
+    pub version: String,
+    /// The delegation state (delegator, delegatee).
+    pub delegation: Vec<(PublicKey, PublicKey)>,
+}
+
+impl EssentialState {
+    /// Calculate the actual set of validator & voteing power for the next block.
+    ///
+    /// The order here is same as the order of leaders in each round.
+    /// returns `None` if the delegation is not valid.
+    pub fn calculate_net_validator_set(&self) -> Option<Vec<(PublicKey, u64)>> {
+        // check delegation by delegatee (which's forbidden)
+        let mut delegatees = BTreeSet::new();
+        for (delegator, delegatee) in &self.delegation {
+            if delegatees.contains(delegator) {
+                return None;
+            }
+            delegatees.insert(delegatee.clone());
+        }
+
+        // calculate the result
+        let mut validator_set: BTreeMap<_, _> = self.validator_set.iter().cloned().collect();
+        for (delegator, delegatee) in &self.delegation {
+            let delegator_voting_power = if let Some(x) = validator_set.get(delegator) {
+                *x
+            } else {
+                return None;
+            };
+            let delegatee_voting_power = if let Some(x) = validator_set.get(delegatee) {
+                *x
+            } else {
+                return None;
+            };
+            validator_set.remove(delegator).expect("already checked");
+            validator_set.insert(
+                delegatee.clone(),
+                delegatee_voting_power + delegator_voting_power,
+            );
+        }
+
+        // reorder the result by the original `validator_set`.
+        let mut result = Vec::new();
+        for (key, _) in &self.validator_set {
+            if let Some(x) = validator_set.get(key) {
+                result.push((key.clone(), *x));
+            }
+        }
+        Some(result)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct BlockHeader {
@@ -19,12 +83,10 @@ pub struct BlockHeader {
     pub timestamp: u64,
     /// The Merkle root of transactions.
     pub tx_merkle_root: Hash256,
-    /// The Merkle root of the state.
+    /// The Merkle root of the non-essential state.
     pub state_merkle_root: Hash256,
-    /// The set of validator & voteing power for the next block.
-    ///
-    /// The order here is same as the order of leaders in each round.
-    pub validator_set: Vec<(PublicKey, u64)>,
+    /// The essential state.
+    pub essential_state: EssentialState,
 }
 
 impl BlockHeader {
@@ -34,7 +96,10 @@ impl BlockHeader {
 
     /// Verifies whether the given block header is a valid successor of this block.
     ///
-    /// Note that you still need to verify the block body and the finalization proof.
+    /// Note that you still need to verify
+    /// 1. block body
+    /// 2. finalization proof
+    /// 3. protocol version
     pub fn verify_next_block(&self, header: &BlockHeader) -> Result<(), String> {
         if header.height != self.height + 1 {
             return Err(format!(
@@ -51,6 +116,7 @@ impl BlockHeader {
             ));
         }
         if !self
+            .essential_state
             .validator_set
             .iter()
             .any(|(pk, _)| pk == &header.author)
@@ -75,7 +141,12 @@ impl BlockHeader {
         &self,
         block_finalization_proof: &[(PublicKey, Signature)],
     ) -> Result<(), String> {
-        let total_voting_power: u64 = self.validator_set.iter().map(|(_, v)| v).sum();
+        let total_voting_power: u64 = self
+            .essential_state
+            .validator_set
+            .iter()
+            .map(|(_, v)| v)
+            .sum();
         // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
         let mut voted_validators = BTreeSet::new();
         for (public_key, signature) in block_finalization_proof {
@@ -85,6 +156,7 @@ impl BlockHeader {
             voted_validators.insert(public_key);
         }
         let voted_voting_power: u64 = self
+            .essential_state
             .validator_set
             .iter()
             .filter(|(v, _)| voted_validators.contains(v))
