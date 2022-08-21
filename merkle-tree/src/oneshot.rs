@@ -46,14 +46,14 @@ impl OneshotMerkleTree {
     ///
     /// Merkle tree is returned in the form of Vec of Vec of Hash256.
     ///
-    /// Given a hash list [1, 2, 3, 4], merkle tree will be built as below,
+    /// Given a hash list [1, 2, 3], merkle tree will be built as below,
     ///
     /// ``` text
-    ///     7
-    ///   5   6
-    ///  1 2 3 4
+    ///     6
+    ///   4   5
+    ///  1 2 3 3
     /// ```
-    /// which is represented as [[1, 2, 3, 4], [5, 6], [7]].
+    /// which is represented as [[1, 2, 3], [4, 5], [6]].
     fn merkle_tree(hash_list: &[Hash256]) -> Vec<Vec<Hash256>> {
         let mut merkle_tree: Vec<Vec<Hash256>> = vec![hash_list.to_vec()];
 
