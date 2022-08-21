@@ -23,10 +23,8 @@ impl OneshotMerkleTree {
         if !self.hash_list.contains(&key) {
             return None;
         }
-
         let mut merkle_proof: MerkleProof = MerkleProof { proof: Vec::new() };
         let mut merkle_tree: Vec<Vec<Hash256>> = Self::merkle_tree(&self.hash_list);
-
         merkle_tree.pop();
         for level in merkle_tree {
             for pair in level.chunks(2) {
@@ -56,17 +54,13 @@ impl OneshotMerkleTree {
     /// which is represented as [[1, 2, 3], [4, 5], [6]].
     fn merkle_tree(hash_list: &[Hash256]) -> Vec<Vec<Hash256>> {
         let mut merkle_tree: Vec<Vec<Hash256>> = vec![hash_list.to_vec()];
-
         while merkle_tree.last().unwrap().len() != 1 {
             let mut upper_level_hash_list: Vec<Hash256> = Vec::new();
-
             for pair in merkle_tree.last().unwrap().chunks(2) {
                 upper_level_hash_list.push(Self::hash_pair(pair));
             }
-
             merkle_tree.push(upper_level_hash_list);
         }
-
         merkle_tree
     }
 
@@ -109,11 +103,9 @@ mod test {
     /// Hash list consists of hashes of 8-bit unsigned integer from 0 to `number - 1`.
     fn create_hash_list(number: u8) -> Vec<Hash256> {
         let mut hash_list: Vec<Hash256> = Vec::new();
-
         for n in 0..number {
             hash_list.push(Hash256::hash([n]));
         }
-
         hash_list
     }
 
@@ -123,6 +115,7 @@ mod test {
         let hash_list: Vec<Hash256> = create_hash_list(16);
         let merkle_tree: OneshotMerkleTree = OneshotMerkleTree::create(hash_list);
         let key: Hash256 = Hash256::hash([42]);
+
         assert!(OneshotMerkleTree::create_merkle_proof(&merkle_tree, key).is_none());
     }
 
@@ -130,6 +123,7 @@ mod test {
     /// Test if `OneshotMerkleTree::EMPTY_HASH` is returned for root hash of empty tree
     fn root_of_empty_tree() {
         let merkle_tree: OneshotMerkleTree = OneshotMerkleTree::create(Vec::new());
+
         assert_eq!(
             OneshotMerkleTree::root(&merkle_tree),
             OneshotMerkleTree::EMPTY_HASH
@@ -144,11 +138,10 @@ mod test {
         let key: Hash256 = Hash256::hash([2]);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
-        assert!(merkle_proof.is_some());
-
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
-        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
 
+        assert!(merkle_proof.is_some());
+        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
         assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[42]).is_err());
     }
 
@@ -161,11 +154,10 @@ mod test {
         let key: Hash256 = Hash256::hash(data);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
-        assert!(merkle_proof.is_some());
-
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
-        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
 
+        assert!(merkle_proof.is_some());
+        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
         assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &data).is_ok());
     }
 
@@ -177,11 +169,10 @@ mod test {
         let key: Hash256 = Hash256::hash([2]);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
-        assert!(merkle_proof.is_some());
-
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
-        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
 
+        assert!(merkle_proof.is_some());
+        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
         assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[2]).is_ok());
     }
 
@@ -193,11 +184,10 @@ mod test {
         let key: Hash256 = Hash256::hash([2]);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
-        assert!(merkle_proof.is_some());
-
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
-        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
 
+        assert!(merkle_proof.is_some());
+        assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
         assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[2]).is_ok());
     }
 }

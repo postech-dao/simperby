@@ -206,7 +206,6 @@ impl MerkleProof {
                 calculated_root = Hash256::aggregate(hash, &calculated_root);
             }
         }
-
         if root == calculated_root {
             Ok(())
         } else {
