@@ -86,7 +86,7 @@ impl Signature {
 
 /// A signature that is explicitly marked with the type of the signed data.
 ///
-/// This implies that the signature is created by `Hash256::hash(serde_json::to_vec(T).unwrap())` where
+/// This implies that the signature is created on `Hash256::hash(serde_json::to_vec(T).unwrap())`.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct TypedSignature<T> {
     pub signature: Signature,

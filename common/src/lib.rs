@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
-/// A set of state that is directly recorded in the header.
+/// The state that is directly recorded in the header.
 ///
-/// This state effects the consensus, unlike the ordinary state (which is used for data recording).
+/// This state affects the consensus, unlike the ordinary state (which is used for data recording).
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct EssentialState {
     /// The original validator set information before the delegation calculation.
     ///
-    /// The order here is the priority order of the validators
-    /// which directly effects the result of `calculate_net_validator_set()`.
+    /// The order here is the leader selection priority order of the validators
+    /// which directly affects the result of `calculate_net_validator_set()`.
     pub validator_set: Vec<(PublicKey, u64)>,
     /// The protocol version that must be used from next block.
     ///
@@ -24,7 +24,7 @@ pub struct EssentialState {
 }
 
 impl EssentialState {
-    /// Calculate the actual set of validator & voteing power for the next block.
+    /// Calculate the actual set of validators & voting power for the next block.
     ///
     /// The order here is same as the order of leaders in each round.
     /// returns `None` if the delegation is not valid.
