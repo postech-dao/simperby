@@ -101,7 +101,7 @@ impl OneshotMerkleTree {
 
 #[cfg(test)]
 mod test {
-    use super::OneshotMerkleTree;
+    use super::*;
     use simperby_common::{crypto::Hash256, MerkleProof};
 
     /// Returns a hash list with `number` elements
