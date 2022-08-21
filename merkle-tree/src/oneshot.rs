@@ -19,12 +19,16 @@ impl OneshotMerkleTree {
     /// Creates a Merkle proof for a given data in the tree.
     ///
     /// Returns `None` if the data is not in the tree.
+    ///
+    /// Given a tree [[1, 2, 3], [4, 5], [6]],
+    /// Merkle proof for 2 is [1, 5] and Merkle proof for 3 is [3, 4].
     pub fn create_merkle_proof(&self, mut key: Hash256) -> Option<MerkleProof> {
         if !self.hash_list.contains(&key) {
             return None;
         }
         let mut merkle_proof: MerkleProof = MerkleProof { proof: Vec::new() };
         let mut merkle_tree: Vec<Vec<Hash256>> = Self::merkle_tree(&self.hash_list);
+        //  Pop because the root is never included in the Merkle proof
         merkle_tree.pop();
         for level in merkle_tree {
             for pair in level.chunks(2) {
