@@ -187,14 +187,14 @@ mod test {
     fn even_number_of_leaves_not_pow_of_two() {
         let hash_list: Vec<Hash256> = create_hash_list(10);
         let merkle_tree: OneshotMerkleTree = OneshotMerkleTree::create(hash_list);
-        let key: Hash256 = Hash256::hash([2]);
+        let key: Hash256 = Hash256::hash([9]);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
 
         assert!(merkle_proof.is_some());
         assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
-        assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[2]).is_ok());
+        assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[9]).is_ok());
     }
 
     #[test]
@@ -202,13 +202,13 @@ mod test {
     fn odd_number_of_leaves() {
         let hash_list: Vec<Hash256> = create_hash_list(11);
         let merkle_tree: OneshotMerkleTree = OneshotMerkleTree::create(hash_list);
-        let key: Hash256 = Hash256::hash([2]);
+        let key: Hash256 = Hash256::hash([10]);
         let merkle_proof: Option<MerkleProof> =
             OneshotMerkleTree::create_merkle_proof(&merkle_tree, key);
         let root_hash: Hash256 = OneshotMerkleTree::root(&merkle_tree);
 
         assert!(merkle_proof.is_some());
         assert!(root_hash != OneshotMerkleTree::EMPTY_HASH);
-        assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[2]).is_ok());
+        assert!(MerkleProof::verify(&merkle_proof.unwrap(), root_hash, &[10]).is_ok());
     }
 }
