@@ -181,7 +181,8 @@ impl BlockHeader {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MerkleProof {
-    pub proof: Vec<(Hash256, u8)>,
+    /// The Merkle proof (hash, is_right_node).
+    pub proof: Vec<(Hash256, bool)>,
 }
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]
@@ -198,12 +199,11 @@ impl MerkleProof {
     /// Verifies whether the given data is in the block.
     pub fn verify(&self, root: Hash256, data: &[u8]) -> Result<(), MerkleProofError> {
         let mut calculated_root: Hash256 = Hash256::hash(data);
-
-        for (hash, index) in &self.proof {
-            if *index == 0u8 {
-                calculated_root = Hash256::aggregate(hash, &calculated_root);
-            } else {
+        for (hash, is_right_node) in &self.proof {
+            if *is_right_node {
                 calculated_root = Hash256::aggregate(&calculated_root, hash);
+            } else {
+                calculated_root = Hash256::aggregate(hash, &calculated_root);
             }
         }
 
