@@ -61,10 +61,11 @@ impl OneshotMerkleTree {
     ///   4   5
     ///  1 2 3 3
     /// ```
+    ///
     /// which is represented as [[1, 2, 3], [4, 5], [6]].
     fn merkle_tree(hash_list: &[Hash256]) -> Vec<Vec<Hash256>> {
         let mut merkle_tree: Vec<Vec<Hash256>> = vec![hash_list.to_vec()];
-        while merkle_tree.last().unwrap().len() != 1 {
+        while !Self::is_fully_created(&merkle_tree) {
             let mut upper_level_hash_list: Vec<Hash256> = Vec::new();
             for pair in merkle_tree.last().unwrap().chunks(2) {
                 upper_level_hash_list.push(Self::hash_pair(pair));
@@ -72,6 +73,16 @@ impl OneshotMerkleTree {
             merkle_tree.push(upper_level_hash_list);
         }
         merkle_tree
+    }
+
+    /// Checks if a given merkle tree is fully created or is in progress.
+    ///
+    /// Is fully created if root exists and returns `true`.
+    /// Is in progress if root does not exist and returns `false`.
+    ///
+    /// Note that root exists in the last element of a merkle tree with length 1.
+    fn is_fully_created(merkle_tree: &[Vec<Hash256>]) -> bool {
+        merkle_tree.last().unwrap().len() == 1
     }
 
     /// Calculates the hash of the given pair of hashes.
