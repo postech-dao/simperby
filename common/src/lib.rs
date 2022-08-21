@@ -28,12 +28,12 @@ impl EssentialState {
     ///
     /// The order here is same as the order of leaders in each round.
     /// returns `None` if the delegation is not valid.
-    pub fn calculate_net_validator_set(&self) -> Option<Vec<(PublicKey, u64)>> {
+    pub fn calculate_net_validator_set(&self) -> Result<Vec<(PublicKey, u64)>, String> {
         // check delegation by delegatee (which's forbidden)
         let mut delegatees = BTreeSet::new();
         for (delegator, delegatee) in &self.delegation {
             if delegatees.contains(delegator) {
-                return None;
+                return Err(format!("delegatee ({}) can't delegate", delegator));
             }
             delegatees.insert(delegatee.clone());
         }
@@ -44,12 +44,12 @@ impl EssentialState {
             let delegator_voting_power = if let Some(x) = validator_set.get(delegator) {
                 *x
             } else {
-                return None;
+                return Err(format!("delegator not found: {}", delegator));
             };
             let delegatee_voting_power = if let Some(x) = validator_set.get(delegatee) {
                 *x
             } else {
-                return None;
+                return Err(format!("delegatee not found: {}", delegatee));
             };
             validator_set.remove(delegator).expect("already checked");
             validator_set.insert(
@@ -65,7 +65,7 @@ impl EssentialState {
                 result.push((key.clone(), *x));
             }
         }
-        Some(result)
+        Ok(result)
     }
 }
 
