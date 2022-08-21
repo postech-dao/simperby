@@ -31,10 +31,10 @@ impl OneshotMerkleTree {
         for level in merkle_tree {
             for pair in level.chunks(2) {
                 if pair.contains(&key) {
-                    let index: u8 = if pair[0] == key { 1u8 } else { 0u8 };
+                    let is_right_node: bool = pair[0] == key;
                     merkle_proof
                         .proof
-                        .push((pair[index as usize].clone(), index));
+                        .push((pair[is_right_node as usize].clone(), is_right_node));
                     key = Self::hash_pair(pair);
                 }
             }
