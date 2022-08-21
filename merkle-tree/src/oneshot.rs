@@ -22,22 +22,28 @@ impl OneshotMerkleTree {
     ///
     /// Given a tree [[1, 2, 3], [4, 5], [6]],
     /// Merkle proof for 2 is [1, 5] and Merkle proof for 3 is [3, 4].
-    pub fn create_merkle_proof(&self, mut key: Hash256) -> Option<MerkleProof> {
+    pub fn create_merkle_proof(&self, key: Hash256) -> Option<MerkleProof> {
         if !self.hash_list.contains(&key) {
             return None;
         }
         let mut merkle_proof: MerkleProof = MerkleProof { proof: Vec::new() };
         let mut merkle_tree: Vec<Vec<Hash256>> = Self::merkle_tree(&self.hash_list);
+        let mut target_hash: Hash256 = key;
         //  Pop because the root is never included in the Merkle proof
         merkle_tree.pop();
         for level in merkle_tree {
             for pair in level.chunks(2) {
-                if pair.contains(&key) {
-                    let is_right_node: bool = pair[0] == key;
-                    merkle_proof
-                        .proof
-                        .push((pair[is_right_node as usize].clone(), is_right_node));
-                    key = Self::hash_pair(pair);
+                if pair.contains(&target_hash) {
+                    let is_right_node: bool = pair[0] == target_hash;
+                    if pair.len() == 2 {
+                        merkle_proof
+                            .proof
+                            .push((pair[is_right_node as usize].clone(), is_right_node));
+                    } else {
+                        // Duplicated hash is provided for the hash pair of a node without a sibling.
+                        merkle_proof.proof.push((pair[0].clone(), is_right_node));
+                    }
+                    target_hash = Self::hash_pair(pair);
                 }
             }
         }
