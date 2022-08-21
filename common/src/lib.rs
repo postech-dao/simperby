@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
+type VotingPower = u64;
+
 /// The state that is directly recorded in the header.
 ///
 /// This state affects the consensus, unlike the ordinary state (which is used for data recording).
@@ -14,7 +16,7 @@ pub struct EssentialState {
     ///
     /// The order here is the leader selection priority order of the validators
     /// which directly affects the result of `calculate_net_validator_set()`.
-    pub validator_set: Vec<(PublicKey, u64)>,
+    pub validator_set: Vec<(PublicKey, VotingPower)>,
     /// The protocol version that must be used from next block.
     ///
     /// It must be a valid semantic version (e.g., `0.2.3`).
@@ -28,7 +30,7 @@ impl EssentialState {
     ///
     /// The order here is same as the order of leaders in each round.
     /// returns `None` if the delegation is not valid.
-    pub fn calculate_net_validator_set(&self) -> Result<Vec<(PublicKey, u64)>, String> {
+    pub fn calculate_net_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
         // check delegation by delegatee (which's forbidden)
         let mut delegatees = BTreeSet::new();
         for (delegator, delegatee) in &self.delegation {
@@ -141,7 +143,7 @@ impl BlockHeader {
         &self,
         block_finalization_proof: &[(PublicKey, Signature)],
     ) -> Result<(), String> {
-        let total_voting_power: u64 = self
+        let total_voting_power: VotingPower = self
             .essential_state
             .validator_set
             .iter()
@@ -155,7 +157,7 @@ impl BlockHeader {
                 .map_err(|e| format!("Invalid finalization proof - {}", e))?;
             voted_validators.insert(public_key);
         }
-        let voted_voting_power: u64 = self
+        let voted_voting_power: VotingPower = self
             .essential_state
             .validator_set
             .iter()
