@@ -118,7 +118,7 @@ impl SimperbyApi for Node {
     async fn submit_consensus_vote(
         &self,
         _hash: Hash256,
-        _signature: TypedSignature<Hash256>,
+        _signature: Signature,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
@@ -153,7 +153,7 @@ impl NodeState {
         unimplemented!()
     }
 
-    fn submit_vote_favor(&mut self, _hash: Hash256, _signature: TypedSignature<Hash256>) {
+    fn submit_vote_favor(&mut self, _hash: Hash256, _signature: Signature) {
         unimplemented!()
     }
 
@@ -161,7 +161,7 @@ impl NodeState {
         &mut self,
         _block: Block,
         _round: Round,
-        _author_prevote: TypedSignature<(Hash256, Round)>,
+        _author_prevote: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
@@ -171,7 +171,7 @@ impl NodeState {
         &mut self,
         _block_hash: Hash256,
         _round: Round,
-        _signature: TypedSignature<(Hash256, Round)>,
+        _signature: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
@@ -181,7 +181,7 @@ impl NodeState {
         &mut self,
         _block_hash: Hash256,
         _round: vetomint::Round,
-        _signature: TypedSignature<(Hash256, Round)>,
+        _signature: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
@@ -190,7 +190,7 @@ impl NodeState {
     fn receive_finalized_block(
         &mut self,
         _block: Block,
-        _finalization_proof: Vec<(PublicKey, TypedSignature<BlockHeader>)>,
+        _finalization_proof: FinalizationProof,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }

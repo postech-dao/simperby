@@ -137,7 +137,7 @@ pub enum SimperbyOperation {
     /// Used for sync.
     ReceiveFinalizedBlock {
         block: Block,
-        finalization_proof: Vec<(PublicKey, TypedSignature<BlockHeader>)>,
+        finalization_proof: FinalizationProof,
     },
 }
 
@@ -226,7 +226,7 @@ pub trait SimperbyApi {
     async fn submit_consensus_vote(
         &self,
         hash: Hash256,
-        signature: TypedSignature<Hash256>,
+        signature: Signature, // This is untyped because the signer doesn't know the source type.
     ) -> Result<(), SimperbyError>;
 }
 
