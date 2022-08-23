@@ -112,7 +112,7 @@ impl GenesisInfo {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum SimperbyOperation {
     ProposeBlock {
-        block: Block,
+        block: BlockHeader,
         signature: TypedSignature<BlockHeader>,
     },
     SubmitConsensusVote {
