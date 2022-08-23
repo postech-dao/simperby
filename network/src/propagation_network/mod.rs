@@ -32,13 +32,13 @@ pub struct PropagationNetwork {
     /// The network bootstrapping (node discovery) routine.
     _peer_discovery_task: task::JoinHandle<()>,
 
-    /// A sending endpoint of the queue that collects broadcasted messages through the network
+    /// The sending endpoint of the queue that collects broadcasted messages through the network
     /// and sends it to the simperby node.
     ///
     /// The receiving endpoint of the queue can be obtained using [`PropagationNetwork::create_receive_queue`].
     sender: broadcast::Sender<Vec<u8>>,
 
-    /// A top-level network interface provided by libp2p.
+    /// The top-level network interface provided by libp2p.
     swarm: Arc<Mutex<Swarm<Behaviour>>>,
 }
 
@@ -127,22 +127,22 @@ impl PropagationNetwork {
         })
     }
 
-    /// Convert simperby pub/priv keys into a libp2p keypair.
+    /// Converts simperby pub/priv keys into a libp2p keypair.
     fn convert_keypair(public_key: PublicKey, private_key: PrivateKey) -> Result<Keypair, String> {
         let mut keypair_bytes = private_key.as_ref().to_vec();
         keypair_bytes.extend(public_key.as_ref());
         if let Ok(keypair_inner) = ed25519::Keypair::decode(&mut keypair_bytes) {
             Ok(Keypair::Ed25519(keypair_inner))
         } else {
-            Err("Invalid public/private keypair was given.".to_string())
+            Err("invalid public/private keypair was given.".to_string())
         }
     }
 
-    /// Create a swarm with given keypair.
+    /// Creates a swarm with given keypair.
     async fn create_swarm(keypair: Keypair) -> Result<Swarm<Behaviour>, String> {
         let transport = match development_transport(keypair.clone()).await {
             Ok(transport) => transport,
-            Err(_) => return Err("Failed to create a transport.".to_string()),
+            Err(_) => return Err("failed to create a transport.".to_string()),
         };
         let behaviour = Behaviour::new(keypair.public());
         let local_peer_id = PeerId::from(keypair.public());
@@ -150,30 +150,30 @@ impl PropagationNetwork {
         Ok(Swarm::new(transport, behaviour, local_peer_id))
     }
 
-    /// Create a listener for incoming connection requests.
+    /// Creates a listener for incoming connection requests.
     /// Note that a single listener can have multiple listen addresses.
     async fn create_listener(
         swarm: &mut Swarm<Behaviour>,
         config: &PropagationNetworkConfig,
     ) -> Result<(), String> {
         if swarm.listen_on(config.listen_address.to_owned()).is_err() {
-            return Err("Failed to create a listener.".to_string());
+            return Err("failed to create a listener.".to_string());
         }
 
         let swarm_event =
             match time::timeout(config.listener_creation_timeout, swarm.select_next_some()).await {
                 Ok(e) => e,
-                Err(_) => return Err("Failed to create listener before the timeout".to_string()),
+                Err(_) => return Err("failed to create listener before the timeout".to_string()),
             };
 
         if let SwarmEvent::NewListenAddr { .. } = swarm_event {
             Ok(())
         } else {
-            unreachable!("The first SwarmEvent must be NewListenAddr.")
+            unreachable!("the first SwarmEvent must be NewListenAddr.")
         }
     }
 
-    /// Carry out an initial bootstrap by dialing given peers to establish connections.
+    /// Carries out an initial bootstrap by dialing given peers to establish connections.
     async fn bootstrap(
         swarm: &mut Swarm<Behaviour>,
         config: &PropagationNetworkConfig,
@@ -239,7 +239,7 @@ impl PropagationNetwork {
         // If no node was added, return an error.
         // Ignore the timeout if we've reached at least one node.
         if bootstrap_points.len() == bootstrap_addresses.len() {
-            Err("Could not connect to any of the bootstrap points.".to_string())
+            Err("could not connect to any of the bootstrap points.".to_string())
         } else {
             Ok(())
         }
@@ -295,14 +295,14 @@ impl PropagationNetwork {
         let mut listen_addresses = Vec::new();
         for mut multiaddr in swarm.listeners().cloned() {
             let port = loop {
-                if let Protocol::Tcp(port) = multiaddr.pop().expect("The node should listen on TCP")
+                if let Protocol::Tcp(port) = multiaddr.pop().expect("the node should listen on TCP")
                 {
                     break port;
                 }
             };
             let ipv4_addr = loop {
                 if let Protocol::Ip4(ipv4_addr) =
-                    multiaddr.pop().expect("The node should use IPv4 address")
+                    multiaddr.pop().expect("the node should use IPv4 address")
                 {
                     break ipv4_addr;
                 }
@@ -360,7 +360,7 @@ mod test {
         port_dispenser
             .get_random_ports(n)
             .await
-            .expect("Failed to get enough number of ports.")
+            .expect("failed to get enough number of ports.")
     }
 
     /// A helper struct for the tests.
@@ -372,7 +372,7 @@ mod test {
     }
 
     impl Node {
-        /// Generate a node with random key.
+        /// Generates a node with random key.
         fn new_random() -> Self {
             let seed: Vec<u8> = (0..16).map(|_| rand::random()).collect();
             let (public_key, private_key) = generate_keypair(seed);
@@ -394,7 +394,7 @@ mod test {
         keypair_bytes.extend(public_key.as_ref());
         // Todo: Handle returned error.
         let keypair = Keypair::Ed25519(
-            ed25519::Keypair::decode(&mut keypair_bytes).expect("invalid keypair was given"),
+            ed25519::Keypair::decode(&mut keypair_bytes).expect("invalid keypair was given."),
         );
         keypair.public()
     }
@@ -436,7 +436,7 @@ mod test {
                 "test".to_string(),
             )
             .await
-            .expect("Failed to construct PropagationNetwork");
+            .expect("failed to construct PropagationNetwork.");
             node.network = Some(network);
 
             // Add newly joined node to the bootstrap points.
@@ -459,7 +459,7 @@ mod test {
             let port = *get_random_ports(1)
                 .await
                 .get(0)
-                .expect("Failed to assign a port for a node.");
+                .expect("failed to assign a port for a node.");
             let listen_address = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port);
             listen_addresses.push(listen_address);
         }
@@ -481,7 +481,7 @@ mod test {
         let networks = join_all(futures)
             .await
             .into_iter()
-            .map(|result| result.expect("Failed to construct PropagationNetwork."));
+            .map(|result| result.expect("failed to construct PropagationNetwork."));
 
         for (node, network) in zip(&mut nodes, networks) {
             node.network = Some(network);
@@ -494,7 +494,7 @@ mod test {
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a tiny network when they join the network sequentially.
-    /// (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20)
+    /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_sequential() {
         discovery_with_n_nodes_sequential(5).await;
     }
@@ -502,7 +502,7 @@ mod test {
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a small network when they join the network sequentially.
-    /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
+    /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_sequential() {
         discovery_with_n_nodes_sequential(libp2p::kad::K_VALUE.into()).await;
     }
@@ -510,7 +510,7 @@ mod test {
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a tiny network when they join the network at the same time.
-    /// (network_size = 5 < [`libp2p::kad::K_VALUE`] = 20)
+    /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_concurrent() {
         discovery_with_n_nodes_concurrent(5).await;
     }
@@ -518,7 +518,7 @@ mod test {
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
     /// in a small network when they join the network at the same time.
-    /// (network_size = [`libp2p::kad::K_VALUE`] = 20)
+    /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_concurrent() {
         discovery_with_n_nodes_concurrent(libp2p::kad::K_VALUE.into()).await;
     }
