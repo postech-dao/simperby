@@ -6,6 +6,8 @@ use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_kv_storage::KVStorage;
 use simperby_network::AuthorizedNetwork;
+use thiserror::Error;
+use vetomint::Round;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Block {
@@ -59,7 +61,10 @@ pub enum StateTransition {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Transaction {
     /// The siganture of this transaction.
-    pub signature: Signature,
+    ///
+    /// This is required when `state_transition` is `Delegate` or `Undelegate`.
+    /// Otherwise, it must be `None`.
+    pub signature: Option<Signature>,
     /// The instruction to perform on the blockchain state.
     pub state_transition: Option<StateTransition>,
     /// An optional field to store data, which is not part of the state but still useful as it can be verified with the Merkle root.
@@ -86,7 +91,79 @@ pub struct ConsensusVoteItem {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct GenesisInfo {
     pub header: BlockHeader,
+    pub genesis_signature: FinalizationProof,
     pub chain_name: String,
+}
+
+impl GenesisInfo {
+    fn create_genesis_block(&self) -> Block {
+        Block {
+            header: self.header.clone(),
+            transactions: vec![],
+        }
+    }
+}
+
+/// A set of operations that may update the Simperby node state.
+///
+/// `ProposeBlock`, `SubmitConsensusVote` are explciitly performed through the `SimperbyApi` trait, and the others
+/// are done implicitly by the background task which is triggered by incoming p2p network messages.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum SimperbyOperation {
+    ProposeBlock {
+        block: Block,
+        signature: TypedSignature<BlockHeader>,
+    },
+    SubmitConsensusVote {
+        hash: Hash256,
+        signature: TypedSignature<BlockHeader>,
+    },
+    ReceiveProposal {
+        block: Block,
+        round: Round,
+        author_prevote: TypedSignature<(BlockHeader, Round)>,
+    },
+    ReceivePrevote {
+        block_hash: Hash256,
+        round: Round,
+        author_prevote: TypedSignature<(BlockHeader, Round)>,
+    },
+    ReceivePrecommit {
+        block_hash: Hash256,
+        round: Round,
+        author_prevote: TypedSignature<(BlockHeader, Round)>,
+    },
+    /// Used for sync.
+    ReceiveFinalizedBlock {
+        block: Block,
+        finalization_proof: Vec<(PublicKey, TypedSignature<BlockHeader>)>,
+    },
+}
+
+/// An error that may occur while accessing the Simperby node.
+#[derive(Error, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub enum SimperbyError {
+    #[error("invalid block: {0}")]
+    InvalidBlock(String),
+    /// When the operation arguments are not valid.
+    #[error("invalid operation: {0}")]
+    InvalidOperation(String),
+    #[error("storage error: {0}")]
+    StorageError(simperby_kv_storage::Error),
+    /// When the storage is corrupted.
+    #[error("storage integrity error: {0}")]
+    StorageIntegrityError(String),
+    /// When the consensus safety is violated.
+    #[error("consensus crisis: {0}")]
+    Crisis(String),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct SimperbyOperationLog {
+    pub description: String,
+    pub timestamp: simperby_common::Timestamp,
+    pub operation: SimperbyOperation,
+    pub result: Option<SimperbyError>,
 }
 
 #[async_trait]
@@ -98,30 +175,18 @@ pub trait SimperbyApi {
     async fn get_height(&self) -> u64;
 
     /// Gets the finalized block for the given height.
-    async fn get_block(&self, height: u64) -> Result<Block, String>;
+    async fn get_block(&self, height: u64) -> Result<Block, SimperbyError>;
 
-    /// Checks the given block as the next block to be added to the current state.
+    /// Checks the given block as the next block to be added to the block of the given `height`.
     ///
     /// Fails if the block is invalid.
-    async fn check_block(&self, block: Block) -> Result<(), String>;
-
-    /// Attempts to propose a block for this round.
-    ///
-    /// It fails
-    /// 1. with the same cause as `check_block`
-    /// 2. if this node is not the current leader.
-    /// 3. if this node has already proposed another block for this round.
-    async fn propose_block(
-        &self,
-        block: Block,
-        signature: TypedSignature<Block>,
-    ) -> Result<(), String>;
+    async fn check_block(&self, block: Block, height: BlockHeight) -> Result<(), SimperbyError>;
 
     /// Reads the finlized state entry by the given key.
-    async fn read_state(&self, key: String, height: u64) -> Result<Vec<u8>, String>;
+    async fn read_state(&self, key: String, height: BlockHeight) -> Result<Vec<u8>, SimperbyError>;
 
     /// Gets the current possible consensus voting options.
-    async fn get_consensus_vote_options(&self) -> Vec<ConsensusVoteItem>;
+    async fn get_consensus_vote_options(&self) -> Result<Vec<ConsensusVoteItem>, SimperbyError>;
 
     /// Gets the current status of the ongoing consensus.
     ///
@@ -131,12 +196,34 @@ pub trait SimperbyApi {
     /// TODO: define the type of the state.
     async fn get_consensus_status(&self) -> ();
 
-    /// Submits a vote for the given item, identified by its hash.
+    /// Gets the current status of the p2p network.
+    ///
+    /// Unlike the storage, the p2p network operations are done in the background, in other words,
+    /// there is no [`SimperbyApi`] method that directly accesses the p2p network.
+    /// Thus we need a separate API to see the current status of it.
+    async fn get_network_status(&self) -> ();
+
+    /// Gets the `number`-last logs of attempts to execute `SimperbyOperation`s.
+    async fn get_operation_log(&self, number: usize) -> Vec<SimperbyOperationLog>;
+
+    /// Attempts to propose a block for this round. This may update the node state.
+    ///
+    /// It fails
+    /// 1. with the same cause as `check_block`
+    /// 2. if this node is not the current leader.
+    /// 3. if this node has already proposed another block for this round.
+    async fn propose_block(
+        &self,
+        block: Block,
+        signature: TypedSignature<Hash256>, // Signed to the block hash.
+    ) -> Result<(), SimperbyError>;
+
+    /// Submits a vote for the given item, identified by its hash. This may update the node state.
     async fn submit_consensus_vote(
         &self,
         hash: Hash256,
         signature: TypedSignature<Hash256>,
-    ) -> Result<(), String>;
+    ) -> Result<(), SimperbyError>;
 }
 
 /// Initiates a live Simperby node.
