@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod node;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -232,10 +233,10 @@ pub trait SimperbyApi {
 /// - `history_storage` is for storing a history blockchain data, such as past blocks.
 /// This is not essential to validate a incoming blocks, but used for sync protocol and queries.
 pub async fn initiate_node(
-    _genesis_info: GenesisInfo,
-    _network: Box<dyn AuthorizedNetwork>,
-    _state_storage: Box<dyn KVStorage>,
-    _history_storage: Box<dyn KVStorage>,
-) -> Box<dyn SimperbyApi> {
-    unimplemented!()
+    genesis_info: GenesisInfo,
+    network: Box<dyn AuthorizedNetwork>,
+    state_storage: Box<dyn KVStorage>,
+    history_storage: Box<dyn KVStorage>,
+) -> Result<impl SimperbyApi, anyhow::Error> {
+    node::Node::new(genesis_info, network, state_storage, history_storage).await
 }
