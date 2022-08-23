@@ -5,22 +5,22 @@ use std::{
 
 use libp2p::{multiaddr::Protocol, Multiaddr};
 
-/// Configurations of [`PropagationNetwork`].
+/// A set of configurations of [`PropagationNetwork`].
 pub struct PropagationNetworkConfig {
-    /// Addresses to listen on to handle incoming connection requests.
+    /// The addresses to listen on to handle incoming connection requests.
     pub(crate) listen_address: Multiaddr,
-    /// Timeout parameter for listener creation.
+    /// The timeout parameter for listener creation.
     pub(crate) listener_creation_timeout: Duration,
-    /// Timeout parameter for initial bootstrap.
+    /// The timeout parameter for initial bootstrap.
     pub(crate) initial_bootstrap_timeout: Duration,
-    /// Interval for the guaranteed lock aquisition for swarm.
+    /// The interval for the guaranteed lock aquisition for swarm.
     ///
     /// It is the maximal delay until the [`PropagationNetwork`] aquires
     /// all of the resources needed to serve a job assigned from its public interface.
     pub(crate) lock_release_interval: Duration,
-    /// Interval for the regular peer discovery routine.
+    /// The interval for the regular peer discovery routine.
     pub(crate) peer_discovery_interval: Duration,
-    /// Capacity for the message queue that passes messages from other nodes
+    /// The capacity for the message queue that passes messages from other nodes
     /// to its simperby node.
     pub(crate) message_queue_capacity: usize,
 }
