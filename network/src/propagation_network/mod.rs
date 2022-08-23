@@ -329,14 +329,14 @@ mod test {
     /// Note that an assigned port doesn't mean a usable port.
     /// Assigned ports can be used by dial attempts or other processes.
     struct PortDispenser {
-        // 10000 ~ 65535
+        // 55000 ~ 57000
         available_ports: Mutex<HashSet<u16>>,
     }
 
     impl PortDispenser {
         async fn new() -> Self {
             Self {
-                available_ports: Mutex::new(HashSet::from_iter(10000..u16::MAX)),
+                available_ports: Mutex::new(HashSet::from_iter(55000..57000)),
             }
         }
 
