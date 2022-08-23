@@ -39,7 +39,7 @@ pub struct PropagationNetwork {
     sender: broadcast::Sender<Vec<u8>>,
 
     /// The top-level network interface provided by libp2p.
-    swarm: Arc<Mutex<Swarm<Behaviour>>>,
+    _swarm: Arc<Mutex<Swarm<Behaviour>>>,
 }
 
 #[async_trait]
@@ -123,7 +123,7 @@ impl PropagationNetwork {
             _event_handling_task,
             _peer_discovery_task,
             sender,
-            swarm: swarm_mutex,
+            _swarm: swarm_mutex,
         })
     }
 
@@ -278,41 +278,6 @@ async fn run_event_handling_task(
     }
 }
 
-impl PropagationNetwork {
-    #[allow(dead_code)]
-    /// Returns the peers currently in contact.
-    async fn get_connected_peers(&self) -> Vec<PeerId> {
-        let swarm = self.swarm.lock().await;
-        swarm.connected_peers().copied().collect()
-    }
-
-    #[allow(dead_code)]
-    /// Returns the socketv4 addresses to which the listeners are bound.
-    async fn get_listen_addresses(&self) -> Vec<SocketAddrV4> {
-        let swarm = self.swarm.lock().await;
-
-        // Convert `Multiaddr` into `SocketAddrV4`.
-        let mut listen_addresses = Vec::new();
-        for mut multiaddr in swarm.listeners().cloned() {
-            let port = loop {
-                if let Protocol::Tcp(port) = multiaddr.pop().expect("the node should listen on TCP")
-                {
-                    break port;
-                }
-            };
-            let ipv4_addr = loop {
-                if let Protocol::Ip4(ipv4_addr) =
-                    multiaddr.pop().expect("the node should use IPv4 address")
-                {
-                    break ipv4_addr;
-                }
-            };
-            listen_addresses.push(SocketAddrV4::new(ipv4_addr, port));
-        }
-        listen_addresses
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -320,6 +285,40 @@ mod test {
     use rand::{self, seq::IteratorRandom};
     use std::{collections::HashSet, iter::zip, net::Ipv4Addr};
     use tokio::sync::OnceCell;
+
+    impl PropagationNetwork {
+        /// Returns the peers currently in contact.
+        async fn get_connected_peers(&self) -> Vec<PeerId> {
+            let swarm = self._swarm.lock().await;
+            swarm.connected_peers().copied().collect()
+        }
+
+        /// Returns the socketv4 addresses to which the listeners are bound.
+        async fn get_listen_addresses(&self) -> Vec<SocketAddrV4> {
+            let swarm = self._swarm.lock().await;
+
+            // Convert `Multiaddr` into `SocketAddrV4`.
+            let mut listen_addresses = Vec::new();
+            for mut multiaddr in swarm.listeners().cloned() {
+                let port = loop {
+                    if let Protocol::Tcp(port) =
+                        multiaddr.pop().expect("the node should listen on TCP.")
+                    {
+                        break port;
+                    }
+                };
+                let ipv4_addr = loop {
+                    if let Protocol::Ip4(ipv4_addr) =
+                        multiaddr.pop().expect("the node should use IPv4 address.")
+                    {
+                        break ipv4_addr;
+                    }
+                };
+                listen_addresses.push(SocketAddrV4::new(ipv4_addr, port));
+            }
+            listen_addresses
+        }
+    }
 
     static CELL: OnceCell<PortDispenser> = OnceCell::const_new();
 
