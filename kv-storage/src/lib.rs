@@ -6,7 +6,7 @@ use simperby_common::crypto::*;
 use thiserror::Error;
 
 // TODO: add error types
-#[derive(Error, Debug, Serialize, Deserialize, Clone)]
+#[derive(Error, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum Error {
     /// When the given key does not exists in the storage.
     #[error("not found")]

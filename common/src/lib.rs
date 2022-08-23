@@ -5,7 +5,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
-type VotingPower = u64;
+pub type VotingPower = u64;
+/// A UNIX timestamp measured in milliseconds.
+pub type Timestamp = u64;
+/// A block height. The genesis block is at height 0.
+pub type BlockHeight = u64;
+pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
 
 /// The state that is directly recorded in the header.
 ///
@@ -76,13 +81,13 @@ pub struct BlockHeader {
     /// The author of this block.
     pub author: PublicKey,
     /// The signature of the previous block.
-    pub prev_block_finalization_proof: Vec<(PublicKey, TypedSignature<BlockHeader>)>,
+    pub prev_block_finalization_proof: FinalizationProof,
     /// The hash of the previous block.
     pub previous_hash: Hash256,
     /// The height of this block.
-    pub height: u64,
+    pub height: BlockHeight,
     /// The timestamp of this block.
-    pub timestamp: u64,
+    pub timestamp: Timestamp,
     /// The Merkle root of transactions.
     pub tx_merkle_root: Hash256,
     /// The Merkle root of the non-essential state.
@@ -141,7 +146,7 @@ impl BlockHeader {
 
     pub fn verify_finalization_proof(
         &self,
-        block_finalization_proof: &[(PublicKey, Signature)],
+        block_finalization_proof: &FinalizationProof,
     ) -> Result<(), String> {
         let total_voting_power: VotingPower = self
             .essential_state
@@ -153,7 +158,7 @@ impl BlockHeader {
         let mut voted_validators = BTreeSet::new();
         for (public_key, signature) in block_finalization_proof {
             signature
-                .verify(self.hash(), public_key)
+                .verify(self, public_key)
                 .map_err(|e| format!("Invalid finalization proof - {}", e))?;
             voted_validators.insert(public_key);
         }
