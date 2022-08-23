@@ -202,6 +202,8 @@ pub trait SimperbyApi {
     /// Unlike the storage, the p2p network operations are done in the background, in other words,
     /// there is no [`SimperbyApi`] method that directly accesses the p2p network.
     /// Thus we need a separate API to see the current status of it.
+    ///
+    /// TODO: define the type of the state.
     async fn get_network_status(&self) -> ();
 
     /// Gets the `number`-last logs of attempts to execute `SimperbyOperation`s.
