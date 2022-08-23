@@ -31,11 +31,7 @@ impl LightClient {
     }
 
     /// Updates the header by providing the next block and the proof of it.
-    pub fn update(
-        &mut self,
-        header: BlockHeader,
-        proof: Vec<(PublicKey, Signature)>,
-    ) -> Result<(), String> {
+    pub fn update(&mut self, header: BlockHeader, proof: FinalizationProof) -> Result<(), String> {
         self.last_header.verify_next_block(&header)?;
         header.verify_finalization_proof(&proof)?;
         self.state_roots.push(header.state_merkle_root.clone());
