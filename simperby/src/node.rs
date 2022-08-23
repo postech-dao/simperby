@@ -106,12 +106,13 @@ impl SimperbyApi for Node {
     async fn propose_block(
         &self,
         block: Block,
-        signature: TypedSignature<Hash256>,
+        round: Round,
+        prevote_signature: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError> {
         self.state
             .write()
             .await
-            .submit_block_proposal(block, signature)
+            .submit_block_proposal(block, round, prevote_signature)
     }
 
     async fn submit_consensus_vote(
@@ -146,7 +147,8 @@ impl NodeState {
     fn submit_block_proposal(
         &mut self,
         _block: Block,
-        _signature: TypedSignature<Hash256>,
+        _round: Round,
+        _prevote_signature: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }

@@ -216,7 +216,8 @@ pub trait SimperbyApi {
     async fn propose_block(
         &self,
         block: Block,
-        signature: TypedSignature<Hash256>, // Signed to the block hash.
+        round: Round,
+        prevote_signature: TypedSignature<(BlockHeader, Round)>,
     ) -> Result<(), SimperbyError>;
 
     /// Submits a vote for the given item, identified by its hash. This may update the node state.
