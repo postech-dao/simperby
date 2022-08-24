@@ -107,7 +107,7 @@ impl GenesisInfo {
 
 /// A set of operations that may update the Simperby node state.
 ///
-/// `ProposeBlock`, `SubmitConsensusVote` are explciitly performed through the `SimperbyApi` trait, and the others
+/// `ProposeBlock` and `SubmitConsensusVote` are explicitly performed through the `SimperbyApi` trait, and the others
 /// are done implicitly by the background task which is triggered by incoming p2p network messages.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum SimperbyOperation {
@@ -141,7 +141,7 @@ pub enum SimperbyOperation {
     },
 }
 
-/// An error that may occur while accessing the Simperby node.
+/// Errors that may occur while accessing the Simperby node.
 #[derive(Error, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SimperbyError {
     #[error("invalid block: {0}")]
@@ -183,7 +183,7 @@ pub trait SimperbyApi {
     /// Fails if the block is invalid.
     async fn check_block(&self, block: Block, height: BlockHeight) -> Result<(), SimperbyError>;
 
-    /// Reads the finlized state entry by the given key.
+    /// Reads the finalized state entry by the given key.
     async fn read_state(&self, key: String, height: BlockHeight) -> Result<Vec<u8>, SimperbyError>;
 
     /// Gets the current possible consensus voting options.
@@ -200,13 +200,13 @@ pub trait SimperbyApi {
     /// Gets the current status of the p2p network.
     ///
     /// Unlike the storage, the p2p network operations are done in the background, in other words,
-    /// there is no [`SimperbyApi`] method that directly accesses the p2p network.
-    /// Thus we need a separate API to see the current status of it.
+    /// no [`SimperbyApi`] method directly accesses the p2p network.
+    /// Thus we need a separate API to see its current status of it.
     ///
     /// TODO: define the type of the state.
     async fn get_network_status(&self) -> ();
 
-    /// Gets the `number`-last logs of attempts to execute `SimperbyOperation`s.
+    /// Gets the last `number` logs of attempts to execute `SimperbyOperation`s.
     async fn get_operation_log(&self, number: usize) -> Vec<SimperbyOperationLog>;
 
     /// Attempts to propose a block for this round. This may update the node state.
@@ -233,8 +233,8 @@ pub trait SimperbyApi {
 /// Initiates a live Simperby node.
 ///
 /// - `state_storage` represents the current finalized state of the blockchain.
-/// - `history_storage` is for storing a history blockchain data, such as past blocks.
-/// This is not essential to validate a incoming blocks, but used for sync protocol and queries.
+/// - `history_storage` is for storing a history of blockchain data, such as past blocks.
+/// This is not essential to validate incoming blocks, but is used for sync protocol and queries.
 pub async fn initiate_node(
     genesis_info: GenesisInfo,
     network: Box<dyn AuthorizedNetwork>,
