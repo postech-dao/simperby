@@ -1,4 +1,5 @@
 use std::{
+    default::Default,
     net::{Ipv4Addr, SocketAddrV4},
     time::Duration,
 };
@@ -6,6 +7,8 @@ use std::{
 use libp2p::{multiaddr::Protocol, Multiaddr};
 
 /// A set of configurations of [`PropagationNetwork`].
+///
+/// To customize it, call `default` and chain the methods named like `with_<fieldname>`.
 pub struct PropagationNetworkConfig {
     /// The addresses to listen on to handle incoming connection requests.
     pub(crate) listen_address: Multiaddr,
@@ -25,11 +28,8 @@ pub struct PropagationNetworkConfig {
     pub(crate) message_queue_capacity: usize,
 }
 
-impl PropagationNetworkConfig {
-    /// Returns a default.
-    ///
-    /// To customize configurations, call `default` and chain the functions with the name of `with_<fieldname>`.
-    pub fn default() -> Self {
+impl Default for PropagationNetworkConfig {
+    fn default() -> Self {
         Self {
             listen_address: Self::convert_socketaddr_to_multiaddr(SocketAddrV4::new(
                 Ipv4Addr::new(0, 0, 0, 0),
@@ -42,7 +42,9 @@ impl PropagationNetworkConfig {
             message_queue_capacity: 100,
         }
     }
+}
 
+impl PropagationNetworkConfig {
     pub fn with_listen_address(&mut self, listen_address: SocketAddrV4) -> &mut Self {
         self.listen_address = Self::convert_socketaddr_to_multiaddr(listen_address);
         self
