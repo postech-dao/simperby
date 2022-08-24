@@ -1,6 +1,8 @@
+mod network;
 mod storage;
 
 use super::*;
+use network::NetworkOperation;
 use simperby_kv_storage::KVStorage;
 use simperby_network::AuthorizedNetwork;
 use std::sync::Arc;
@@ -30,7 +32,7 @@ impl Node {
         Ok(Node {
             state: Arc::clone(&state_),
             network_task: tokio::task::spawn(async move {
-                run_network_task(network, state_).await;
+                network::run_network_task(network, state_).await;
             }),
             genesis_info,
         })
@@ -123,13 +125,6 @@ impl SimperbyApi for Node {
     }
 }
 
-async fn run_network_task(
-    _network: Box<dyn AuthorizedNetwork>,
-    _node_state: Arc<RwLock<NodeState>>,
-) {
-    unimplemented!()
-}
-
 /// The node state machine.
 ///
 /// Both `SimperbyApi` and `run_network_task()` can concurrently access this state
@@ -143,6 +138,7 @@ struct NodeState {
 }
 
 impl NodeState {
+    /// Invoked by [`crate::SimperbyApi`]
     fn submit_block_proposal(
         &mut self,
         _block: Block,
@@ -152,45 +148,62 @@ impl NodeState {
         unimplemented!()
     }
 
-    fn submit_vote_favor(&mut self, _hash: Hash256, _signature: Signature) {
+    /// Invoked by [`crate::SimperbyApi`]
+    fn submit_vote_favor(
+        &mut self,
+        _hash: Hash256,
+        _signature: Signature,
+    ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
 
+    /// Invoked by [`network::run_network_task()`]
     fn receive_proposal(
         &mut self,
         _block: Block,
         _round: Round,
         _author_prevote: TypedSignature<(BlockHeader, Round)>,
-    ) -> Result<(), SimperbyError> {
+    ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
+    /// Invoked by [`network::run_network_task()`]
+    ///
     /// If `block_hash` is `zero()` then it represents the nill vote.
     fn receive_prevote(
         &mut self,
         _block_hash: Hash256,
         _round: Round,
         _signature: TypedSignature<(BlockHeader, Round)>,
-    ) -> Result<(), SimperbyError> {
+    ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
+    /// Invoked by [`network::run_network_task()`]
+    ///
     /// If `block_hash` is `zero()` then it represents the nill vote.
     fn receive_precommit(
         &mut self,
         _block_hash: Hash256,
         _round: vetomint::Round,
         _signature: TypedSignature<(BlockHeader, Round)>,
-    ) -> Result<(), SimperbyError> {
+    ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
+    /// Invoked by [`network::run_network_task()`]
+    ///
     /// For sync.
     fn receive_finalized_block(
         &mut self,
         _block: Block,
         _finalization_proof: FinalizationProof,
-    ) -> Result<(), SimperbyError> {
+    ) -> Result<NetworkOperation, SimperbyError> {
+        unimplemented!()
+    }
+
+    /// Invoked by [`network::run_network_task()`]
+    fn timer(&mut self, _time: Timestamp) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 }
