@@ -73,7 +73,7 @@ impl SimperbyApi for Node {
         unimplemented!()
     }
 
-    async fn read_state(&self, key: String, height: u64) -> Result<Vec<u8>, SimperbyError> {
+    async fn read_state(&self, key: String, height: BlockHeight) -> Result<Vec<u8>, SimperbyError> {
         let state = self.state.read().await;
         assert_eq!(
             height, state.last_header.height,
@@ -98,7 +98,6 @@ impl SimperbyApi for Node {
         unimplemented!()
     }
 
-    /// Gets the `number`-last logs of attempts to execute `SimperbyOperation`s.
     async fn get_operation_log(&self, _number: usize) -> Vec<SimperbyOperationLog> {
         unimplemented!()
     }
@@ -133,7 +132,7 @@ async fn run_network_task(
 
 /// The node state machine.
 ///
-/// Both `SimperbyApi` and `run_network_task()` can concurrently access to this state
+/// Both `SimperbyApi` and `run_network_task()` can concurrently access this state
 /// and it will be synchronized by `RwLock`.
 struct NodeState {
     history_storage: HistoryStorage,

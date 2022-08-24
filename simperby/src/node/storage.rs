@@ -32,11 +32,11 @@ impl From<Error> for SimperbyError {
     }
 }
 
-fn create_block_key(height: u64) -> Hash256 {
+fn create_block_key(height: BlockHeight) -> Hash256 {
     Hash256::hash(format!("block-{}", height).as_bytes())
 }
 
-fn create_last_finlized_height_key() -> Hash256 {
+fn create_last_finalized_height_key() -> Hash256 {
     Hash256::hash("last-finalized-height".as_bytes())
 }
 
@@ -45,7 +45,7 @@ fn create_last_finalized_block_proof_key() -> Hash256 {
 }
 
 fn initialization_flag_key() -> Hash256 {
-    Hash256::hash("initialization_flag".as_bytes())
+    Hash256::hash("initialization-flag".as_bytes())
 }
 
 async fn get_json_from_storage<T>(storage: &dyn KVStorage, key: Hash256) -> Result<T, Error>
@@ -56,7 +56,7 @@ where
     serde_json::from_slice(&value).map_err(|e| Error::StorageIntegrityError(e.to_string()))
 }
 
-async fn set_json_from_storage<T>(
+async fn set_json_to_storage<T>(
     storage: &mut dyn KVStorage,
     key: Hash256,
     value: &T,
@@ -92,17 +92,17 @@ impl HistoryStorage {
                     genesis_block
                 )));
             };
-            get_json_from_storage(storage.as_ref(), create_last_finlized_height_key()).await?
+            get_json_from_storage(storage.as_ref(), create_last_finalized_height_key()).await?
         // empty storage; initialize
         } else {
-            set_json_from_storage(
+            set_json_to_storage(
                 storage.as_mut(),
                 create_block_key(0),
                 &genesis_info.create_genesis_block(),
             )
             .await?;
-            set_json_from_storage(storage.as_mut(), create_last_finlized_height_key(), &0).await?;
-            set_json_from_storage(
+            set_json_to_storage(storage.as_mut(), create_last_finalized_height_key(), &0).await?;
+            set_json_to_storage(
                 storage.as_mut(),
                 create_last_finalized_block_proof_key(),
                 &genesis_info.genesis_signature,
@@ -121,23 +121,23 @@ impl HistoryStorage {
     ) -> Result<(), Error> {
         if block.header.height != self.height + 1 {
             return Err(Error::InvalidOperation(format!(
-                "block height {} does not match the expected nesxt height {}",
+                "block height {} does not match the expected next height {}",
                 block.header.height, self.height
             )));
         }
-        set_json_from_storage(
+        set_json_to_storage(
             self.storage.as_mut(),
             create_block_key(block.header.height),
             block,
         )
         .await?;
-        set_json_from_storage(
+        set_json_to_storage(
             self.storage.as_mut(),
-            create_last_finlized_height_key(),
+            create_last_finalized_height_key(),
             &block.header.height,
         )
         .await?;
-        set_json_from_storage(
+        set_json_to_storage(
             self.storage.as_mut(),
             create_last_finalized_block_proof_key(),
             &finalization_proof,
@@ -149,10 +149,10 @@ impl HistoryStorage {
     }
 
     pub async fn get_last_finalized_height(&self) -> Result<u64, Error> {
-        get_json_from_storage(self.storage.as_ref(), create_last_finlized_height_key()).await
+        get_json_from_storage(self.storage.as_ref(), create_last_finalized_height_key()).await
     }
 
-    pub async fn get_block(&self, height: u64) -> Result<Block, Error> {
+    pub async fn get_block(&self, height: BlockHeight) -> Result<Block, Error> {
         if height <= self.height {
             return Err(Error::InvalidOperation(format!(
                 "block height {} excees the current height {}",
