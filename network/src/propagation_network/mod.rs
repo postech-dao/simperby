@@ -282,6 +282,7 @@ async fn run_event_handling_task(
 mod test {
     use super::*;
     use futures::future::join_all;
+    use port_scanner::local_ports_available;
     use rand::{self, seq::IteratorRandom};
     use std::{collections::HashSet, iter::zip, net::Ipv4Addr};
     use tokio::sync::OnceCell;
@@ -342,15 +343,23 @@ mod test {
         async fn get_random_ports(&self, n: usize) -> Result<Vec<u16>, ()> {
             let mut available_ports = self.available_ports.lock().await;
             let mut rng = rand::thread_rng();
-            let assigned_ports = available_ports.iter().copied().choose_multiple(&mut rng, n);
-            for port in &assigned_ports {
-                available_ports.remove(port);
+            let mut assigned_ports = Vec::new();
+            while assigned_ports.len() < n {
+                let random_ports = available_ports
+                    .iter()
+                    .copied()
+                    .choose_multiple(&mut rng, n - assigned_ports.len());
+                // There is no available port.
+                if random_ports.is_empty() {
+                    return Err(());
+                }
+                // Exclude ports that are and will be in use from the reserved ports.
+                for port in &random_ports {
+                    available_ports.remove(port);
+                }
+                assigned_ports.extend(local_ports_available(random_ports).iter());
             }
-            if assigned_ports.len() == n {
-                Ok(assigned_ports)
-            } else {
-                Err(())
-            }
+            Ok(assigned_ports)
         }
     }
 
