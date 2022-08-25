@@ -113,31 +113,40 @@ impl GenesisInfo {
 pub enum SimperbyOperation {
     ProposeBlock {
         block: BlockHeader,
-        signature: TypedSignature<BlockHeader>,
+        round: Round,
+        prevote_signature: TypedSignature<(BlockHeader, Round)>,
+        timestamp: Timestamp,
     },
     SubmitConsensusVote {
         hash: Hash256,
-        signature: TypedSignature<BlockHeader>,
+        signature: Signature,
+        timestamp: Timestamp,
     },
     ReceiveProposal {
         block: Block,
         round: Round,
         author_prevote: TypedSignature<(BlockHeader, Round)>,
+        timestamp: Timestamp,
     },
     ReceivePrevote {
         block_hash: Hash256,
         round: Round,
-        author_prevote: TypedSignature<(BlockHeader, Round)>,
+        author_prevote: TypedSignature<(Option<BlockHeader>, Round)>,
+        timestamp: Timestamp,
     },
     ReceivePrecommit {
         block_hash: Hash256,
         round: Round,
-        author_prevote: TypedSignature<(BlockHeader, Round)>,
+        author_prevote: TypedSignature<(Option<BlockHeader>, Round)>,
+        timestamp: Timestamp,
     },
-    /// Used for sync.
     ReceiveFinalizedBlock {
         block: Block,
         finalization_proof: FinalizationProof,
+        timestamp: Timestamp,
+    },
+    Timer {
+        timestamp: Timestamp,
     },
 }
 
@@ -220,6 +229,7 @@ pub trait SimperbyApi {
         block: Block,
         round: Round,
         prevote_signature: TypedSignature<(BlockHeader, Round)>,
+        timestamp: Timestamp,
     ) -> Result<(), SimperbyError>;
 
     /// Submits a vote for the given item, identified by its hash. This may update the node state.
@@ -227,6 +237,7 @@ pub trait SimperbyApi {
         &self,
         hash: Hash256,
         signature: Signature, // This is untyped because the signer doesn't know the source type.
+        timestamp: Timestamp,
     ) -> Result<(), SimperbyError>;
 }
 
