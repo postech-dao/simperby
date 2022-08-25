@@ -284,7 +284,11 @@ mod test {
     use futures::future::join_all;
     use port_scanner::local_ports_available;
     use rand::{self, seq::IteratorRandom};
-    use std::{collections::HashSet, iter::zip, net::Ipv4Addr};
+    use std::{
+        collections::{HashMap, HashSet},
+        iter::zip,
+        net::Ipv4Addr,
+    };
     use tokio::sync::OnceCell;
 
     impl PropagationNetwork {
@@ -371,12 +375,19 @@ mod test {
             .expect("failed to get enough number of ports.")
     }
 
+    type NodeKey = PeerId;
+
     /// A helper struct for the tests.
     struct Node {
         public_key: PublicKey,
         private_key: PrivateKey,
         id: PeerId,
         network: Option<PropagationNetwork>,
+    }
+
+    /// A helper struct that represents the network of its inner nodes.
+    struct Network {
+        nodes: HashMap<NodeKey, Node>,
     }
 
     impl Node {
@@ -390,6 +401,135 @@ mod test {
                 private_key,
                 network: None,
             }
+        }
+    }
+
+    impl Network {
+        fn new() -> Self {
+            Self {
+                nodes: HashMap::new(),
+            }
+        }
+
+        /// Creates a node, but does not make it join the network.
+        fn create_node(&mut self) -> NodeKey {
+            let node = Node::new_random();
+            let key = node.id;
+            self.nodes.insert(key, node);
+            key
+        }
+
+        /// Creates n nodes.
+        fn create_nodes(&mut self, n: usize) -> Vec<NodeKey> {
+            (0..n).map(|_| self.create_node()).collect()
+        }
+
+        /// Returns nodes that have joined the network.
+        fn get_nodes_in_network(&self) -> Vec<NodeKey> {
+            self.nodes
+                .iter()
+                .filter(|(_, node)| node.network.is_some())
+                .map(|(&key, _)| key)
+                .collect()
+        }
+
+        /// Returns nodes that have joined the network.
+        fn get_nodes_not_in_network(&self) -> Vec<NodeKey> {
+            self.nodes
+                .iter()
+                .filter(|(_, node)| node.network.is_none())
+                .map(|(&key, _)| key)
+                .collect()
+        }
+
+        /// Adds all nodes to the network that haven't joined it yet.
+        async fn add_nodes_to_network_sequential(
+            &mut self,
+            max_bootstrap_points: usize,
+        ) -> Result<Vec<NodeKey>, String> {
+            let target_nodes = self.get_nodes_not_in_network();
+
+            for key in &target_nodes {
+                // Select random nodes and add them to bootstrap points.
+                let mut bootstrap_points = Vec::new();
+                let mut rng = rand::thread_rng();
+                let bootstrap_nodes = self
+                    .get_nodes_in_network()
+                    .into_iter()
+                    .choose_multiple(&mut rng, max_bootstrap_points);
+                for key in &bootstrap_nodes {
+                    let network = self.nodes.get(key).unwrap().network.as_ref().unwrap();
+                    for address in network.get_listen_addresses().await {
+                        bootstrap_points.push(address);
+                    }
+                }
+
+                // Create the network interface (to make the node join the network).
+                let target_node = self.nodes.get_mut(key).unwrap();
+                let network = PropagationNetwork::new(
+                    target_node.public_key.clone(),
+                    target_node.private_key.clone(),
+                    Vec::new(),
+                    bootstrap_points.clone(),
+                    "test".to_string(),
+                )
+                .await?;
+                target_node.network.replace(network);
+            }
+
+            Ok(target_nodes)
+        }
+
+        async fn add_nodes_to_network_concurrent(
+            &mut self,
+            max_bootstrap_points: usize,
+        ) -> Result<Vec<NodeKey>, String> {
+            let target_nodes = self.get_nodes_not_in_network();
+
+            // Assign addresses to bind to.
+            let mut listen_addresses = Vec::new();
+            for _ in 0..target_nodes.len() {
+                let port = *get_random_ports(1)
+                    .await
+                    .first()
+                    .expect("failed to assign a port for a node.");
+                let listen_address = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port);
+                listen_addresses.push(listen_address);
+            }
+
+            // Create the network interfaces asynchronously.
+            let nodes: Vec<&Node> = target_nodes
+                .iter()
+                .map(|key| self.nodes.get(key).unwrap())
+                .collect();
+            let futures = zip(nodes, &listen_addresses).map(|(node, listen_address)| {
+                let mut config = PropagationNetworkConfig::default();
+                config.with_listen_address(listen_address.to_owned());
+                let mut rng = rand::thread_rng();
+                let bootstrap_points = listen_addresses
+                    .iter()
+                    .cloned()
+                    .choose_multiple(&mut rng, max_bootstrap_points);
+                PropagationNetwork::with_config(
+                    node.public_key.clone(),
+                    node.private_key.clone(),
+                    Vec::new(),
+                    bootstrap_points,
+                    "test".to_string(),
+                    config,
+                )
+            });
+            let networks = join_all(futures)
+                .await
+                .into_iter()
+                .map(|result| result.expect("failed to construct PropagationNetwork."));
+
+            // Pass the network interfaces to the nodes.
+            for (key, network) in zip(&target_nodes, networks) {
+                self.nodes.get_mut(key).unwrap().network.replace(network);
+            }
+
+            Ok(target_nodes)
         }
     }
 
@@ -407,19 +547,18 @@ mod test {
         keypair.public()
     }
 
-    /// A helper function that checks each node's routing table
-    /// whether it has all the peers on the same network.
+    /// Checks each node's routing table whether it has all the peers on the same network.
     ///
     /// Panics if the routing table does not match with expectation.
-    async fn check_routing_table(nodes: &Vec<Node>) {
-        for node in nodes {
+    async fn check_routing_table(nodes: Vec<&Node>) {
+        for node in &nodes {
             let network = node.network.as_ref().unwrap();
             let connected_peers = network
                 .get_connected_peers()
                 .await
                 .into_iter()
                 .collect::<HashSet<PeerId>>();
-            for peer in nodes {
+            for peer in &nodes {
                 if peer.id == node.id {
                     continue;
                 }
@@ -430,73 +569,28 @@ mod test {
 
     /// A helper test function with an argument.
     async fn discovery_with_n_nodes_sequential(n: usize) {
-        let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
-        let mut bootstrap_points = Vec::new();
-
-        // Create n nodes sequentially.
-        for i in 0..n {
-            let node = nodes.get_mut(i).unwrap();
-            let network = PropagationNetwork::new(
-                node.public_key.clone(),
-                node.private_key.clone(),
-                Vec::new(),
-                bootstrap_points.clone(),
-                "test".to_string(),
-            )
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential(n)
             .await
-            .expect("failed to construct PropagationNetwork.");
-            node.network = Some(network);
+            .expect("failed to add nodes to the network.");
 
-            // Add newly joined node to the bootstrap points.
-            let network = node.network.as_ref().unwrap();
-            for listen_address in network.get_listen_addresses().await {
-                bootstrap_points.push(listen_address);
-            }
-        }
         // Test if every node has filled its routing table correctly.
-        check_routing_table(&nodes).await
+        check_routing_table(network.nodes.values().collect()).await
     }
 
     /// A helper test function with an argument.
     async fn discovery_with_n_nodes_concurrent(n: usize) {
-        let mut nodes: Vec<Node> = (0..n).map(|_| Node::new_random()).collect();
-
-        // Assign unique ports to listen to.
-        let mut listen_addresses = Vec::new();
-        for _ in 0..n {
-            let port = *get_random_ports(1)
-                .await
-                .first()
-                .expect("failed to assign a port for a node.");
-            let listen_address = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port);
-            listen_addresses.push(listen_address);
-        }
-
-        // Create n nodes asynchronously.
-        let futures = zip(&mut nodes, &listen_addresses).map(|(node, listen_address)| {
-            let mut config = PropagationNetworkConfig::default();
-            config.with_listen_address(listen_address.to_owned());
-            PropagationNetwork::with_config(
-                node.public_key.clone(),
-                node.private_key.clone(),
-                Vec::new(),
-                listen_addresses.clone(),
-                "test".to_string(),
-                config,
-            )
-        });
-
-        let networks = join_all(futures)
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_concurrent(n)
             .await
-            .into_iter()
-            .map(|result| result.expect("failed to construct PropagationNetwork."));
-
-        for (node, network) in zip(&mut nodes, networks) {
-            node.network = Some(network);
-        }
+            .expect("failed to add nodes to the network.");
 
         // Test if every node has filled its routing table correctly.
-        check_routing_table(&nodes).await
+        check_routing_table(network.nodes.values().collect()).await
     }
 
     #[tokio::test]
