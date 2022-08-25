@@ -117,7 +117,7 @@ impl HistoryStorage {
     pub async fn append_block(
         &mut self,
         block: &Block,
-        finalization_proof: Vec<(PublicKey, Signature)>,
+        finalization_proof: FinalizationProof,
     ) -> Result<(), Error> {
         if block.header.height != self.height + 1 {
             return Err(Error::InvalidOperation(format!(
@@ -164,9 +164,7 @@ impl HistoryStorage {
 
     /// Since the finalization proof for a block is in the next header,
     /// we partially store the finalization proof for the last block.
-    pub async fn get_last_finalized_block_proof(
-        &self,
-    ) -> Result<Vec<(PublicKey, Signature)>, Error> {
+    pub async fn get_last_finalized_block_proof(&self) -> Result<FinalizationProof, Error> {
         get_json_from_storage(
             self.storage.as_ref(),
             create_last_finalized_block_proof_key(),
