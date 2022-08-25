@@ -109,17 +109,19 @@ impl SimperbyApi for Node {
         block: Block,
         round: Round,
         prevote_signature: TypedSignature<(BlockHeader, Round)>,
+        timestamp: Timestamp,
     ) -> Result<(), SimperbyError> {
         self.state
             .write()
             .await
-            .submit_block_proposal(block, round, prevote_signature)
+            .submit_block_proposal(block, round, prevote_signature, timestamp)
     }
 
     async fn submit_consensus_vote(
         &self,
         _hash: Hash256,
         _signature: Signature,
+        _timestamp: Timestamp,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
@@ -138,72 +140,78 @@ struct NodeState {
 }
 
 impl NodeState {
-    /// Invoked by [`crate::SimperbyApi`]
+    /// Invoked by [`crate::SimperbyApi`].
     fn submit_block_proposal(
         &mut self,
         _block: Block,
         _round: Round,
         _prevote_signature: TypedSignature<(BlockHeader, Round)>,
+        _timestamp: Timestamp,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
 
-    /// Invoked by [`crate::SimperbyApi`]
+    /// Invoked by [`crate::SimperbyApi`].
     fn submit_vote_favor(
         &mut self,
         _hash: Hash256,
         _signature: Signature,
+        _timestamp: Timestamp,
     ) -> Result<(), SimperbyError> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`]
-    fn receive_proposal(
+    /// Invoked by [`network::run_network_task()`].
+    fn report_proposal(
         &mut self,
         _block: Block,
         _round: Round,
         _author_prevote: TypedSignature<(BlockHeader, Round)>,
+        _timestamp: Timestamp,
     ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`]
+    /// Invoked by [`network::run_network_task()`].
     ///
-    /// If `block_hash` is `zero()` then it represents the nill vote.
-    fn receive_prevote(
+    /// In case of a nil-vote, `block_hash` is zero and the signature is signed on `(None, round)`.
+    fn report_prevote(
         &mut self,
         _block_hash: Hash256,
         _round: Round,
-        _signature: TypedSignature<(BlockHeader, Round)>,
+        _signature: TypedSignature<(Option<BlockHeader>, Round)>,
+        _timestamp: Timestamp,
     ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`]
+    /// Invoked by [`network::run_network_task()`].
     ///
-    /// If `block_hash` is `zero()` then it represents the nill vote.
-    fn receive_precommit(
+    /// In case of a nil-vote, `block_hash` is zero and the signature is signed on `(None, round)`.
+    fn report_precommit(
         &mut self,
         _block_hash: Hash256,
         _round: vetomint::Round,
-        _signature: TypedSignature<(BlockHeader, Round)>,
+        _signature: TypedSignature<(Option<BlockHeader>, Round)>,
+        _timestamp: Timestamp,
     ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`]
+    /// Invoked by [`network::run_network_task()`].
     ///
     /// For sync.
     fn receive_finalized_block(
         &mut self,
         _block: Block,
         _finalization_proof: FinalizationProof,
+        _timestamp: Timestamp,
     ) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 
     /// Invoked by [`network::run_network_task()`]
-    fn timer(&mut self, _time: Timestamp) -> Result<NetworkOperation, SimperbyError> {
+    fn timer(&mut self, _timestamp: Timestamp) -> Result<NetworkOperation, SimperbyError> {
         unimplemented!()
     }
 }
