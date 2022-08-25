@@ -56,7 +56,7 @@ where
     serde_json::from_slice(&value).map_err(|e| Error::StorageIntegrityError(e.to_string()))
 }
 
-async fn set_json_to_storage<T>(
+async fn insert_or_update_json_to_storage<T>(
     storage: &mut dyn KVStorage,
     key: Hash256,
     value: &T,
@@ -95,14 +95,19 @@ impl HistoryStorage {
             get_json_from_storage(storage.as_ref(), create_last_finalized_height_key()).await?
         // empty storage; initialize
         } else {
-            set_json_to_storage(
+            insert_or_update_json_to_storage(
                 storage.as_mut(),
                 create_block_key(0),
                 &genesis_info.create_genesis_block(),
             )
             .await?;
-            set_json_to_storage(storage.as_mut(), create_last_finalized_height_key(), &0).await?;
-            set_json_to_storage(
+            insert_or_update_json_to_storage(
+                storage.as_mut(),
+                create_last_finalized_height_key(),
+                &0,
+            )
+            .await?;
+            insert_or_update_json_to_storage(
                 storage.as_mut(),
                 create_last_finalized_block_proof_key(),
                 &genesis_info.genesis_signature,
@@ -125,19 +130,19 @@ impl HistoryStorage {
                 block.header.height, self.height
             )));
         }
-        set_json_to_storage(
+        insert_or_update_json_to_storage(
             self.storage.as_mut(),
             create_block_key(block.header.height),
             block,
         )
         .await?;
-        set_json_to_storage(
+        insert_or_update_json_to_storage(
             self.storage.as_mut(),
             create_last_finalized_height_key(),
             &block.header.height,
         )
         .await?;
-        set_json_to_storage(
+        insert_or_update_json_to_storage(
             self.storage.as_mut(),
             create_last_finalized_block_proof_key(),
             &finalization_proof,
