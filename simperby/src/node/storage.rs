@@ -110,7 +110,7 @@ impl HistoryStorage {
             insert_or_update_json_to_storage(
                 storage.as_mut(),
                 create_last_finalized_block_proof_key(),
-                &genesis_info.genesis_signature,
+                &genesis_info.genesis_proof,
             )
             .await?;
             0

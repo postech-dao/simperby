@@ -92,7 +92,7 @@ pub struct ConsensusVoteItem {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct GenesisInfo {
     pub header: BlockHeader,
-    pub genesis_signature: FinalizationProof,
+    pub genesis_proof: FinalizationProof,
     pub chain_name: String,
 }
 
