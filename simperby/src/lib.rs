@@ -173,10 +173,10 @@ pub trait SimperbyApi {
     fn get_genesis_info(&self) -> &GenesisInfo;
 
     /// Gets the current height of the blockchain.
-    async fn get_height(&self) -> u64;
+    async fn get_height(&self) -> BlockHeight;
 
     /// Gets the finalized block for the given height.
-    async fn get_block(&self, height: u64) -> Result<Block, SimperbyError>;
+    async fn get_block(&self, height: BlockHeight) -> Result<Block, SimperbyError>;
 
     /// Checks the given block as the next block to be added to the block of the given `height`.
     ///
