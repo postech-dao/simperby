@@ -457,7 +457,7 @@ mod test {
         for _ in 0..n {
             let port = *get_random_ports(1)
                 .await
-                .get(0)
+                .first()
                 .expect("failed to assign a port for a node.");
             let listen_address = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port);
             listen_addresses.push(listen_address);
@@ -466,7 +466,7 @@ mod test {
         // Create n nodes asynchronously.
         let futures = zip(&mut nodes, &listen_addresses).map(|(node, listen_address)| {
             let mut config = PropagationNetworkConfig::default();
-            config.with_listen_address(listen_address.clone());
+            config.with_listen_address(listen_address.to_owned());
             PropagationNetwork::with_config(
                 node.public_key.clone(),
                 node.private_key.clone(),
