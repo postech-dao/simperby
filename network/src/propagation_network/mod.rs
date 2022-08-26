@@ -293,7 +293,7 @@ mod test {
         iter::zip,
         net::Ipv4Addr,
     };
-    use tokio::sync::OnceCell;
+    use tokio::{sync::OnceCell, time::sleep};
 
     impl PropagationNetwork {
         /// Returns the peers currently in contact.
@@ -586,6 +586,29 @@ mod test {
         }
     }
 
+    /// Checks each node's routing table to see whether it has at least 20 peers.
+    ///
+    /// We don't check the exact list of peers because it is cumbersome to calculate it in a large network.
+    /// It is enough to check the number of connected peers of a node to see whether the peer discovery query
+    /// has been sent normally.
+    /// Panics on failure.
+    async fn check_routing_table_weak(nodes: Vec<&Node>) {
+        for node in &nodes {
+            let network = node.network.as_ref().unwrap();
+            let connected_peers = network
+                .get_connected_peers()
+                .await
+                .into_iter()
+                .collect::<HashSet<PeerId>>();
+            // 1. Check whether each node has at least 20 connections.
+            assert!(connected_peers.len() >= 20);
+            for peer in connected_peers {
+                // 2. Check whether the connected peers are in the network.
+                assert!(nodes.iter().any(|node| peer == node.id));
+            }
+        }
+    }
+
     /// A helper test function with an argument.
     async fn discovery_with_n_nodes(n: usize, join_sequential: bool, max_bootstrap_points: usize) {
         let mut network = Network::new();
@@ -602,8 +625,19 @@ mod test {
                 .expect("failed to add nodes to the network.");
         }
 
+        // If the nodes started with few bootstrap nodes, wait for at most one cycle of bootstrapping
+        // to give them enough time to find other nodes.
+        if n != max_bootstrap_points {
+            sleep(create_testnet_config().peer_discovery_interval).await;
+        }
+
         // Test if every node has filled its routing table correctly.
-        check_routing_table(network.nodes.values().collect()).await
+        let nodes = network.nodes.values().collect();
+        if n > libp2p::kad::K_VALUE.into() {
+            check_routing_table_weak(nodes).await
+        } else {
+            check_routing_table(nodes).await
+        }
     }
 
     #[tokio::test]
@@ -638,6 +672,34 @@ mod test {
     async fn discovery_with_small_network_concurrent() {
         let n = libp2p::kad::K_VALUE.into();
         discovery_with_n_nodes(n, false, n).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with the addresses of all the other nodes
+    /// in a small network when it join the network at the same time with few(=3) bootstrap nodes.
+    /// (network_size = max_peers_per_node = 20)
+    ///
+    /// Todo: Activate this test after regular peer discovery is implemented.
+    async fn discovery_with_small_network_concurrent_sparse() {
+        let n = libp2p::kad::K_VALUE.into();
+        // (n / 2) + 1 bootstrap nodes guarantees there will be no disconnected subnetwork.
+        discovery_with_n_nodes(n, false, (n / 2) as usize + 1).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Test if every node fills its routing table with more than `max_peers_per_node(=20)` nodes
+    /// in a large network when it join the network at the same time with few(=3) bootstrap nodes.
+    /// (network_size = 40 > max_peers_per_node = 20)
+    ///
+    /// Because we don't know which nodes a node keeps connections with, we just check whether every node
+    /// has more than 20 peers and whether the peers are really in the list of entire nodes.
+    ///
+    /// Todo: Activate this test after regular peer discovery is implemented.
+    async fn discovery_with_large_network_concurrent_sparse() {
+        // (n / 2) + 1 bootstrap nodes guarantees there will be no disconnected subnetwork.
+        discovery_with_n_nodes(30, false, (30 / 2) as usize + 1).await;
     }
 
     #[tokio::test]
