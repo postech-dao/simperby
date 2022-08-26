@@ -568,27 +568,21 @@ mod test {
     }
 
     /// A helper test function with an argument.
-    async fn discovery_with_n_nodes_sequential(n: usize) {
+    async fn discovery_with_n_nodes(n: usize, join_sequential: bool, max_bootstrap_points: usize) {
         let mut network = Network::new();
         network.create_nodes(n);
-        network
-            .add_nodes_to_network_sequential(n)
-            .await
-            .expect("failed to add nodes to the network.");
-
-        // Test if every node has filled its routing table correctly.
-        check_routing_table(network.nodes.values().collect()).await
-    }
-
-    /// A helper test function with an argument.
-    async fn discovery_with_n_nodes_concurrent(n: usize) {
-        let mut network = Network::new();
-        network.create_nodes(n);
-        network
-            .add_nodes_to_network_concurrent(n)
-            .await
-            .expect("failed to add nodes to the network.");
-
+        if join_sequential {
+            network
+                .add_nodes_to_network_sequential(max_bootstrap_points)
+                .await
+                .expect("failed to add nodes to the network.");
+        } else {
+            network
+                .add_nodes_to_network_concurrent(max_bootstrap_points)
+                .await
+                .expect("failed to add nodes to the network.");
+        }
+         
         // Test if every node has filled its routing table correctly.
         check_routing_table(network.nodes.values().collect()).await
     }
@@ -598,7 +592,7 @@ mod test {
     /// in a tiny network when they join the network sequentially.
     /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_sequential() {
-        discovery_with_n_nodes_sequential(5).await;
+        discovery_with_n_nodes(5, true, 5).await;
     }
 
     #[tokio::test]
@@ -606,7 +600,8 @@ mod test {
     /// in a small network when they join the network sequentially.
     /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_sequential() {
-        discovery_with_n_nodes_sequential(libp2p::kad::K_VALUE.into()).await;
+        let n = libp2p::kad::K_VALUE.into();
+        discovery_with_n_nodes(n, true, n).await;
     }
 
     #[tokio::test]
@@ -614,7 +609,7 @@ mod test {
     /// in a tiny network when they join the network at the same time.
     /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_concurrent() {
-        discovery_with_n_nodes_concurrent(5).await;
+        discovery_with_n_nodes(5, false, 5).await;
     }
 
     #[tokio::test]
@@ -622,7 +617,8 @@ mod test {
     /// in a small network when they join the network at the same time.
     /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_concurrent() {
-        discovery_with_n_nodes_concurrent(libp2p::kad::K_VALUE.into()).await;
+        let n = libp2p::kad::K_VALUE.into();
+        discovery_with_n_nodes(n, false, n).await;
     }
 
     #[tokio::test]
