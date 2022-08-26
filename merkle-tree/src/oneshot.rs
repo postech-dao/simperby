@@ -100,6 +100,8 @@ impl OneshotMerkleTree {
     /// Returns the root of the tree.
     ///
     /// If the tree is empty, this returns a `Self::EMPTY_HASH`.
+    ///
+    /// Never panics on unwrap because merkle_tree is initialized with `vec![hash_list.to_vec()]` where `hash_list` is not empty.
     pub fn root(&self) -> Hash256 {
         if self.hash_list.is_empty() {
             Self::EMPTY_HASH
