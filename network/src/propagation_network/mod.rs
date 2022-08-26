@@ -18,7 +18,7 @@ use simperby_common::crypto::*;
 use std::{collections::HashSet, net::SocketAddrV4, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, Mutex},
-    task, time,
+    task, time::{self, sleep},
 };
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
@@ -231,7 +231,8 @@ impl PropagationNetwork {
                     }
                 }
                 // We've handled and ignored successes and failures.
-                // Loop to try again for failed attempts.
+                // Wait and loop to try again for failed attempts.
+                sleep(Duration::from_millis(500)).await;
             }
         };
         let _ = time::timeout(config.initial_bootstrap_timeout, initial_bootstrap).await;
