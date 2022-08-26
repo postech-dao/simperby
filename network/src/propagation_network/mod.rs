@@ -18,7 +18,8 @@ use simperby_common::crypto::*;
 use std::{collections::HashSet, net::SocketAddrV4, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, Mutex},
-    task, time::{self, sleep},
+    task,
+    time::{self, sleep},
 };
 
 /// The backbone network of simperby that propagates serialized data such as blocks and votes.
@@ -561,7 +562,7 @@ mod test {
         keypair.public()
     }
 
-    /// Checks each node's routing table whether it has all the peers on the same network.
+    /// Checks each node's routing table to see whether it has all the peers on the same network.
     ///
     /// Panics if the routing table does not match with expectation.
     async fn check_routing_table(nodes: Vec<&Node>) {
@@ -596,14 +597,14 @@ mod test {
                 .await
                 .expect("failed to add nodes to the network.");
         }
-         
+
         // Test if every node has filled its routing table correctly.
         check_routing_table(network.nodes.values().collect()).await
     }
 
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
-    /// in a tiny network when they join the network sequentially.
+    /// in a tiny network when it join the network sequentially.
     /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_sequential() {
         discovery_with_n_nodes(5, true, 5).await;
@@ -611,7 +612,7 @@ mod test {
 
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
-    /// in a small network when they join the network sequentially.
+    /// in a small network when it join the network sequentially.
     /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_sequential() {
         let n = libp2p::kad::K_VALUE.into();
@@ -620,7 +621,7 @@ mod test {
 
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
-    /// in a tiny network when they join the network at the same time.
+    /// in a tiny network when it join the network at the same time.
     /// (network_size = 5 < max_peers_per_node = 20)
     async fn discovery_with_tiny_network_concurrent() {
         discovery_with_n_nodes(5, false, 5).await;
@@ -628,7 +629,7 @@ mod test {
 
     #[tokio::test]
     /// Test if every node fills its routing table with the addresses of all the other nodes
-    /// in a small network when they join the network at the same time.
+    /// in a small network when it join the network at the same time.
     /// (network_size = max_peers_per_node = 20)
     async fn discovery_with_small_network_concurrent() {
         let n = libp2p::kad::K_VALUE.into();
