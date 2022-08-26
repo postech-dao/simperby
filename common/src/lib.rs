@@ -181,8 +181,14 @@ impl BlockHeader {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct MerkleProof {
-    /// The Merkle proof (hash, is_right_node).
-    pub proof: Vec<(Hash256, bool)>,
+    /// The Merkle proof (MerkleTreeNode, is_right_node).
+    pub proof: Vec<(MerkleTreeNode, bool)>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum MerkleTreeNode {
+    SiblingNode(Hash256),
+    OnlyChildNode,
 }
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]
@@ -199,12 +205,16 @@ impl MerkleProof {
     /// Verifies whether the given data is in the block.
     pub fn verify(&self, root: Hash256, data: &[u8]) -> Result<(), MerkleProofError> {
         let mut calculated_root: Hash256 = Hash256::hash(data);
-        for (hash, is_right_node) in &self.proof {
-            if *is_right_node {
-                calculated_root = Hash256::aggregate(&calculated_root, hash);
+        for (node, is_right_node) in &self.proof {
+            calculated_root = if let MerkleTreeNode::SiblingNode(hash) = node {
+                if *is_right_node {
+                    Hash256::aggregate(&calculated_root, hash)
+                } else {
+                    Hash256::aggregate(hash, &calculated_root)
+                }
             } else {
-                calculated_root = Hash256::aggregate(hash, &calculated_root);
-            }
+                Hash256::hash(calculated_root)
+            };
         }
         if root == calculated_root {
             Ok(())

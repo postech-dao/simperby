@@ -1,5 +1,6 @@
 use simperby_common::crypto::Hash256;
 use simperby_common::MerkleProof;
+use simperby_common::MerkleTreeNode;
 
 /// A Merkle tree that is created once but never modified.
 ///
@@ -21,7 +22,10 @@ impl OneshotMerkleTree {
     /// Returns `None` if the data is not in the tree.
     ///
     /// Given a tree [[1, 2, 3], [4, 5], [6]],
-    /// Merkle proof for 2 is [1, 5] and Merkle proof for 3 is [3, 4].
+    /// Merkle proof for 2 is [(1, false), (5, true)] and Merkle proof for 3 is [(OnlyChildNode, true), (4, false)].
+    ///
+    /// For `SiblingNode`, pair hash of the sibling node is given with the instruction.
+    /// For `OnlyChildNode`, only the instruction is given.
     pub fn create_merkle_proof(&self, key: Hash256) -> Option<MerkleProof> {
         if !self.hash_list.contains(&key) {
             return None;
@@ -36,14 +40,17 @@ impl OneshotMerkleTree {
                 if pair.contains(&target_hash) {
                     let is_right_node: bool = pair[0] == target_hash;
                     if pair.len() == 2 {
+                        merkle_proof.proof.push((
+                            MerkleTreeNode::SiblingNode(pair[is_right_node as usize].clone()),
+                            is_right_node,
+                        ));
+                        target_hash = Hash256::aggregate(&pair[0], &pair[1]);
+                    } else {
                         merkle_proof
                             .proof
-                            .push((pair[is_right_node as usize].clone(), is_right_node));
-                    } else {
-                        // Duplicated hash is provided for the hash pair of a node without a sibling.
-                        merkle_proof.proof.push((pair[0].clone(), is_right_node));
+                            .push((MerkleTreeNode::OnlyChildNode, is_right_node));
+                        target_hash = Hash256::hash(&pair[0]);
                     }
-                    target_hash = Self::hash_pair(pair);
                 }
             }
         }
@@ -59,16 +66,23 @@ impl OneshotMerkleTree {
     /// ``` text
     ///     6
     ///   4   5
-    ///  1 2 3 3
+    ///  1 2  3
     /// ```
     ///
     /// which is represented as [[1, 2, 3], [4, 5], [6]].
+    ///
+    /// For nodes with siblings, their concatenated hash value is hashed up.
+    /// For nodes without siblings, its hash value is hashed up.
     fn merkle_tree(hash_list: &[Hash256]) -> Vec<Vec<Hash256>> {
         let mut merkle_tree: Vec<Vec<Hash256>> = vec![hash_list.to_vec()];
         while !Self::is_fully_created(&merkle_tree) {
             let mut upper_level_hash_list: Vec<Hash256> = Vec::new();
             for pair in merkle_tree.last().unwrap().chunks(2) {
-                upper_level_hash_list.push(Self::hash_pair(pair));
+                if pair.len() == 2 {
+                    upper_level_hash_list.push(Hash256::aggregate(&pair[0], &pair[1]));
+                } else {
+                    upper_level_hash_list.push(Hash256::hash(&pair[0]));
+                }
             }
             merkle_tree.push(upper_level_hash_list);
         }
@@ -83,18 +97,6 @@ impl OneshotMerkleTree {
     /// Note that root exists in the last element of a merkle tree with length 1.
     fn is_fully_created(merkle_tree: &[Vec<Hash256>]) -> bool {
         merkle_tree.last().unwrap().len() == 1
-    }
-
-    /// Calculates the hash of the given pair of hashes.
-    ///
-    /// Note that the pair consists of a single hash if the number of nodes in a certain level is odd.
-    /// In this case, the hash is calculated with the given hash duplicated.
-    fn hash_pair(pair: &[Hash256]) -> Hash256 {
-        if pair.len() == 2 {
-            Hash256::aggregate(&pair[0], &pair[1])
-        } else {
-            Hash256::aggregate(&pair[0], &pair[0])
-        }
     }
 
     /// Returns the root of the tree.
