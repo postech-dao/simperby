@@ -326,6 +326,17 @@ mod test {
         }
     }
 
+    /// Constructs a network configuration for the test environment.
+    fn create_testnet_config() -> PropagationNetworkConfig {
+        let mut config = PropagationNetworkConfig::default();
+        // Ease the bootstrap timeout, considering the test environment
+        // where many nodes are concurrently running and dialing to each other.
+        // The default is 3 seconds in a normal condition.
+        // Note: This value may increase as more tests are added.
+        config.with_initial_bootstrap_timeout(Duration::from_secs(20));
+        config
+    }
+
     static CELL: OnceCell<PortDispenser> = OnceCell::const_new();
 
     /// A helper struct for the test.
@@ -467,12 +478,14 @@ mod test {
 
                 // Create the network interface (to make the node join the network).
                 let target_node = self.nodes.get_mut(key).unwrap();
-                let network = PropagationNetwork::new(
+                let config = create_testnet_config();
+                let network = PropagationNetwork::with_config(
                     target_node.public_key.clone(),
                     target_node.private_key.clone(),
                     Vec::new(),
                     bootstrap_points.clone(),
                     "test".to_string(),
+                    config,
                 )
                 .await?;
                 target_node.network.replace(network);
@@ -504,7 +517,7 @@ mod test {
                 .map(|key| self.nodes.get(key).unwrap())
                 .collect();
             let futures = zip(nodes, &listen_addresses).map(|(node, listen_address)| {
-                let mut config = PropagationNetworkConfig::default();
+                let mut config = create_testnet_config();
                 config.with_listen_address(listen_address.to_owned());
                 let mut rng = rand::thread_rng();
                 let bootstrap_points = listen_addresses
