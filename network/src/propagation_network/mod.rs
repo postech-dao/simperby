@@ -285,7 +285,7 @@ mod test {
     use super::*;
     use futures::future::join_all;
     use port_scanner::local_ports_available;
-    use rand::{self, seq::IteratorRandom};
+    use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
     use std::{
         collections::{HashMap, HashSet},
         iter::zip,
@@ -338,6 +338,8 @@ mod test {
         config
     }
 
+    const RNG_SEED: [u8; 32] = [0; 32];
+
     static CELL: OnceCell<PortDispenser> = OnceCell::const_new();
 
     /// A helper struct for the test.
@@ -359,7 +361,7 @@ mod test {
 
         async fn get_random_ports(&self, n: usize) -> Result<Vec<u16>, ()> {
             let mut available_ports = self.available_ports.lock().await;
-            let mut rng = rand::thread_rng();
+            let mut rng = StdRng::from_seed(RNG_SEED);
             let mut assigned_ports = Vec::new();
             while assigned_ports.len() < n {
                 let random_ports = available_ports
@@ -465,7 +467,7 @@ mod test {
             for key in &target_nodes {
                 // Select random nodes and add them to bootstrap points.
                 let mut bootstrap_points = Vec::new();
-                let mut rng = rand::thread_rng();
+                let mut rng = StdRng::from_seed(RNG_SEED);
                 let bootstrap_nodes = self
                     .get_nodes_in_network()
                     .into_iter()
@@ -520,7 +522,7 @@ mod test {
             let futures = zip(nodes, &listen_addresses).map(|(node, listen_address)| {
                 let mut config = create_testnet_config();
                 config.with_listen_address(listen_address.to_owned());
-                let mut rng = rand::thread_rng();
+                let mut rng = StdRng::from_seed(RNG_SEED);
                 let bootstrap_points = listen_addresses
                     .iter()
                     .cloned()
