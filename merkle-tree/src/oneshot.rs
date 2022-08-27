@@ -1,6 +1,6 @@
 use simperby_common::crypto::Hash256;
 use simperby_common::MerkleProof;
-use simperby_common::MerkleTreeNode;
+use simperby_common::MerkleProofEntry;
 
 /// A Merkle tree that is created once but never modified.
 ///
@@ -22,10 +22,10 @@ impl OneshotMerkleTree {
     /// Returns `None` if the data is not in the tree.
     ///
     /// Given a tree [[1, 2, 3], [4, 5], [6]],
-    /// Merkle proof for 2 is [(1, false), (5, true)] and Merkle proof for 3 is [(OnlyChildNode, true), (4, false)].
+    /// Merkle proof for 2 is [1, 5] and Merkle proof for 3 is [OnlyChild, 4].
     ///
-    /// For `SiblingNode`, pair hash of the sibling node is given with the instruction.
-    /// For `OnlyChildNode`, only the instruction is given.
+    /// For `LeftChild` and `RightChild`, pair hash of the sibling node is given.
+    /// For `OnlyChild`, only the instruction is given.
     pub fn create_merkle_proof(&self, key: Hash256) -> Option<MerkleProof> {
         if !self.hash_list.contains(&key) {
             return None;
@@ -33,24 +33,27 @@ impl OneshotMerkleTree {
         let mut merkle_proof: MerkleProof = MerkleProof { proof: Vec::new() };
         let mut merkle_tree: Vec<Vec<Hash256>> = Self::merkle_tree(&self.hash_list);
         let mut target_hash: Hash256 = key;
-        //  Pop because the root is never included in the Merkle proof
+        // Pop because the root is never included in the Merkle proof
         merkle_tree.pop();
         for level in merkle_tree {
             for pair in level.chunks(2) {
                 if pair.contains(&target_hash) {
-                    let is_right_node: bool = pair[0] == target_hash;
                     if pair.len() == 2 {
-                        merkle_proof.proof.push((
-                            MerkleTreeNode::SiblingNode(pair[is_right_node as usize].clone()),
-                            is_right_node,
-                        ));
+                        let is_right_node: bool = pair[0] == target_hash;
+                        if is_right_node {
+                            merkle_proof.proof.push(MerkleProofEntry::RightChild(
+                                pair[is_right_node as usize].clone(),
+                            ))
+                        } else {
+                            merkle_proof.proof.push(MerkleProofEntry::LeftChild(
+                                pair[is_right_node as usize].clone(),
+                            ))
+                        }
                         target_hash = Hash256::aggregate(&pair[0], &pair[1]);
                     } else {
-                        merkle_proof
-                            .proof
-                            .push((MerkleTreeNode::OnlyChildNode, is_right_node));
+                        merkle_proof.proof.push(MerkleProofEntry::OnlyChild);
                         target_hash = Hash256::hash(&pair[0]);
-                    }
+                    };
                 }
             }
         }
