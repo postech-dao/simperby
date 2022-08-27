@@ -133,6 +133,7 @@ impl SimperbyApi for Node {
 /// and it will be synchronized by `RwLock`.
 struct NodeState {
     history_storage: HistoryStorage,
+    // TODO: introduce `struct StateStorage`.
     state_storage: Box<dyn KVStorage>,
     // TODO: add `consensus: vetomint::ConsensusState,`
     /// A cache of the latest finalized block (which is also in the history storage)
