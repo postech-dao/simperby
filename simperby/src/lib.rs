@@ -158,9 +158,10 @@ pub enum SimperbyError {
     /// When the operation arguments are not valid.
     #[error("invalid operation: {0}")]
     InvalidOperation(String),
+    /// When the underlying storage emits an error.
     #[error("storage error: {0}")]
     StorageError(simperby_kv_storage::Error),
-    /// When the storage is corrupted.
+    /// When the data stored in the storage is found to be corrupted.
     #[error("storage integrity error: {0}")]
     StorageIntegrityError(String),
     /// When the consensus safety is violated.
