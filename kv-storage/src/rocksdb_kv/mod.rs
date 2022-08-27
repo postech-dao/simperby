@@ -10,6 +10,12 @@ pub struct RocksDB {
     checkpoint_db_dir: Temp,
 }
 
+impl From<rocksdb::Error> for super::Error {
+    fn from(e: rocksdb::Error) -> super::Error {
+        super::Error::Unknown(String::from(e))
+    }
+}
+
 #[async_trait]
 impl KVStorage for RocksDB {
     async fn new(path: &str) -> Result<Self, super::Error>
