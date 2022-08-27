@@ -203,7 +203,7 @@ mod tests {
     #[tokio::test]
     async fn get_once_with_open() {
         let tmp_directory = init_db_ver1().await;
-        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -213,7 +213,7 @@ mod tests {
     #[tokio::test]
     async fn get_all_with_open() {
         let tmp_directory = init_db_ver1().await;
-        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -226,7 +226,7 @@ mod tests {
     #[tokio::test]
     async fn get_once_with_new() {
         let tmp_directory = init_db_ver2().await;
-        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -236,7 +236,7 @@ mod tests {
     #[tokio::test]
     async fn get_all_with_new() {
         let tmp_directory = init_db_ver2().await;
-        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -249,7 +249,7 @@ mod tests {
     #[tokio::test]
     async fn insert_once() {
         let tmp_directory = init_db_ver1().await;
-        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -261,7 +261,7 @@ mod tests {
     #[tokio::test]
     async fn update_once() {
         let tmp_directory = init_db_ver1().await;
-        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -273,7 +273,7 @@ mod tests {
     #[tokio::test]
     async fn remove_once() {
         let tmp_directory = init_db_ver1().await;
-        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
@@ -285,7 +285,7 @@ mod tests {
     #[tokio::test]
     async fn revert_once() {
         let tmp_directory = init_db_ver1().await;
-        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
 
