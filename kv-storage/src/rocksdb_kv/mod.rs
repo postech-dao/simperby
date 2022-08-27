@@ -145,7 +145,7 @@ mod tests {
     use rocksdb::DB;
     use simperby_common::crypto::Hash256;
 
-    fn init_db_ver1() -> Temp {
+    async fn init_db_ver1() -> Temp {
         let tmp_directory = Temp::new_dir().unwrap();
         let db = DB::open_default(tmp_directory.to_path_buf().display().to_string()).unwrap();
 
@@ -157,25 +157,24 @@ mod tests {
         tmp_directory
     }
 
-    fn init_db_ver2() -> Temp {
+    async fn init_db_ver2() -> Temp {
         let tmp_directory = Temp::new_dir().unwrap();
-        let mut db = block_on(RocksDB::new(
-            &tmp_directory.to_path_buf().display().to_string(),
-        ))
-        .unwrap();
+        let mut db = RocksDB::new(&tmp_directory.to_path_buf().display().to_string())
+            .await
+            .unwrap();
 
-        put_test(&mut db, "key1", "val1");
-        put_test(&mut db, "key2", "val2");
-        put_test(&mut db, "key3", "val3");
-        put_test(&mut db, "key4", "val4");
+        put_test(&mut db, "key1", "val1").await;
+        put_test(&mut db, "key2", "val2").await;
+        put_test(&mut db, "key3", "val3").await;
+        put_test(&mut db, "key4", "val4").await;
 
-        block_on(db.commit_checkpoint()).unwrap();
+        db.commit_checkpoint().await.unwrap();
 
         tmp_directory
     }
 
-    fn get_test(db: &RocksDB, key: &str, value: &str) -> bool {
-        let has_value = block_on(db.contain(Hash256::hash(key))).unwrap();
+    async fn get_test(db: &RocksDB, key: &str, value: &str) -> bool {
+        let has_value = db.contain(Hash256::hash(key)).await.unwrap();
         match has_value {
             false => false,
             true => {
@@ -187,135 +186,129 @@ mod tests {
         }
     }
 
-    fn put_test(db: &mut RocksDB, key: &str, value: &str) {
-        block_on(db.insert_or_update(Hash256::hash(key), value.as_bytes())).unwrap()
+    async fn put_test(db: &mut RocksDB, key: &str, value: &str) {
+        db.insert_or_update(Hash256::hash(key), value.as_bytes())
+            .await
+            .unwrap()
     }
 
-    fn remove_test(db: &mut RocksDB, key: &str) {
-        block_on(db.remove(Hash256::hash(key))).unwrap()
+    async fn remove_test(db: &mut RocksDB, key: &str) {
+        db.remove(Hash256::hash(key)).await.unwrap()
     }
 
-    fn revert_test(db: &mut RocksDB) {
-        block_on(db.revert_to_latest_checkpoint()).unwrap();
+    async fn revert_test(db: &mut RocksDB) {
+        db.revert_to_latest_checkpoint().await.unwrap();
     }
 
-    #[test]
-    fn get_once_with_open() {
-        let tmp_directory = init_db_ver1();
-        let db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn get_once_with_open() {
+        let tmp_directory = init_db_ver1().await;
+        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key1", "val1").await);
     }
 
-    #[test]
-    fn get_all_with_open() {
-        let tmp_directory = init_db_ver1();
-        let db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn get_all_with_open() {
+        let tmp_directory = init_db_ver1().await;
+        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
-        assert!(get_test(&db, "key2", "val2"));
-        assert!(get_test(&db, "key3", "val3"));
-        assert!(get_test(&db, "key4", "val4"));
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
     }
 
-    #[test]
-    fn get_once_with_new() {
-        let tmp_directory = init_db_ver2();
-        let db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn get_once_with_new() {
+        let tmp_directory = init_db_ver2().await;
+        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key1", "val1").await);
     }
 
-    #[test]
-    fn get_all_with_new() {
-        let tmp_directory = init_db_ver2();
-        let db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn get_all_with_new() {
+        let tmp_directory = init_db_ver2().await;
+        let db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
-        assert!(get_test(&db, "key2", "val2"));
-        assert!(get_test(&db, "key3", "val3"));
-        assert!(get_test(&db, "key4", "val4"));
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
     }
 
-    #[test]
-    fn insert_once() {
-        let tmp_directory = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn insert_once() {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(!get_test(&db, "key5", "val5"));
-        put_test(&mut db, "key5", "val5");
-        assert!(get_test(&db, "key5", "val5"));
+        assert!(!get_test(&db, "key5", "val5").await);
+        put_test(&mut db, "key5", "val5").await;
+        assert!(get_test(&db, "key5", "val5").await);
     }
 
-    #[test]
-    fn update_once() {
-        let tmp_directory = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn update_once() {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
-        put_test(&mut db, "key1", "val5");
-        assert!(get_test(&db, "key1", "val5"));
+        assert!(get_test(&db, "key1", "val1").await);
+        put_test(&mut db, "key1", "val5").await;
+        assert!(get_test(&db, "key1", "val5").await);
     }
 
-    #[test]
-    fn remove_once() {
-        let tmp_directory = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn remove_once() {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
-        remove_test(&mut db, "key1");
-        assert!(!get_test(&db, "key1", "val1"));
+        assert!(get_test(&db, "key1", "val1").await);
+        remove_test(&mut db, "key1").await;
+        assert!(!get_test(&db, "key1", "val1").await);
     }
 
-    #[test]
-    fn revert_once() {
-        let tmp_directory = init_db_ver1();
-        let mut db = block_on(RocksDB::open(
-            &tmp_directory.to_path_buf().to_str().unwrap(),
-        ))
-        .unwrap();
+    #[tokio::test]
+    async fn revert_once() {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(&tmp_directory.to_path_buf().to_str().unwrap())
+            .await
+            .unwrap();
 
-        assert!(get_test(&db, "key1", "val1"));
-        assert!(get_test(&db, "key2", "val2"));
-        assert!(get_test(&db, "key3", "val3"));
-        assert!(get_test(&db, "key4", "val4"));
-        assert!(!get_test(&db, "key5", "val5"));
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+        assert!(!get_test(&db, "key5", "val5").await);
 
-        put_test(&mut db, "key5", "val5");
+        put_test(&mut db, "key5", "val5").await;
 
-        assert!(get_test(&db, "key1", "val1"));
-        assert!(get_test(&db, "key2", "val2"));
-        assert!(get_test(&db, "key3", "val3"));
-        assert!(get_test(&db, "key4", "val4"));
-        assert!(get_test(&db, "key5", "val5"));
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+        assert!(get_test(&db, "key5", "val5").await);
 
-        revert_test(&mut db);
+        revert_test(&mut db).await;
 
-        assert!(get_test(&db, "key1", "val1"));
-        assert!(get_test(&db, "key2", "val2"));
-        assert!(get_test(&db, "key3", "val3"));
-        assert!(get_test(&db, "key4", "val4"));
-        assert!(!get_test(&db, "key5", "val5"));
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+        assert!(!get_test(&db, "key5", "val5").await);
     }
 }
