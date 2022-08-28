@@ -133,7 +133,6 @@ impl KVStorage for RocksDB {
 mod tests {
     use super::RocksDB;
     use crate::KVStorage;
-    use futures::executor::block_on;
     use mktemp::Temp;
     use rocksdb::DB;
     use simperby_common::crypto::Hash256;
@@ -171,7 +170,7 @@ mod tests {
         match has_value {
             false => false,
             true => {
-                let val = block_on(db.get(Hash256::hash(key))).unwrap();
+                let val = db.get(Hash256::hash(key)).await.unwrap();
                 let str_v = std::str::from_utf8(&val).unwrap();
                 assert_eq!(str_v, value);
                 true
