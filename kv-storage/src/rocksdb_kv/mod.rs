@@ -101,34 +101,27 @@ impl KVStorage for RocksDB {
     }
 
     async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), super::Error> {
-        let result = self.db.put(key.as_ref(), value);
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(super::Error::from(e)),
-        }
+        self.db.put(key.as_ref(), value)?;
+
+        Ok(())
     }
 
     async fn remove(&mut self, key: Hash256) -> Result<(), super::Error> {
-        let result = self.db.delete(key.as_ref());
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(super::Error::from(e)),
-        }
+        self.db.delete(key.as_ref())?;
+
+        Ok(())
     }
 
     async fn get(&self, key: Hash256) -> Result<Vec<u8>, super::Error> {
-        let result = self.db.get(key.as_ref());
+        let result = self.db.get(key.as_ref())?;
         match result {
-            Ok(v) => match v {
-                Some(v) => Ok(v),
-                None => Err(super::Error::NotFound),
-            },
-            Err(e) => Err(super::Error::from(e)),
+            Some(v) => Ok(v),
+            None => Err(super::Error::NotFound),
         }
     }
 
     async fn contain(&self, key: Hash256) -> Result<bool, super::Error> {
-        let result = self.db.get(key.as_ref()).unwrap();
+        let result = self.db.get(key.as_ref())?;
         match result {
             Some(_) => Ok(true),
             None => Ok(false),
