@@ -1,4 +1,7 @@
-pub mod rocksdb_kv;
+pub mod memory;
+pub mod rocks_db;
+#[cfg(test)]
+mod test_suite;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -21,14 +24,6 @@ pub enum Error {
 /// Note: This trait is quite subject to change.
 #[async_trait]
 pub trait KVStorage: Send + Sync {
-    /// Creates an empty storage with the path to newly create.
-    async fn new(path: &str) -> Result<Self, Error>
-    where
-        Self: Sized;
-    /// Open an existing storage with the path given.
-    async fn open(path: &str) -> Result<Self, Error>
-    where
-        Self: Sized;
     /// Records the current state to the persistent storage.
     ///
     /// Note that it may keep only the last checkpoint.
