@@ -6,13 +6,15 @@ use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]
-pub enum Error {
+pub enum CryptoError {
     /// When the data format is not valid.
     #[error("invalid format: {0}")]
     InvalidFormat(String),
     #[error("verification failed")]
     VerificationFailed,
 }
+
+type Error = CryptoError;
 
 /// A cryptographic hash.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
