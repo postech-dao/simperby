@@ -26,8 +26,8 @@ pub struct EssentialState {
     ///
     /// It must be a valid semantic version (e.g., `0.2.3`).
     pub version: String,
-    /// The delegation state (delegator, delegatee).
-    pub delegation: Vec<(PublicKey, PublicKey)>,
+    /// The delegation state (delegator, delegatee) where indices to `validator_set` is given.
+    pub delegation: Vec<(usize, usize)>,
 }
 
 impl EssentialState {
@@ -37,22 +37,25 @@ impl EssentialState {
     /// returns `None` if the delegation is not valid.
     pub fn calculate_net_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
         // check delegation by delegatee (which's forbidden)
-        let mut delegatees = BTreeSet::new();
-        for (delegator, delegatee) in &self.delegation {
-            if delegatees.contains(delegator) {
-                return Err(format!("delegatee ({}) can't delegate", delegator));
+        let mut delegatee_indices = BTreeSet::new();
+        for (delegator_index, delegatee_index) in &self.delegation {
+            if delegatee_indices.contains(delegator_index) {
+                let delegatee: &PublicKey = &self.validator_set[*delegator_index].0;
+                return Err(format!("delegatee ({}) can't delegate", delegatee));
             }
-            delegatees.insert(delegatee.clone());
+            delegatee_indices.insert(*delegatee_index);
         }
 
         // calculate the result
         let mut validator_set: BTreeMap<_, _> = self.validator_set.iter().cloned().collect();
-        for (delegator, delegatee) in &self.delegation {
+        for (delegator_index, delegatee_index) in &self.delegation {
+            let delegator: &PublicKey = &self.validator_set[*delegator_index].0;
             let delegator_voting_power = if let Some(x) = validator_set.get(delegator) {
                 *x
             } else {
                 return Err(format!("delegator not found: {}", delegator));
             };
+            let delegatee: &PublicKey = &self.validator_set[*delegatee_index].0;
             let delegatee_voting_power = if let Some(x) = validator_set.get(delegatee) {
                 *x
             } else {
