@@ -16,56 +16,60 @@ impl From<rocksdb::Error> for super::Error {
     }
 }
 
+impl RocksDB {
+    /// Creates an empty storage with the path to newly create.
+    pub async fn new(path: &str) -> Result<Self, super::Error>
+    where
+        Self: Sized,
+    {
+        let origin_path = PathBuf::from(path);
+        let current_db_dir = Temp::new_dir().unwrap();
+        let checkpoint_db_dir = Temp::new_dir().unwrap();
+        {
+            let db = DB::open_default(origin_path.to_str().unwrap())?;
+            let checkpoint_db = checkpoint::Checkpoint::new(&db)?;
+
+            checkpoint_db.create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))?;
+            checkpoint_db
+                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))?;
+        }
+
+        Ok(RocksDB {
+            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db"))?,
+            origin_path,
+            current_db_dir,
+            checkpoint_db_dir,
+        })
+    }
+
+    /// Open an existing storage with the path given.
+    pub async fn open(path: &str) -> Result<Self, super::Error>
+    where
+        Self: Sized,
+    {
+        let origin_path = PathBuf::from(path);
+        let current_db_dir = Temp::new_dir().unwrap();
+        let checkpoint_db_dir = Temp::new_dir().unwrap();
+        {
+            let db = DB::open_default(origin_path.to_str().unwrap())?;
+            let checkpoint_db = checkpoint::Checkpoint::new(&db)?;
+
+            checkpoint_db.create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))?;
+            checkpoint_db
+                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))?;
+        }
+
+        Ok(RocksDB {
+            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db"))?,
+            origin_path,
+            current_db_dir,
+            checkpoint_db_dir,
+        })
+    }
+}
+
 #[async_trait]
 impl KVStorage for RocksDB {
-    async fn new(path: &str) -> Result<Self, super::Error>
-    where
-        Self: Sized,
-    {
-        let origin_path = PathBuf::from(path);
-        let current_db_dir = Temp::new_dir().unwrap();
-        let checkpoint_db_dir = Temp::new_dir().unwrap();
-        {
-            let db = DB::open_default(origin_path.to_str().unwrap())?;
-            let checkpoint_db = checkpoint::Checkpoint::new(&db)?;
-
-            checkpoint_db.create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))?;
-            checkpoint_db
-                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))?;
-        }
-
-        Ok(RocksDB {
-            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db"))?,
-            origin_path,
-            current_db_dir,
-            checkpoint_db_dir,
-        })
-    }
-
-    async fn open(path: &str) -> Result<Self, super::Error>
-    where
-        Self: Sized,
-    {
-        let origin_path = PathBuf::from(path);
-        let current_db_dir = Temp::new_dir().unwrap();
-        let checkpoint_db_dir = Temp::new_dir().unwrap();
-        {
-            let db = DB::open_default(origin_path.to_str().unwrap())?;
-            let checkpoint_db = checkpoint::Checkpoint::new(&db)?;
-
-            checkpoint_db.create_checkpoint(current_db_dir.to_path_buf().as_path().join("db"))?;
-            checkpoint_db
-                .create_checkpoint(checkpoint_db_dir.to_path_buf().as_path().join("db"))?;
-        }
-
-        Ok(RocksDB {
-            db: DB::open_default(current_db_dir.to_path_buf().as_path().join("db"))?,
-            origin_path,
-            current_db_dir,
-            checkpoint_db_dir,
-        })
-    }
-
     async fn commit_checkpoint(&mut self) -> Result<(), super::Error> {
         let new_checkpoint_db_dir = Temp::new_dir().unwrap();
         let checkpoint_db = checkpoint::Checkpoint::new(&self.db)?;
