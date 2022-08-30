@@ -185,6 +185,7 @@ impl PropagationNetwork {
             return Ok(());
         }
 
+        let listen_addresses: Vec<_> = swarm.listeners().collect();
         let mut bootstrap_addresses: HashSet<Multiaddr> = bootstrap_points
             .iter()
             .map(|socket_addr_v4| {
@@ -193,6 +194,7 @@ impl PropagationNetwork {
                     Protocol::Tcp(socket_addr_v4.port()),
                 ])
             })
+            .filter(|address| !listen_addresses.contains(&address))
             .collect();
 
         let initial_bootstrap = async {
