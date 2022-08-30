@@ -1,4 +1,4 @@
-//! Common test scenarios that accepts only `&dyn KVStorage`, so that it can be used in multiple implementations.
+//! Common test scenarios that accept only `&dyn KVStorage`, so that it can be used in multiple implementations.
 
 use super::*;
 
