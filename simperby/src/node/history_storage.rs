@@ -52,7 +52,16 @@ async fn get_json_from_storage<T>(storage: &dyn KVStorage, key: Hash256) -> Resu
 where
     T: serde::de::DeserializeOwned,
 {
-    let value = storage.get(key).await?;
+    let value = match storage.get(key.clone()).await {
+        Ok(x) => x,
+        Err(simperby_kv_storage::Error::NotFound) => {
+            return Err(Error::StorageIntegrityError(format!(
+                "missing essential item in the history stroage: {}",
+                key
+            )))
+        }
+        Err(e) => return Err(e.into()),
+    };
     serde_json::from_slice(&value).map_err(|e| Error::StorageIntegrityError(e.to_string()))
 }
 

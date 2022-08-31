@@ -1,12 +1,13 @@
+mod history_storage;
 mod network;
 mod storage;
 
 use super::*;
+use history_storage::*;
 use network::NetworkOperation;
 use simperby_kv_storage::KVStorage;
 use simperby_network::AuthorizedNetwork;
 use std::sync::Arc;
-use storage::*;
 use tokio::sync::RwLock;
 use vetomint::Round;
 
