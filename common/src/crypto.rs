@@ -34,6 +34,12 @@ impl Hash256 {
         }
     }
 
+    pub fn from_array(data: [u8; 32]) -> Self {
+        Hash256 {
+            hash: *blake3::Hash::from(data).as_bytes(),
+        }
+    }
+
     pub fn aggregate(&self, other: &Self) -> Self {
         Self::hash([self.hash, other.hash].concat())
     }
