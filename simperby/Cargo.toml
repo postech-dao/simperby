@@ -16,5 +16,7 @@ log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
 simperby-network = { version = "0.0.0", path = "../network" }
 simperby-kv-storage = { version = "0.0.0", path = "../kv-storage" }
+simperby-merkle-tree = { version = "0.0.0", path = "../merkle-tree" }
 vetomint = { version = "0.0.0", path = "../vetomint" }
 thiserror = "1.0.32"
+semver = "1.0.0"

@@ -1,6 +1,7 @@
 mod history_storage;
 mod network;
-mod storage;
+mod state_storage;
+mod stf;
 
 use super::*;
 use history_storage::*;

@@ -10,6 +10,8 @@ use simperby_network::AuthorizedNetwork;
 use thiserror::Error;
 use vetomint::Round;
 
+pub const PROTOCOL_VERSION: &str = "0.0.0";
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Block {
     pub header: BlockHeader,
