@@ -12,67 +12,61 @@ pub type Timestamp = u64;
 pub type BlockHeight = u64;
 pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
 
-/// The state that is directly recorded in the header.
+/// All about the delegation status, which will be stored in the blockchain state.
 ///
-/// This state affects the consensus, unlike the ordinary state (which is used for data recording).
+/// Note that this is not a part of `EssentialState`.
+#[allow(clippy::type_complexity)]
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct EssentialState {
-    /// The original validator set information before the delegation calculation.
+pub struct DelegationState {
+    /// The original validator set for this block.
     ///
     /// The order here is the leader selection priority order of the validators
-    /// which directly affects the result of `calculate_net_validator_set()`.
-    pub validator_set: Vec<(PublicKey, VotingPower)>,
-    /// The protocol version that must be used from next block.
+    /// which directly affects the effective validator set.
     ///
-    /// It must be a valid semantic version (e.g., `0.2.3`).
-    pub version: String,
-    /// The delegation state (delegator, delegatee) where indices to `validator_set` is given.
-    pub delegation: Vec<(usize, usize)>,
+    /// The `(usize, usize)` is `(first delegatee, current delegatee)`.
+    /// Two could differ if the first delegatee delagtes to other validators.
+    pub original_validator_set: Vec<(PublicKey, VotingPower, Option<(usize, usize)>)>,
+    // TODO: add various conditions for each delegation.
+    // - Unlock-Automatically-After-N-Blocks
+    // - Unlock-Automatically-After-T-Seconds
+    // - Unlock-If-The-Delegatee-Is-Not-Active
+    // - Unlock-If-The-Validator-Set-Changes
 }
 
-impl EssentialState {
-    /// Calculate the actual set of validators & voting power for the next block.
-    ///
-    /// The order here is same as the order of leaders in each round.
-    /// returns `None` if the delegation is not valid.
-    pub fn calculate_net_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        // check delegation by delegatee (which's forbidden)
-        let mut delegatee_indices = BTreeSet::new();
-        for (delegator_index, delegatee_index) in &self.delegation {
-            if delegatee_indices.contains(delegator_index) {
-                let delegatee: &PublicKey = &self.validator_set[*delegator_index].0;
-                return Err(format!("delegatee ({}) can't delegate", delegatee));
+impl DelegationState {
+    pub fn hash(&self) -> Hash256 {
+        Hash256::hash(serde_json::to_vec(self).unwrap())
+    }
+
+    pub fn calculate_effective_validator_set(
+        &self,
+    ) -> Result<Vec<(PublicKey, VotingPower)>, String> {
+        let mut validator_set = BTreeMap::new();
+        for (public_key, voting_power, delegation) in &self.original_validator_set {
+            if let Some((_, current_delegatee)) = delegation {
+                validator_set.insert(
+                    self.original_validator_set
+                        .get(*current_delegatee)
+                        .ok_or(format!(
+                            "current delegatee {} exceeds the validator set size",
+                            current_delegatee
+                        ))?
+                        .0
+                        .clone(),
+                    validator_set.get(public_key).unwrap_or(&0) + *voting_power,
+                );
+            } else {
+                validator_set.insert(
+                    public_key.clone(),
+                    validator_set.get(public_key).unwrap_or(&0) + *voting_power,
+                );
             }
-            delegatee_indices.insert(*delegatee_index);
         }
-
-        // calculate the result
-        let mut validator_set: BTreeMap<_, _> = self.validator_set.iter().cloned().collect();
-        for (delegator_index, delegatee_index) in &self.delegation {
-            let delegator: &PublicKey = &self.validator_set[*delegator_index].0;
-            let delegator_voting_power = if let Some(x) = validator_set.get(delegator) {
-                *x
-            } else {
-                return Err(format!("delegator not found: {}", delegator));
-            };
-            let delegatee: &PublicKey = &self.validator_set[*delegatee_index].0;
-            let delegatee_voting_power = if let Some(x) = validator_set.get(delegatee) {
-                *x
-            } else {
-                return Err(format!("delegatee not found: {}", delegatee));
-            };
-            validator_set.remove(delegator).expect("already checked");
-            validator_set.insert(
-                delegatee.clone(),
-                delegatee_voting_power + delegator_voting_power,
-            );
-        }
-
-        // reorder the result by the original `validator_set`.
         let mut result = Vec::new();
-        for (key, _) in &self.validator_set {
-            if let Some(x) = validator_set.get(key) {
-                result.push((key.clone(), *x));
+        // The result validator set is sorted by the order of the `original_validator_set`
+        for (validator, _, _) in &self.original_validator_set {
+            if let Some(voting_power) = validator_set.get(validator) {
+                result.push((validator.clone(), *voting_power));
             }
         }
         Ok(result)
@@ -95,8 +89,17 @@ pub struct BlockHeader {
     pub tx_merkle_root: Hash256,
     /// The Merkle root of the non-essential state.
     pub state_merkle_root: Hash256,
-    /// The essential state.
-    pub essential_state: EssentialState,
+    /// The effective net validator set (delegation-applied) for the next block.
+    /// The order here is the leader order.
+    pub validator_set: Vec<(PublicKey, VotingPower)>,
+    /// The hash of the delegation state stored in the state storage.
+    ///
+    /// This deserves a seperate hash (not integrated in the `state_merkle_root`) due to its special role.
+    pub delegation_state_hash: Hash256,
+    /// The protocol version that must be used from next block.
+    ///
+    /// It must be a valid semantic version (e.g., `0.2.3`).
+    pub version: String,
 }
 
 impl BlockHeader {
@@ -126,7 +129,6 @@ impl BlockHeader {
             ));
         }
         if !self
-            .essential_state
             .validator_set
             .iter()
             .any(|(pk, _)| pk == &header.author)
@@ -151,12 +153,7 @@ impl BlockHeader {
         &self,
         block_finalization_proof: &FinalizationProof,
     ) -> Result<(), String> {
-        let total_voting_power: VotingPower = self
-            .essential_state
-            .validator_set
-            .iter()
-            .map(|(_, v)| v)
-            .sum();
+        let total_voting_power: VotingPower = self.validator_set.iter().map(|(_, v)| v).sum();
         // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
         let mut voted_validators = BTreeSet::new();
         for (public_key, signature) in block_finalization_proof {
@@ -166,7 +163,6 @@ impl BlockHeader {
             voted_validators.insert(public_key);
         }
         let voted_voting_power: VotingPower = self
-            .essential_state
             .validator_set
             .iter()
             .filter(|(v, _)| voted_validators.contains(v))
