@@ -17,7 +17,7 @@ pub enum CryptoError {
 type Error = CryptoError;
 
 /// A cryptographic hash.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct Hash256 {
     pub hash: [u8; 32],
 }
