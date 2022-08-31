@@ -23,6 +23,8 @@ pub struct PropagationNetworkConfig {
     pub(crate) lock_release_interval: Duration,
     /// The interval for the regular peer discovery routine.
     pub(crate) peer_discovery_interval: Duration,
+    /// The interval for broadcasting.
+    pub(crate) broadcast_interval: Duration,
     /// The capacity for the message queue that passes messages from other nodes
     /// to its simperby node.
     pub(crate) message_queue_capacity: usize,
@@ -39,6 +41,7 @@ impl Default for PropagationNetworkConfig {
             initial_bootstrap_timeout: Duration::from_millis(3000),
             lock_release_interval: Duration::from_millis(30),
             peer_discovery_interval: Duration::from_millis(10000),
+            broadcast_interval: Duration::from_millis(10000),
             message_queue_capacity: 100,
         }
     }
@@ -68,6 +71,11 @@ impl PropagationNetworkConfig {
 
     pub fn with_peer_discovery_interval(&mut self, peer_discovery_interval: Duration) -> &mut Self {
         self.peer_discovery_interval = peer_discovery_interval;
+        self
+    }
+
+    pub fn with_broadcast_interval(&mut self, broadcast_interval: Duration) -> &mut Self {
+        self.broadcast_interval = broadcast_interval;
         self
     }
 
