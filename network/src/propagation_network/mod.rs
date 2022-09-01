@@ -834,33 +834,370 @@ mod test {
         discovery_with_n_nodes(30, false, (30 / 2) as usize + 1).await;
     }
 
+    type BroadcastInfo = HashMap<NodeKey, Vec<MessageInfo>>;
+
+    #[derive(Debug, Clone, Hash, Eq, PartialEq)]
+    struct MessageInfo {
+        token: BroadcastToken,
+        message: Vec<u8>,
+    }
+
+    fn create_random_message(length: usize) -> Vec<u8> {
+        (0..length).map(|_| rand::random()).collect()
+    }
+
+    /// Checks whether the given node has received the given messages.
+    ///
+    /// Note that this function does not check the exact match.
+    /// To allow this function to be called multiple times with different subsets of received messages,
+    /// we check whether the node "contains" the given messages.
+    /// Panics on failure.
+    async fn check_received(network: &mut Network, key: NodeKey, messages: Vec<Vec<u8>>) {
+        let received = network
+            .get_received_messages(key)
+            .await
+            .expect("failed to get received messages.");
+        assert!(messages.iter().all(|message| received.contains(message)));
+    }
+
+    /// Parametrized broadcast test helper.
+    ///
+    /// Each node broadcasts `number_of_messages` messages, the lengh of which is `message_length`.
+    /// The order of broadcasting is random.
+    async fn broadcast_with_parameters(
+        network: &mut Network,
+        keys: Vec<NodeKey>,
+        number_of_messages: usize,
+        message_length: usize,
+    ) -> Result<BroadcastInfo, String> {
+        // Randomly calculate the broadcasting order.
+        let mut rng = StdRng::from_seed(RNG_SEED);
+        let mut indices: Vec<_> = (0..(keys.len() * number_of_messages))
+            .map(|i| i % keys.len())
+            .collect();
+        indices.shuffle(&mut rng);
+
+        let mut broadcast_info =
+            HashMap::from_iter(keys.iter().map(|key| (key.to_owned(), Vec::new())));
+
+        // Carry out broadcasting.
+        for index in indices.iter() {
+            let selected_key = keys.get(index.to_owned()).unwrap();
+            let message = create_random_message(message_length);
+            let message_info = network.broadcast(selected_key.to_owned(), message).await?;
+            broadcast_info
+                .get_mut(selected_key)
+                .unwrap()
+                .push(message_info);
+        }
+
+        Ok(broadcast_info)
+    }
+
+    /// Collects messages from broadcast information.
+    fn collect_messages(broadcast_info: &BroadcastInfo, exception: NodeKey) -> Vec<Vec<u8>> {
+        broadcast_info
+            .iter()
+            .filter(|&(broadcaster, _)| *broadcaster != exception)
+            .flat_map(|(_, messages_info)| messages_info.iter())
+            .map(|info| info.message.clone())
+            .collect()
+    }
+
     #[tokio::test]
     #[ignore]
     /// Test if all nodes receive a message from a single broadcasting node.
     async fn broadcast_once() {
-        unimplemented!();
+        let n = 5;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        sleep(create_testnet_config().peer_discovery_interval).await;
+
+        let keys: Vec<_> = network.nodes.keys().take(1).copied().collect();
+        assert!(keys.len() == 1, "empty network");
+        let broadcast_info = broadcast_with_parameters(&mut network, keys, 1, 100)
+            .await
+            .expect("failed to broadcast");
+
+        let keys: Vec<_> = network.nodes.keys().cloned().collect();
+        for key in keys.iter() {
+            let messages = collect_messages(&broadcast_info, key.to_owned());
+            check_received(&mut network, key.to_owned(), messages).await;
+        }
     }
 
     #[tokio::test]
     #[ignore]
     /// Test if all nodes receive multiple messages from a single broadcasting node.
     async fn broadcast_multiple_times() {
-        unimplemented!();
+        let n = 5;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        sleep(create_testnet_config().peer_discovery_interval).await;
+
+        let keys: Vec<_> = network.nodes.keys().take(1).copied().collect();
+        assert!(keys.len() == 1, "empty network");
+        let broadcast_info = broadcast_with_parameters(&mut network, keys, 5, 100)
+            .await
+            .expect("failed to broadcast");
+
+        let keys: Vec<_> = network.nodes.keys().cloned().collect();
+        for key in keys.iter() {
+            let messages = collect_messages(&broadcast_info, key.to_owned());
+            check_received(&mut network, key.to_owned(), messages).await;
+        }
     }
 
     #[tokio::test]
     #[ignore]
     /// Test if all nodes receives multiple messages from multiple broadcasting nodes.
     async fn broadcast_from_multiple_nodes() {
-        unimplemented!();
+        let n = 5;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        sleep(create_testnet_config().peer_discovery_interval).await;
+
+        let keys: Vec<_> = network.nodes.keys().take(n - 2).copied().collect();
+        assert!(keys.len() == n - 2, "not enough nodes");
+        let broadcast_info = broadcast_with_parameters(&mut network, keys, 3, 100)
+            .await
+            .expect("failed to broadcast");
+
+        let keys: Vec<_> = network.nodes.keys().cloned().collect();
+        for key in keys.iter() {
+            let messages = collect_messages(&broadcast_info, key.to_owned());
+            check_received(&mut network, key.to_owned(), messages).await;
+        }
     }
 
     #[tokio::test]
     #[ignore]
-    /// Test if all nodes receives multiple messages from multiple broadcasting nodes
-    /// when several nodes are joining and leaving the network.
-    async fn broadcast_from_multiple_nodes_with_flexible_network() {
-        unimplemented!();
+    /// Tests if all nodes, including newly joined ones, receive messages in a large network.
+    async fn broadcast_large_growing_network() {
+        let n = 25;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        let config = create_testnet_config();
+        sleep(config.peer_discovery_interval).await;
+
+        let keys: Vec<_> = network
+            .nodes
+            .keys()
+            .take((n / 2) as usize)
+            .copied()
+            .collect();
+        assert!(keys.len() == (n / 2) as usize, "not enough nodes");
+        let broadcast_info = broadcast_with_parameters(&mut network, keys, 3, 100)
+            .await
+            .expect("failed to broadcast");
+
+        network.create_nodes(5);
+        network
+            .add_nodes_to_network_sequential(3)
+            .await
+            .expect("failed to add node to the network.");
+
+        // This time wait for the intervals of peer discovery and broadcasting.
+        sleep(config.peer_discovery_interval + config.broadcast_interval).await;
+
+        let keys: Vec<_> = network.nodes.keys().cloned().collect();
+        for key in keys.iter() {
+            let messages = collect_messages(&broadcast_info, key.to_owned());
+            check_received(&mut network, key.to_owned(), messages).await;
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Tests `stop_broadcast` interface.
+    async fn broadcast_stop() {
+        let n = 5;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        let config = create_testnet_config();
+        sleep(config.peer_discovery_interval).await;
+
+        let keys: Vec<_> = network.nodes.keys().take(n - 2).copied().collect();
+        assert!(keys.len() == n - 2, "not enough nodes");
+        let broadcast_info = broadcast_with_parameters(&mut network, keys, 3, 100)
+            .await
+            .expect("failed to broadcast");
+
+        // Wait for a moment before stopping.
+        sleep(Duration::from_secs(1)).await;
+
+        // Stop broadcasting.
+        network
+            .stop_broadcast_all()
+            .await
+            .expect("failed to stop broadcast.");
+        let previous_keys: Vec<_> = network.nodes.keys().cloned().collect();
+
+        network.create_nodes(3);
+        let new_keys = network
+            .add_nodes_to_network_sequential(3)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for the intervals of peer discovery and broadcasting.
+        sleep(config.peer_discovery_interval + config.broadcast_interval).await;
+
+        for key in previous_keys.iter() {
+            let messages = collect_messages(&broadcast_info, key.to_owned());
+            check_received(&mut network, key.to_owned(), messages).await;
+        }
+
+        for key in new_keys.iter() {
+            assert_eq!(
+                0,
+                network
+                    .get_received_messages(key.to_owned())
+                    .await
+                    .expect("failed to retreive the list of received messages.")
+                    .len()
+            );
+        }
+    }
+
+    /// Checks if the set of relayed nodes matches with the given set of nodes (`expected`).
+    ///
+    /// Panics on failure.
+    async fn check_relayed_nodes(network: &Network, key: NodeKey, expected: &Vec<NodeKey>) {
+        let node = network
+            .nodes
+            .get(&key)
+            .unwrap_or_else(|| panic!("failed to find such node: {}", key));
+        let messages = network
+            .get_broadcast_messages(key.to_owned())
+            .await
+            .expect("failed to fetch broadcast messages.");
+        for MessageInfo { token, .. } in messages {
+            let BroadcastStatus { relayed_nodes } = node
+                .network
+                .as_ref()
+                .unwrap_or_else(|| panic!("node not in network: {}", key))
+                .get_broadcast_status(token)
+                .await
+                .expect("failed to fetch broadcast status.");
+            let relayed_nodes: Vec<_> = relayed_nodes
+                .into_iter()
+                .map(|pubkey| {
+                    network
+                        .get_node_by_public_key(&pubkey)
+                        .expect("no such public key")
+                })
+                .collect();
+            assert_eq!(relayed_nodes.len(), expected.len());
+            for node in relayed_nodes.iter() {
+                assert!(expected.contains(node));
+            }
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    /// Tests `get_broadcast_status` interface.
+    async fn broadcast_get_status() {
+        let n = 25;
+        let mut network = Network::new();
+        network.create_nodes(n);
+        network
+            .add_nodes_to_network_sequential((n / 2) as usize + 1)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for one cycle of peer discovery to assure that every node added the others
+        // to its list of broadcast targets.
+        let config = create_testnet_config();
+        sleep(config.peer_discovery_interval).await;
+
+        let keys: Vec<_> = network
+            .nodes
+            .keys()
+            .take((n / 2) as usize)
+            .copied()
+            .collect();
+        assert!(keys.len() == (n / 2) as usize, "not enough nodes");
+        broadcast_with_parameters(&mut network, keys.to_owned(), 3, 100)
+            .await
+            .expect("failed to broadcast");
+
+        // Wait for a moment before stopping.
+        sleep(Duration::from_secs(1)).await;
+
+        // Stop broadcasting for some nodes.
+        let continue_broadcast_keys =
+            Vec::from_iter(keys.iter().take((keys.len() / 2) as usize).copied());
+        let stop_broadcast_keys =
+            Vec::from_iter(keys.iter().skip((keys.len() / 2) as usize).copied());
+        for key in stop_broadcast_keys.iter() {
+            network
+                .stop_broadcast_node(key.to_owned())
+                .await
+                .expect("failed to stop broadcast.");
+        }
+
+        network.create_nodes(3);
+        let new_keys = network
+            .add_nodes_to_network_sequential(3)
+            .await
+            .expect("failed to add node to the network.");
+
+        // Wait for the intervals of peer discovery and broadcasting.
+        sleep(config.peer_discovery_interval + config.broadcast_interval).await;
+
+        for key in stop_broadcast_keys.iter() {
+            check_relayed_nodes(&network, key.to_owned(), &continue_broadcast_keys).await;
+        }
+
+        let expected = Vec::from_iter(
+            stop_broadcast_keys
+                .iter()
+                .copied()
+                .chain(new_keys.iter().copied()),
+        );
+        for key in continue_broadcast_keys.iter() {
+            check_relayed_nodes(&network, key.to_owned(), &expected).await;
+        }
+
+        for key in new_keys.iter() {
+            check_relayed_nodes(&network, key.to_owned(), &Vec::new()).await;
+        }
     }
 
     #[tokio::test]
