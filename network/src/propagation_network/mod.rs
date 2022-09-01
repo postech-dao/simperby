@@ -287,7 +287,11 @@ mod test {
     use super::*;
     use futures::future::join_all;
     use port_scanner::local_ports_available;
-    use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
+    use rand::{
+        rngs::StdRng,
+        seq::{IteratorRandom, SliceRandom},
+        SeedableRng,
+    };
     use std::{
         collections::{HashMap, HashSet},
         iter::zip,
@@ -400,6 +404,9 @@ mod test {
         private_key: PrivateKey,
         id: PeerId,
         network: Option<PropagationNetwork>,
+        receiver: Option<broadcast::Receiver<Vec<u8>>>,
+        broadcast_messages: Vec<MessageInfo>,
+        received_messages: HashSet<Vec<u8>>,
     }
 
     /// A helper struct that represents the network of its inner nodes.
@@ -417,6 +424,9 @@ mod test {
                 public_key,
                 private_key,
                 network: None,
+                receiver: None,
+                broadcast_messages: Vec::new(),
+                received_messages: HashSet::new(),
             }
         }
     }
@@ -493,6 +503,12 @@ mod test {
                     config,
                 )
                 .await?;
+                target_node.receiver.replace(
+                    network
+                        .create_recv_queue()
+                        .await
+                        .expect("failed to create receive queue."),
+                );
                 target_node.network.replace(network);
             }
 
@@ -545,10 +561,126 @@ mod test {
 
             // Pass the network interfaces to the nodes.
             for (key, network) in zip(&target_nodes, networks) {
-                self.nodes.get_mut(key).unwrap().network.replace(network);
+                let node = self.nodes.get_mut(key).unwrap();
+                node.receiver.replace(
+                    network
+                        .create_recv_queue()
+                        .await
+                        .expect("failed to create receive queue."),
+                );
+                node.network.replace(network);
             }
 
             Ok(target_nodes)
+        }
+
+        async fn broadcast(
+            &mut self,
+            key: NodeKey,
+            message: Vec<u8>,
+        ) -> Result<MessageInfo, String> {
+            let node = self
+                .nodes
+                .get_mut(&key)
+                .ok_or(format!("failed to find such node: {}.", key))?;
+            let token = node
+                .network
+                .as_ref()
+                .ok_or(format!("node not in network: {}.", key))?
+                .broadcast(&message)
+                .await?;
+            let message_info = MessageInfo { token, message };
+            node.broadcast_messages.push(message_info.to_owned());
+            Ok(message_info)
+        }
+
+        async fn stop_broadcast(
+            &mut self,
+            key: NodeKey,
+            token: BroadcastToken,
+        ) -> Result<(), String> {
+            let node = self
+                .nodes
+                .get_mut(&key)
+                .ok_or(format!("failed to find such node: {}.", key))?;
+            node.network
+                .as_ref()
+                .ok_or(format!("node not in network: {}.", key))?
+                .stop_broadcast(token)
+                .await?;
+            let index = node
+                .broadcast_messages
+                .iter_mut()
+                .position(|message_info| message_info.token == token)
+                .ok_or(format!("failed to find such token: {}", token))?;
+            node.broadcast_messages.remove(index);
+            Ok(())
+        }
+
+        async fn stop_broadcast_node(&mut self, key: NodeKey) -> Result<(), String> {
+            let node = self
+                .nodes
+                .get_mut(&key)
+                .ok_or(format!("failed to find such node: {}.", key))?;
+            let tokens: Vec<_> = node
+                .broadcast_messages
+                .iter()
+                .map(|message_info| message_info.token)
+                .rev()
+                .collect();
+            for token in tokens {
+                self.stop_broadcast(key, token).await?;
+            }
+            Ok(())
+        }
+
+        async fn stop_broadcast_all(&mut self) -> Result<(), String> {
+            let keys: Vec<_> = self.nodes.keys().copied().collect();
+            for key in keys {
+                self.stop_broadcast_node(key).await?;
+            }
+            Ok(())
+        }
+
+        async fn get_broadcast_messages(&self, key: NodeKey) -> Result<Vec<MessageInfo>, String> {
+            let node = self
+                .nodes
+                .get(&key)
+                .ok_or(format!("node not in network: {}.", key))?;
+            Ok(node.broadcast_messages.to_owned())
+        }
+
+        async fn get_received_messages(
+            &mut self,
+            key: NodeKey,
+        ) -> Result<HashSet<Vec<u8>>, String> {
+            let node = self
+                .nodes
+                .get_mut(&key)
+                .ok_or(format!("node not in network: {}.", key))?;
+            let receiver = node
+                .receiver
+                .as_mut()
+                .ok_or(format!("node not in network: {}.", key))?;
+            while !receiver.is_empty() {
+                let message = receiver
+                    .try_recv()
+                    .map_err(|e| format!("failed to receive a message. {}", e))?;
+                node.received_messages.insert(message);
+            }
+            Ok(node.received_messages.to_owned())
+        }
+
+        fn get_node_by_public_key(&self, pubkey: &PublicKey) -> Result<NodeKey, String> {
+            Ok(self
+                .nodes
+                .values()
+                .find(|node| node.public_key == *pubkey)
+                .ok_or(format!(
+                    "failed to find a node with given public key: {}",
+                    pubkey
+                ))?
+                .id)
         }
     }
 
