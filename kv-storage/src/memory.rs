@@ -6,14 +6,14 @@ type DB = HashMap<Hash256, Vec<u8>>;
 #[derive(Clone)]
 pub struct IMDB {
     db: DB,
-    checkpoint_db: DB,
+    checkpoint: DB,
 }
 
 impl IMDB {
     pub async fn new() -> Self {
         IMDB {
             db: DB::new(),
-            checkpoint_db: DB::new(),
+            checkpoint: DB::new(),
         }
     }
 
@@ -25,13 +25,13 @@ impl IMDB {
 #[async_trait]
 impl KVStorage for IMDB {
     async fn commit_checkpoint(&mut self) -> Result<(), Error> {
-        self.checkpoint_db = self.db.clone();
+        self.checkpoint = self.db.clone();
 
         Ok(())
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error> {
-        self.db = self.checkpoint_db.clone();
+        self.db = self.checkpoint.clone();
 
         Ok(())
     }
@@ -61,5 +61,93 @@ impl KVStorage for IMDB {
             Some(_) => Ok(true),
             None => Ok(false),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    async fn init() -> IMDB {
+        let mut db: IMDB = IMDB::new().await;
+        insert_or_update_handler(&mut db, "1", b"1").await;
+        insert_or_update_handler(&mut db, "2", b"2").await;
+        insert_or_update_handler(&mut db, "3", b"3").await;
+        insert_or_update_handler(&mut db, "4", b"4").await;
+        db
+    }
+
+    async fn get_from_checkpoint(db: &IMDB, key: &str, value: &[u8]) -> bool {
+        match db.checkpoint.get(&Hash256::hash(key)) {
+            Some(v) => v == value,
+            None => false,
+        }
+    }
+
+    async fn get_from_db(db: &IMDB, key: &str, value: &[u8]) -> bool {
+        match db.db.get(&Hash256::hash(key)) {
+            Some(v) => v == value,
+            None => false,
+        }
+    }
+
+    async fn insert_or_update_handler(db: &mut IMDB, key: &str, value: &[u8]) {
+        db.insert_or_update(Hash256::hash(key), value)
+            .await
+            .unwrap()
+    }
+
+    async fn commit_checkpoint_handler(db: &mut IMDB) {
+        db.commit_checkpoint().await.unwrap();
+    }
+
+    async fn revert_checkpoint_handler(db: &mut IMDB) {
+        db.revert_to_latest_checkpoint().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn get_from_empty_db() {
+        let db: IMDB = IMDB::new().await;
+        assert_eq!(
+            db.get(Hash256::hash("1")).await,
+            Err(super::Error::NotFound)
+        );
+    }
+
+    #[tokio::test]
+    async fn get_from_empty_checkpoint() {
+        let db: IMDB = IMDB::new().await;
+        assert_eq!(db.checkpoint.get(&Hash256::hash("1")), None);
+    }
+
+    #[tokio::test]
+    async fn get_from_init_db() {
+        let db: IMDB = init().await;
+        assert!(get_from_db(&db, "1", b"1").await);
+        assert!(get_from_db(&db, "2", b"2").await);
+        assert!(get_from_db(&db, "3", b"3").await);
+        assert!(get_from_db(&db, "4", b"4").await);
+        assert!(!get_from_db(&db, "5", b"5").await);
+    }
+
+    #[tokio::test]
+    async fn commit_checkpoint_once() {
+        let mut db: IMDB = init().await;
+        commit_checkpoint_handler(&mut db).await;
+        assert!(get_from_checkpoint(&db, "1", b"1").await);
+        assert!(get_from_checkpoint(&db, "2", b"2").await);
+        assert!(get_from_checkpoint(&db, "3", b"3").await);
+        assert!(get_from_checkpoint(&db, "4", b"4").await);
+        assert!(!get_from_checkpoint(&db, "5", b"5").await);
+    }
+
+    #[tokio::test]
+    async fn revert_checkpoint_once() {
+        let mut db: IMDB = init().await;
+        commit_checkpoint_handler(&mut db).await;
+        insert_or_update_handler(&mut db, "5", b"5").await;
+        assert!(get_from_db(&db, "5", b"5").await);
+        revert_checkpoint_handler(&mut db).await;
+        assert!(!get_from_db(&db, "5", b"5").await);
     }
 }
