@@ -23,8 +23,8 @@ pub struct DelegationState {
     /// The order here is the leader selection priority order of the validators
     /// which directly affects the effective validator set.
     ///
-    /// The `(usize, usize)` is `(first delegatee, current delegatee)`.
-    /// Two could differ if the first delegatee delagtes to other validators.
+    /// The `(usize, usize)` is `(initial delegatee, current delegatee)`.
+    /// Two could differ if the initial delegatee delagtes to other validators.
     pub original_validator_set: Vec<(PublicKey, VotingPower, Option<(usize, usize)>)>,
     // TODO: add various conditions for each delegation.
     // - Unlock-Automatically-After-N-Blocks
