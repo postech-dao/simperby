@@ -53,7 +53,10 @@ impl DelegationState {
                         ))?
                         .0
                         .clone(),
-                    validator_set.get(public_key).unwrap_or(&0) + *voting_power,
+                    validator_set
+                        .get(&self.original_validator_set[*current_delegatee].0)
+                        .unwrap_or(&0)
+                        + *voting_power,
                 );
             } else {
                 validator_set.insert(
