@@ -61,9 +61,9 @@ pub enum StateTransition {
         /// The public key of the validator who claims its voting right.
         delegator: PublicKey,
     },
-    /// Records a new data.
-    InsertData { key: String, value: Vec<u8> },
-    /// Removes an existing data.
+    /// Inserts or updates (if exists) an arbitrary data entry.
+    InsertOrUpdateData { key: String, value: Vec<u8> },
+    /// Removes an existing data entry.
     RemoveData(String),
     /// Updates the protocol version
     UpdateVersion { version: String },

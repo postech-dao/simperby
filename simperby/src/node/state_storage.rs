@@ -51,11 +51,11 @@ impl StateStorage {
     }
 
     /// Atomically inserts data, hash of it, and updates the state root.
-    pub async fn insert_record(&mut self, key: Hash256, data: &[u8]) -> Result<(), Error> {
+    pub async fn insert_or_update_data(&mut self, key: Hash256, data: &[u8]) -> Result<(), Error> {
         unimplemented!()
     }
 
-    pub async fn remove_record(&mut self, key: Hash256) -> Result<(), Error> {
+    pub async fn remove_data(&mut self, key: Hash256) -> Result<(), Error> {
         unimplemented!()
     }
 

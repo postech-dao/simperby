@@ -77,11 +77,13 @@ pub(super) async fn execute_block(
                 StateTransition::Undelegate { delegator } => {
                     execute_undelegate(storage, index, delegator.clone()).await?;
                 }
-                StateTransition::InsertData { key, value } => {
-                    storage.insert_record(Hash256::hash(key), value).await?;
+                StateTransition::InsertOrUpdateData { key, value } => {
+                    storage
+                        .insert_or_update_data(Hash256::hash(key), value)
+                        .await?;
                 }
                 StateTransition::RemoveData(key) => {
-                    storage.remove_record(Hash256::hash(key)).await?;
+                    storage.remove_data(Hash256::hash(key)).await?;
                 }
                 StateTransition::UpdateVersion { version } => {
                     let ver1 = semver::Version::parse(&last_header.version).map_err(|_| {
