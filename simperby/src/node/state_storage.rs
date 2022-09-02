@@ -37,7 +37,7 @@ impl StateStorage {
         unimplemented!()
     }
 
-    /// Assuming an existing state, check the basic validty of the state.
+    /// Assuming an existing state, check the basic validity of the state.
     pub async fn new(storage: Box<dyn KVStorage>) -> Result<Self, Error> {
         unimplemented!()
     }

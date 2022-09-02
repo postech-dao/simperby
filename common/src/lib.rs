@@ -92,8 +92,9 @@ pub struct BlockHeader {
     pub tx_merkle_root: Hash256,
     /// The Merkle root of the non-essential state.
     pub state_merkle_root: Hash256,
-    /// The effective net validator set (delegation-applied) for the next block.
-    /// The order here is the leader order.
+    /// The effective validator set (delegation-applied) for the next block.
+    ///
+    /// The order here is the leader order, and sorted by `DelegationState::original_validator_set`.
     pub validator_set: Vec<(PublicKey, VotingPower)>,
     /// The hash of the delegation state stored in the state storage.
     ///

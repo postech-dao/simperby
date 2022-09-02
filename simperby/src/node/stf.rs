@@ -61,7 +61,7 @@ pub(super) async fn execute_block(
                     delegator,
                     delegatee,
                     target_height,
-                    commitment,
+                    commitment_proof,
                 } => {
                     execute_delegate(
                         storage,
@@ -70,7 +70,7 @@ pub(super) async fn execute_block(
                         delegator.clone(),
                         delegatee.clone(),
                         *target_height,
-                        commitment.clone(),
+                        commitment_proof.clone(),
                     )
                     .await?;
                 }
@@ -93,15 +93,12 @@ pub(super) async fn execute_block(
                         ))
                     })?;
                     let ver2 = semver::Version::parse(version).map_err(|_| {
-                        ExecutionError::InvalidHeader(format!(
-                            "invalid version: {}",
-                            last_header.version
-                        ))
+                        ExecutionError::InvalidHeader(format!("invalid version: {}", version))
                     })?;
                     if ver2 <= ver1 {
                         return Err(ExecutionError::InvalidHeader(format!(
-                            "version must grow: {}",
-                            ver2
+                            "version must grow: got {} but currently {}",
+                            ver2, ver1
                         )));
                     }
                     next_version = ver2.to_string();
@@ -197,8 +194,8 @@ async fn execute_delegate(
             index,
             message: format!(
                 "target height does not match: expected {}, got {}",
-                target_height,
-                last_header.height + 1
+                last_header.height + 1,
+                target_height
             ),
         });
     }
@@ -233,7 +230,7 @@ async fn execute_delegate(
             message: "delegatee does not exist".to_string(),
         })?;
 
-    // update current_delegatee for all its delegators, if exist. (i.e., re-delegate)
+    // update current_delegatee for all its delegators, if they exist. (i.e., re-delegation)
     for validator in delegation_state.original_validator_set.iter_mut() {
         if let Some((_, current_delegatee)) = validator.2.as_mut() {
             if *current_delegatee == delegator_index {
