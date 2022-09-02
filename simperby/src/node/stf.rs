@@ -246,7 +246,7 @@ async fn execute_delegate(
         return Err(ExecutionError::TransactionFailure {
             index,
             message: format!(
-                "delegator already has delegateed ({:?}); please undelegate first",
+                "delegator already has delegated ({:?}); please undelegate first",
                 x
             ),
         });
