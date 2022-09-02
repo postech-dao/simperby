@@ -48,6 +48,7 @@ fn initialization_flag_key() -> Hash256 {
     Hash256::hash("initialization-flag".as_bytes())
 }
 
+/// Reads an essential (existence-guaranteed) item from the storage.
 async fn get_json_from_storage<T>(storage: &dyn KVStorage, key: Hash256) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
@@ -91,7 +92,7 @@ impl HistoryStorage {
         let stored_genesis_block =
             match get_json_from_storage::<Block>(storage.as_ref(), create_block_key(0)).await {
                 Ok(b) => Some(b),
-                Err(Error::StorageError(simperby_kv_storage::Error::NotFound)) => None,
+                Err(Error::StorageIntegrityError(_)) => None,
                 Err(e) => return Err(e),
             };
         let height = if let Some(genesis_block) = stored_genesis_block {
