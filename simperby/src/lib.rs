@@ -50,12 +50,12 @@ pub enum StateTransition {
         target_height: BlockHeight,
         /// The signature of (delegatee, target_height) signed by the delegator.
         ///
-        /// This is a (non-essential) safety guard that assures that the delegator actually wants it.
+        /// This is a (non-essential) safety guard that assures that the delegator wants this action.
         /// Otherwise (if this field doesn't exist), any sincere block proposer would include the commitment proof
         /// in the transaction payload **anyway**, to convince other honest validators.
         ///
         /// That's why we just provide a reserved field for that.
-        commitment: TypedSignature<(PublicKey, BlockHeight)>,
+        commitment_proof: TypedSignature<(PublicKey, BlockHeight)>,
     },
     Undelegate {
         /// The public key of the validator who claims its voting right.
@@ -71,7 +71,7 @@ pub enum StateTransition {
 
 /// A unit of state transition of the blockchain.
 ///
-/// Unlike other 'ordinary' blockchains, Simperby doesn't have a signer nor a signature.
+/// Unlike other "ordinary" blockchains, Simperby doesn't have a signer nor a signature.
 /// TODO: Explain why.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Transaction {

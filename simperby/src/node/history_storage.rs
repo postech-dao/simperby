@@ -56,7 +56,7 @@ where
         Ok(x) => x,
         Err(simperby_kv_storage::Error::NotFound) => {
             return Err(Error::StorageIntegrityError(format!(
-                "missing essential item in the history stroage: {}",
+                "missing essential item in the history storage: {}",
                 key
             )))
         }
