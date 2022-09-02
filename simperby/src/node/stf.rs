@@ -168,9 +168,6 @@ async fn execute_remove_validator(
             index,
             message: "validator does not exist".to_string(),
         })?;
-    delegation_state
-        .original_validator_set
-        .remove(validator_index);
     for validator in delegation_state.original_validator_set.iter_mut() {
         if let Some((_, current_delegatee)) = validator.2 {
             if current_delegatee == validator_index {
@@ -178,6 +175,9 @@ async fn execute_remove_validator(
             }
         }
     }
+    delegation_state
+        .original_validator_set
+        .remove(validator_index);
 
     storage.update_delegation_state(delegation_state).await?;
     Ok(())
