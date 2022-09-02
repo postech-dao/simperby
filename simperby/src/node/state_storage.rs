@@ -16,6 +16,12 @@ pub enum StateStorageError {
     StorageIntegrityError(String),
 }
 
+impl From<Error> for SimperbyError {
+    fn from(e: Error) -> Self {
+        unimplemented!()
+    }
+}
+
 type Error = StateStorageError;
 
 pub(crate) struct StateStorage {

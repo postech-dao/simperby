@@ -8,6 +8,7 @@ use history_storage::*;
 use network::NetworkOperation;
 use simperby_kv_storage::KVStorage;
 use simperby_network::AuthorizedNetwork;
+use state_storage::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vetomint::Round;
@@ -27,7 +28,7 @@ impl Node {
     ) -> Result<Self, anyhow::Error> {
         let last_header = genesis_info.header.clone();
         let state_ = Arc::new(RwLock::new(NodeState {
-            state_storage,
+            state_storage: StateStorage::new(state_storage).await?,
             history_storage: HistoryStorage::new(history_storage, genesis_info.clone()).await?,
             last_header,
         }));
@@ -85,9 +86,9 @@ impl SimperbyApi for Node {
         );
         state
             .state_storage
-            .get(Hash256::hash(key))
+            .get_data(Hash256::hash(key))
             .await
-            .map_err(SimperbyError::StorageError)
+            .map_err(|e| e.into())
     }
 
     async fn get_consensus_vote_options(&self) -> Result<Vec<ConsensusVoteItem>, SimperbyError> {
@@ -136,7 +137,7 @@ impl SimperbyApi for Node {
 struct NodeState {
     history_storage: HistoryStorage,
     // TODO: introduce `struct StateStorage`.
-    state_storage: Box<dyn KVStorage>,
+    state_storage: StateStorage,
     // TODO: add `consensus: vetomint::ConsensusState,`
     /// A cache of the latest finalized block (which is also in the history storage)
     last_header: BlockHeader,
