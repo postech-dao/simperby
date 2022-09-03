@@ -307,4 +307,54 @@ mod tests {
         assert!(get_test(&db, "key4", "val4").await);
         assert!(!get_test(&db, "key5", "val5").await);
     }
+
+    #[tokio::test]
+    async fn revert_multiple() {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
+        .await
+        .unwrap();
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+        
+        revert_test(&mut db).await;
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+
+        put_test(&mut db, "key5", "val5").await;
+        put_test(&mut db, "key6", "val6").await;
+
+        assert!(get_test(&db, "key5", "val5").await);
+        assert!(get_test(&db, "key6", "val6").await);
+
+        revert_test(&mut db).await;
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+        assert!(!get_test(&db, "key5", "val5").await);
+        assert!(!get_test(&db, "key6", "val6").await);
+
+        remove_test(&mut db, "key3").await;
+        remove_test(&mut db, "key4").await;
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(!get_test(&db, "key3", "val3").await);
+        assert!(!get_test(&db, "key4", "val4").await);
+
+        revert_test(&mut db).await;
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+    }
 }
