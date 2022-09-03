@@ -185,11 +185,15 @@ mod tests {
     async fn put_test(db: &mut RocksDB, key: &str, value: &str) {
         db.insert_or_update(Hash256::hash(key), value.as_bytes())
             .await
-            .unwrap()
+            .unwrap();
+
+        assert!(get_test(db, key, value).await)
     }
 
     async fn remove_test(db: &mut RocksDB, key: &str) {
-        db.remove(Hash256::hash(key)).await.unwrap()
+        db.remove(Hash256::hash(key)).await.unwrap();
+
+        assert!(!get_test(db, key, "").await)
     }
 
     async fn revert_test(db: &mut RocksDB) {
@@ -255,7 +259,6 @@ mod tests {
 
         assert!(!get_test(&db, "key5", "val5").await);
         put_test(&mut db, "key5", "val5").await;
-        assert!(get_test(&db, "key5", "val5").await);
     }
 
     #[tokio::test]
@@ -267,7 +270,6 @@ mod tests {
 
         assert!(get_test(&db, "key1", "val1").await);
         put_test(&mut db, "key1", "val5").await;
-        assert!(get_test(&db, "key1", "val5").await);
     }
 
     #[tokio::test]
@@ -279,7 +281,6 @@ mod tests {
 
         assert!(get_test(&db, "key1", "val1").await);
         remove_test(&mut db, "key1").await;
-        assert!(!get_test(&db, "key1", "val1").await);
     }
 
     #[tokio::test]
@@ -296,12 +297,6 @@ mod tests {
         assert!(!get_test(&db, "key5", "val5").await);
 
         put_test(&mut db, "key5", "val5").await;
-
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
-        assert!(get_test(&db, "key5", "val5").await);
 
         revert_test(&mut db).await;
 
@@ -330,12 +325,8 @@ mod tests {
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
         assert!(get_test(&db, "key4", "val4").await);
-
         put_test(&mut db, "key5", "val5").await;
         put_test(&mut db, "key6", "val6").await;
-
-        assert!(get_test(&db, "key5", "val5").await);
-        assert!(get_test(&db, "key6", "val6").await);
 
         revert_test(&mut db).await;
 
@@ -345,14 +336,8 @@ mod tests {
         assert!(get_test(&db, "key4", "val4").await);
         assert!(!get_test(&db, "key5", "val5").await);
         assert!(!get_test(&db, "key6", "val6").await);
-
         remove_test(&mut db, "key3").await;
         remove_test(&mut db, "key4").await;
-
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(!get_test(&db, "key3", "val3").await);
-        assert!(!get_test(&db, "key4", "val4").await);
 
         revert_test(&mut db).await;
 
@@ -360,6 +345,8 @@ mod tests {
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
         assert!(get_test(&db, "key4", "val4").await);
+        assert!(!get_test(&db, "key5", "val5").await);
+        assert!(!get_test(&db, "key6", "val6").await);
     }
 
     #[tokio::test]
@@ -373,12 +360,8 @@ mod tests {
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
         assert!(get_test(&db, "key4", "val4").await);
-
         put_test(&mut db, "key5", "val5").await;
         put_test(&mut db, "key6", "val6").await;
-
-        assert!(get_test(&db, "key5", "val5").await);
-        assert!(get_test(&db, "key6", "val6").await);
 
         commit_test(&mut db).await;
 
@@ -386,11 +369,6 @@ mod tests {
         put_test(&mut db, "key8", "val8").await;
         remove_test(&mut db, "key1").await;
         remove_test(&mut db, "key2").await;
-
-        assert!(!get_test(&db, "key1", "val1").await);
-        assert!(!get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key7", "val7").await);
-        assert!(get_test(&db, "key8", "val8").await);
 
         revert_test(&mut db).await;
 
@@ -415,34 +393,22 @@ mod tests {
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
         assert!(get_test(&db, "key4", "val4").await);
-
         remove_test(&mut db, "key3").await;
         put_test(&mut db, "key4", "new_val4").await;
-
-        assert!(!get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "new_val4").await);
 
         commit_test(&mut db).await;
 
         put_test(&mut db, "key1", "new_val1").await;
         put_test(&mut db, "key5", "val5").await;
 
-        assert!(get_test(&db, "key1", "new_val1").await);
-        assert!(get_test(&db, "key5", "val5").await);
-
         revert_test(&mut db).await;
 
         remove_test(&mut db, "key4").await;
         remove_test(&mut db, "key2").await;
 
-        assert!(!get_test(&db, "key2", "val2").await);
-        assert!(!get_test(&db, "key3", "new_val4").await);
-
         commit_test(&mut db).await;
 
         put_test(&mut db, "key2", "new_val2").await;
-
-        assert!(get_test(&db, "key2", "new_val2").await);
 
         commit_test(&mut db).await;
 
@@ -453,9 +419,6 @@ mod tests {
 
         remove_test(&mut db, "key1").await;
         remove_test(&mut db, "key2").await;
-
-        assert!(!get_test(&db, "key1", "val1").await);
-        assert!(!get_test(&db, "key2", "val2").await);
 
         revert_test(&mut db).await;
         
