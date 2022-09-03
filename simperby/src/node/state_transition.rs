@@ -135,9 +135,7 @@ async fn execute_add_validator(
     let mut delegation_state = storage.get_delegation_state().await?;
     if delegation_state
         .original_validator_set
-        .iter()
-        .map(|(x, _, _)| x)
-        .any(|x| *x == public_key)
+        .contains_key(&public_key)
     {
         return Err(ExecutionError::TransactionFailure {
             index,
@@ -146,7 +144,7 @@ async fn execute_add_validator(
     }
     delegation_state
         .original_validator_set
-        .push((public_key.clone(), voting_power, None));
+        .insert(public_key.clone(), (voting_power, None));
     storage.update_delegation_state(delegation_state).await?;
     Ok(())
 }
@@ -157,25 +155,26 @@ async fn execute_remove_validator(
     public_key: PublicKey,
 ) -> Result<(), ExecutionError> {
     let mut delegation_state = storage.get_delegation_state().await?;
-    let validator_index = delegation_state
+    if !delegation_state
         .original_validator_set
-        .iter()
-        .position(|(x, _, _)| *x == public_key)
-        .ok_or_else(|| ExecutionError::TransactionFailure {
+        .contains_key(&public_key)
+    {
+        return Err(ExecutionError::TransactionFailure {
             index,
             message: "validator does not exist".to_string(),
-        })?;
-    for validator in delegation_state.original_validator_set.iter_mut() {
-        if let Some((_, current_delegatee)) = validator.2 {
-            if current_delegatee == validator_index {
-                validator.2 = None;
+        });
+    }
+    for (_, delegation) in delegation_state.original_validator_set.values_mut() {
+        if let Some(Delegation {
+            current_delegatee, ..
+        }) = delegation
+        {
+            if *current_delegatee == public_key {
+                *delegation = None;
             }
         }
     }
-    delegation_state
-        .original_validator_set
-        .remove(validator_index);
-
+    delegation_state.original_validator_set.remove(&public_key);
     storage.update_delegation_state(delegation_state).await?;
     Ok(())
 }
@@ -213,33 +212,37 @@ async fn execute_delegate(
         })?;
 
     let mut delegation_state = storage.get_delegation_state().await?;
-    let delegator_index = delegation_state
+    if !delegation_state
         .original_validator_set
-        .iter()
-        .position(|(x, _, _)| *x == delegator)
-        .ok_or_else(|| ExecutionError::TransactionFailure {
+        .contains_key(&delegator)
+    {
+        return Err(ExecutionError::TransactionFailure {
             index,
             message: "delegator does not exist".to_string(),
-        })?;
-    let delegatee_index = delegation_state
+        });
+    }
+    if !delegation_state
         .original_validator_set
-        .iter()
-        .position(|(x, _, _)| *x == delegatee)
-        .ok_or_else(|| ExecutionError::TransactionFailure {
+        .contains_key(&delegatee)
+    {
+        return Err(ExecutionError::TransactionFailure {
             index,
             message: "delegatee does not exist".to_string(),
-        })?;
-
+        });
+    }
     // update current_delegatee for all its delegators, if they exist. (i.e., re-delegation)
-    for validator in delegation_state.original_validator_set.iter_mut() {
-        if let Some((_, current_delegatee)) = validator.2.as_mut() {
-            if *current_delegatee == delegator_index {
-                *current_delegatee = delegatee_index;
+    for (_, delegation) in delegation_state.original_validator_set.values_mut() {
+        if let Some(Delegation {
+            current_delegatee, ..
+        }) = delegation
+        {
+            if *current_delegatee == delegator {
+                *current_delegatee = delegatee.clone();
             }
         }
     }
 
-    if let Some(x) = delegation_state.original_validator_set[delegator_index].2 {
+    if let Some(x) = &delegation_state.original_validator_set[&delegator].1 {
         return Err(ExecutionError::TransactionFailure {
             index,
             message: format!(
@@ -248,8 +251,15 @@ async fn execute_delegate(
             ),
         });
     } else {
-        delegation_state.original_validator_set[delegator_index].2 =
-            Some((delegatee_index, delegatee_index));
+        delegation_state
+            .original_validator_set
+            .get_mut(&delegator)
+            .expect("already checked")
+            .1
+            .replace(Delegation {
+                initial_delegatee: delegatee.clone(),
+                current_delegatee: delegatee,
+            });
     }
 
     storage.update_delegation_state(delegation_state).await?;
@@ -262,19 +272,24 @@ async fn execute_undelegate(
     delegator: PublicKey,
 ) -> Result<(), ExecutionError> {
     let mut delegation_state = storage.get_delegation_state().await?;
-    let delegator_index = delegation_state
+    if !delegation_state
         .original_validator_set
-        .iter()
-        .position(|(x, _, _)| *x == delegator)
-        .ok_or_else(|| ExecutionError::TransactionFailure {
+        .contains_key(&delegator)
+    {
+        return Err(ExecutionError::TransactionFailure {
             index,
             message: "delegator does not exist".to_string(),
-        })?;
-    if delegation_state.original_validator_set[delegator_index]
-        .2
+        });
+    }
+    if delegation_state.original_validator_set[&delegator]
+        .1
         .is_some()
     {
-        delegation_state.original_validator_set[delegator_index].2 = None;
+        delegation_state
+            .original_validator_set
+            .get_mut(&delegator)
+            .expect("already checked")
+            .1 = None;
     } else {
         return Err(ExecutionError::TransactionFailure {
             index,
