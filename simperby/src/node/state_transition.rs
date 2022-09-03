@@ -1,4 +1,4 @@
-//! The definition of the state transition function which deduces
+//! The definition of the *state transition function* which deduces
 //! the next block from the current state, current block and the next given block.
 
 use super::state_storage::*;
