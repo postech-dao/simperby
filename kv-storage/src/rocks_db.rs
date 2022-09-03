@@ -193,7 +193,7 @@ mod tests {
     }
 
     async fn revert_test(db: &mut RocksDB) {
-        db.revert_to_latest_checkpoint().await.unwrap();
+        db.revert_to_latest_checkpoint().await.unwrap()
     }
 
     async fn commit_test(db: &mut RocksDB) {
