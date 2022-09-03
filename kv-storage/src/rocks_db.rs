@@ -403,4 +403,68 @@ mod tests {
         assert!(!get_test(&db, "key7", "val7").await);
         assert!(!get_test(&db, "key8", "val8").await);
     }
+
+    #[tokio::test]
+    async fn commit_revert_integrate () {
+        let tmp_directory = init_db_ver1().await;
+        let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
+        .await
+        .unwrap();
+
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "val2").await);
+        assert!(get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "val4").await);
+
+        remove_test(&mut db, "key3").await;
+        put_test(&mut db, "key4", "new_val4").await;
+
+        assert!(!get_test(&db, "key3", "val3").await);
+        assert!(get_test(&db, "key4", "new_val4").await);
+
+        commit_test(&mut db).await;
+
+        put_test(&mut db, "key1", "new_val1").await;
+        put_test(&mut db, "key5", "val5").await;
+
+        assert!(get_test(&db, "key1", "new_val1").await);
+        assert!(get_test(&db, "key5", "val5").await);
+
+        revert_test(&mut db).await;
+
+        remove_test(&mut db, "key4").await;
+        remove_test(&mut db, "key2").await;
+
+        assert!(!get_test(&db, "key2", "val2").await);
+        assert!(!get_test(&db, "key3", "new_val4").await);
+
+        commit_test(&mut db).await;
+
+        put_test(&mut db, "key2", "new_val2").await;
+
+        assert!(get_test(&db, "key2", "new_val2").await);
+
+        commit_test(&mut db).await;
+
+        put_test(&mut db, "key7", "val7").await;
+        put_test(&mut db, "key8", "val8").await;
+
+        commit_test(&mut db).await;
+
+        remove_test(&mut db, "key1").await;
+        remove_test(&mut db, "key2").await;
+
+        assert!(!get_test(&db, "key1", "val1").await);
+        assert!(!get_test(&db, "key2", "val2").await);
+
+        revert_test(&mut db).await;
+        
+        assert!(get_test(&db, "key1", "val1").await);
+        assert!(get_test(&db, "key2", "new_val2").await);
+        assert!(!get_test(&db, "key3", "val3").await);
+        assert!(!get_test(&db, "key4", "val4").await);
+        assert!(!get_test(&db, "key5", "val3").await);
+        assert!(get_test(&db, "key7", "val7").await);
+        assert!(get_test(&db, "key8", "val8").await);
+    }
 }
