@@ -15,22 +15,25 @@ pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
 /// All about the delegation status, which will be stored in the blockchain state.
 ///
 /// Note that this is not a part of `EssentialState`.
-#[allow(clippy::type_complexity)]
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct DelegationState {
     /// The original validator set for this block.
     ///
     /// The order here is the leader selection priority order of the validators
     /// which directly affects the effective validator set.
-    ///
-    /// The `(usize, usize)` is `(initial delegatee, current delegatee)`.
-    /// Two could differ if the initial delegatee delagtes to other validators.
-    pub original_validator_set: Vec<(PublicKey, VotingPower, Option<(usize, usize)>)>,
+    pub original_validator_set: BTreeMap<PublicKey, (VotingPower, Option<Delegation>)>,
     // TODO: add various conditions for each delegation.
     // - Unlock-Automatically-After-N-Blocks
     // - Unlock-Automatically-After-T-Seconds
     // - Unlock-If-The-Delegatee-Is-Not-Active
     // - Unlock-If-The-Validator-Set-Changes
+}
+
+/// Two could differ if the initial delegatee delagtes to other validators.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct Delegation {
+    pub initial_delegatee: PublicKey,
+    pub current_delegatee: PublicKey,
 }
 
 impl DelegationState {
@@ -42,21 +45,14 @@ impl DelegationState {
         &self,
     ) -> Result<Vec<(PublicKey, VotingPower)>, String> {
         let mut validator_set = BTreeMap::new();
-        for (public_key, voting_power, delegation) in &self.original_validator_set {
-            if let Some((_, current_delegatee)) = delegation {
+        for (public_key, (voting_power, delegation)) in &self.original_validator_set {
+            if let Some(Delegation {
+                current_delegatee, ..
+            }) = delegation
+            {
                 validator_set.insert(
-                    self.original_validator_set
-                        .get(*current_delegatee)
-                        .ok_or(format!(
-                            "current delegatee {} exceeds the validator set size",
-                            current_delegatee
-                        ))?
-                        .0
-                        .clone(),
-                    validator_set
-                        .get(&self.original_validator_set[*current_delegatee].0)
-                        .unwrap_or(&0)
-                        + *voting_power,
+                    current_delegatee.clone(),
+                    validator_set.get(current_delegatee).unwrap_or(&0) + *voting_power,
                 );
             } else {
                 validator_set.insert(
@@ -67,7 +63,7 @@ impl DelegationState {
         }
         let mut result = Vec::new();
         // The result validator set is sorted by the order of the `original_validator_set`
-        for (validator, _, _) in &self.original_validator_set {
+        for (validator, (_, _)) in &self.original_validator_set {
             if let Some(voting_power) = validator_set.get(validator) {
                 result.push((validator.clone(), *voting_power));
             }
