@@ -311,14 +311,14 @@ mod tests {
     async fn revert_multiple() {
         let tmp_directory = init_db_ver1().await;
         let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-        .await
-        .unwrap();
+            .await
+            .unwrap();
 
         assert!(get_test(&db, "key1", "val1").await);
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
         assert!(get_test(&db, "key4", "val4").await);
-        
+
         revert_test(&mut db).await;
 
         assert!(get_test(&db, "key1", "val1").await);
@@ -353,9 +353,9 @@ mod tests {
     async fn commit_once() {
         let tmp_directory = init_db_ver1().await;
         let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-        .await
-        .unwrap();
-                
+            .await
+            .unwrap();
+
         assert!(get_test(&db, "key1", "val1").await);
         assert!(get_test(&db, "key2", "val2").await);
         assert!(get_test(&db, "key3", "val3").await);
@@ -383,11 +383,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn commit_revert_integrate () {
+    async fn commit_revert_integrate() {
         let tmp_directory = init_db_ver1().await;
         let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-        .await
-        .unwrap();
+            .await
+            .unwrap();
 
         assert!(get_test(&db, "key1", "val1").await);
         assert!(get_test(&db, "key2", "val2").await);
@@ -421,7 +421,7 @@ mod tests {
         remove_test(&mut db, "key2").await;
 
         revert_test(&mut db).await;
-        
+
         assert!(get_test(&db, "key1", "val1").await);
         assert!(get_test(&db, "key2", "new_val2").await);
         assert!(!get_test(&db, "key3", "val3").await);
