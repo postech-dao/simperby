@@ -1,19 +1,19 @@
 use super::*;
 use std::collections::HashMap;
 
-type DB = HashMap<Hash256, Vec<u8>>;
+type Snapshot = HashMap<Hash256, Vec<u8>>;
 
 #[derive(Clone)]
 pub struct MemoryDB {
-    db: DB,
-    checkpoint: DB,
+    db: Snapshot,
+    checkpoint: Snapshot,
 }
 
 impl MemoryDB {
     pub async fn new() -> Self {
         MemoryDB {
-            db: DB::new(),
-            checkpoint: DB::new(),
+            db: Snapshot::new(),
+            checkpoint: Snapshot::new(),
         }
     }
 
