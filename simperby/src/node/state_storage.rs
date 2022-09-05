@@ -39,7 +39,7 @@ where
         Ok(x) => x,
         Err(simperby_kv_storage::Error::NotFound) => {
             return Err(Error::StorageIntegrityError(format!(
-                "missing essential item in the state stroage: {}",
+                "missing essential item in the state storage: {}",
                 key
             )))
         }
@@ -53,7 +53,7 @@ async fn get_hash_from_storage(storage: &dyn KVStorage, key: Hash256) -> Result<
         Ok(x) => x,
         Err(simperby_kv_storage::Error::NotFound) => {
             return Err(Error::StorageIntegrityError(format!(
-                "missing essential item in the state stroage: {}",
+                "missing essential item in the state storage: {}",
                 key
             )))
         }
@@ -61,7 +61,7 @@ async fn get_hash_from_storage(storage: &dyn KVStorage, key: Hash256) -> Result<
     };
     let msg = if value.len() > 1024 {
         format!(
-            "item hash is corrupted: (too long; emited; {})",
+            "item hash is corrupted: (too long; omitted; {})",
             value.len()
         )
     } else {
