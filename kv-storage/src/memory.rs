@@ -26,19 +26,16 @@ impl MemoryDB {
 impl KVStorage for MemoryDB {
     async fn commit_checkpoint(&mut self) -> Result<(), Error> {
         self.checkpoint = self.current_revision.clone();
-
         Ok(())
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error> {
         self.current_revision = self.checkpoint.clone();
-
         Ok(())
     }
 
     async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), Error> {
         self.current_revision.insert(key, value.to_vec());
-
         Ok(())
     }
 
