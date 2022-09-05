@@ -40,24 +40,24 @@ impl KVStorage for MemoryDB {
     }
 
     async fn remove(&mut self, key: Hash256) -> Result<(), Error> {
-        match self.current_revision.remove(&key) {
-            Some(_) => Ok(()),
-            None => Err(super::Error::NotFound),
-        }
+        self.current_revision
+            .remove(&key)
+            .ok_or(Error::NotFound)
+            .map(|_| ())
     }
 
     async fn get(&self, key: Hash256) -> Result<Vec<u8>, Error> {
-        match self.current_revision.get(&key) {
-            Some(v) => Ok(v.to_vec()),
-            None => Err(super::Error::NotFound),
-        }
+        self.current_revision
+            .get(&key)
+            .ok_or(Error::NotFound)
+            .map(|v| v.to_vec())
     }
 
     async fn contain(&self, key: Hash256) -> Result<bool, Error> {
-        match self.current_revision.get(&key) {
-            Some(_) => Ok(true),
-            None => Ok(false),
-        }
+        self.current_revision
+            .get(&key)
+            .ok_or(Error::NotFound)
+            .map_or_else(|_| Ok(false), |_| Ok(true))
     }
 }
 
