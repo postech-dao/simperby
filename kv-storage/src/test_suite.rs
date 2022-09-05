@@ -28,10 +28,7 @@ async fn single_crud_1(storage: &mut dyn KVStorage) {
         .unwrap();
     assert_eq!(storage.get(Hash256::hash("1")).await.unwrap(), b"2");
     storage.remove(Hash256::hash("1")).await.unwrap();
-    assert_eq!(
-        storage.get(Hash256::hash("1")).await,
-        Err(crate::Error::NotFound)
-    );
+    assert_eq!(storage.get(Hash256::hash("1")).await, Err(Error::NotFound));
 }
 
 #[allow(dead_code)]
