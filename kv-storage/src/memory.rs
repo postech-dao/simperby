@@ -5,14 +5,14 @@ type Snapshot = HashMap<Hash256, Vec<u8>>;
 
 #[derive(Clone)]
 pub struct MemoryDB {
-    db: Snapshot,
+    current_revision: Snapshot,
     checkpoint: Snapshot,
 }
 
 impl MemoryDB {
     pub async fn new() -> Self {
         MemoryDB {
-            db: Snapshot::new(),
+            current_revision: Snapshot::new(),
             checkpoint: Snapshot::new(),
         }
     }
@@ -25,39 +25,39 @@ impl MemoryDB {
 #[async_trait]
 impl KVStorage for MemoryDB {
     async fn commit_checkpoint(&mut self) -> Result<(), Error> {
-        self.checkpoint = self.db.clone();
+        self.checkpoint = self.current_revision.clone();
 
         Ok(())
     }
 
     async fn revert_to_latest_checkpoint(&mut self) -> Result<(), Error> {
-        self.db = self.checkpoint.clone();
+        self.current_revision = self.checkpoint.clone();
 
         Ok(())
     }
 
     async fn insert_or_update(&mut self, key: Hash256, value: &[u8]) -> Result<(), Error> {
-        self.db.insert(key, value.to_vec());
+        self.current_revision.insert(key, value.to_vec());
 
         Ok(())
     }
 
     async fn remove(&mut self, key: Hash256) -> Result<(), Error> {
-        match self.db.remove(&key) {
+        match self.current_revision.remove(&key) {
             Some(_) => Ok(()),
             None => Err(super::Error::NotFound),
         }
     }
 
     async fn get(&self, key: Hash256) -> Result<Vec<u8>, Error> {
-        match self.db.get(&key) {
+        match self.current_revision.get(&key) {
             Some(v) => Ok(v.to_vec()),
             None => Err(super::Error::NotFound),
         }
     }
 
     async fn contain(&self, key: Hash256) -> Result<bool, Error> {
-        match self.db.get(&key) {
+        match self.current_revision.get(&key) {
             Some(_) => Ok(true),
             None => Ok(false),
         }
@@ -85,7 +85,7 @@ mod test {
     }
 
     async fn get_from_db(db: &MemoryDB, key: &str, value: &[u8]) -> bool {
-        match db.db.get(&Hash256::hash(key)) {
+        match db.current_revision.get(&Hash256::hash(key)) {
             Some(v) => v == value,
             None => false,
         }
