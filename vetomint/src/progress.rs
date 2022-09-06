@@ -9,7 +9,13 @@ use super::*;
 /// - on-4f-favor-precommit
 /// - OnTimeoutPrecommit
 pub(super) fn progress(
-    height_info: &HeightInfo,
+    _state: &mut ConsensusState,
+    _event: ConsensusEvent,
+) -> Option<Vec<ConsensusResponse>> {
+    unimplemented!()
+}
+#[cfg(ignore)]
+pub(super) fn progress(
     state: &mut ConsensusState,
     event: ConsensusEvent,
 ) -> Option<Vec<ConsensusResponse>> {

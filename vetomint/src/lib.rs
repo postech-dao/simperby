@@ -36,18 +36,12 @@ pub enum ConsensusEvent {
         proposer: ValidatorIndex,
         round: Round,
         time: Timestamp,
-    },
-    /// Informs that the node is in favor of or against a proposal.
-    ProposalFavor {
-        proposal: BlockIdentifier,
         /// Whether this node is in favor of the proposal.
         favor: bool,
-        time: Timestamp,
     },
-    /// Informs that `CreateProposal` has been completed.
-    BlockProposalCreated {
+    /// Updates the block candidate which this node wants to propose in its turn.
+    BlockCandidateUpdated {
         proposal: BlockIdentifier,
-        round: Round,
         time: Timestamp,
     },
     /// Informs that the node has received a block prevote.
@@ -85,8 +79,7 @@ impl ConsensusEvent {
         match self {
             ConsensusEvent::Start { time, .. } => *time,
             ConsensusEvent::BlockProposalReceived { time, .. } => *time,
-            ConsensusEvent::ProposalFavor { time, .. } => *time,
-            ConsensusEvent::BlockProposalCreated { time, .. } => *time,
+            ConsensusEvent::BlockCandidateUpdated { time, .. } => *time,
             ConsensusEvent::Prevote { time, .. } => *time,
             ConsensusEvent::Precommit { time, .. } => *time,
             ConsensusEvent::NilPrevote { time, .. } => *time,
@@ -146,6 +139,9 @@ pub struct HeightInfo {
 
     /// The consensus parameters
     pub consensus_params: ConsensusParams,
+
+    /// The initial block candidate that this node wants to propose.
+    pub initial_block_candidate: BlockIdentifier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -176,11 +172,14 @@ pub struct ConsensusState {
 
     votes: BTreeMap<Round, Votes>,
     waiting_for_proposal_creation: bool,
+
+    block_candidate: BlockIdentifier,
+    height_info: HeightInfo,
 }
 
 impl ConsensusState {
     /// Prepares the initial state of the consensus.
-    pub fn new(_height_info: HeightInfo) -> Self {
+    pub fn new(height_info: HeightInfo) -> Self {
         ConsensusState {
             step: ConsensusStep::Initial,
             round: 0,
@@ -191,6 +190,8 @@ impl ConsensusState {
             timeout_propose: None,
             votes: Default::default(),
             waiting_for_proposal_creation: false,
+            block_candidate: height_info.initial_block_candidate,
+            height_info,
         }
     }
 
@@ -198,12 +199,8 @@ impl ConsensusState {
     ///
     /// It returns `None` if the state machine is not ready to process the event.
     /// It returns `Some(Vec![])` if the state machine processed the event but did not emit any response.
-    pub fn progress(
-        &mut self,
-        height_info: &HeightInfo,
-        event: ConsensusEvent,
-    ) -> Option<Vec<ConsensusResponse>> {
-        progress::progress(height_info, self, event)
+    pub fn progress(&mut self, event: ConsensusEvent) -> Option<Vec<ConsensusResponse>> {
+        progress::progress(self, event)
     }
 }
 

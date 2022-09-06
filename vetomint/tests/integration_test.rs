@@ -11,6 +11,7 @@ fn success_trivial_1() {
             timeout_ms: 1000,
             repeat_round_for_first_leader: 1,
         },
+        initial_block_candidate: 0,
     };
     let mut state = ConsensusState::new(height_info.clone());
 
@@ -20,15 +21,9 @@ fn success_trivial_1() {
         proposer: 0,
         round: 0,
         time: 1,
-    };
-    let response = state.progress(&height_info, event).unwrap();
-    assert!(response.is_empty());
-    let event = ConsensusEvent::ProposalFavor {
-        proposal: 0,
         favor: true,
-        time: 2,
     };
-    let response = state.progress(&height_info, event).unwrap();
+    let response = state.progress(event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::BroadcastPrevote {
@@ -45,7 +40,7 @@ fn success_trivial_1() {
             signer: validator_index,
             time: 3,
         };
-        let response = state.progress(&height_info, event).unwrap();
+        let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
     let event = ConsensusEvent::Prevote {
@@ -54,7 +49,7 @@ fn success_trivial_1() {
         signer: 3,
         time: 3,
     };
-    let response = state.progress(&height_info, event).unwrap();
+    let response = state.progress(event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::BroadcastPrecommit {
@@ -71,7 +66,7 @@ fn success_trivial_1() {
             signer: validator_index,
             time: 4,
         };
-        let response = state.progress(&height_info, event).unwrap();
+        let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
     let event = ConsensusEvent::Precommit {
@@ -80,7 +75,7 @@ fn success_trivial_1() {
         signer: 3,
         time: 4,
     };
-    let response = state.progress(&height_info, event).unwrap();
+    let response = state.progress(event).unwrap();
     assert_eq!(
         response,
         vec![ConsensusResponse::FinalizeBlock { proposal: 0 }]
