@@ -241,11 +241,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
-
         remove_test(&mut db, "key1").await;
         put_test(&mut db, "key1", "new_val1").await;
         put_test(&mut db, "key3", "new_val3").await;
@@ -259,12 +254,6 @@ mod tests {
         let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
-
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
-        assert!(!get_test(&db, "key5", "val5").await);
 
         put_test(&mut db, "key5", "val5").await;
 
@@ -283,11 +272,6 @@ mod tests {
         let mut db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
             .unwrap();
-
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
 
         revert_test(&mut db).await;
 
@@ -326,10 +310,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
         put_test(&mut db, "key5", "val5").await;
         put_test(&mut db, "key6", "val6").await;
 
@@ -359,10 +339,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
         remove_test(&mut db, "key3").await;
         put_test(&mut db, "key4", "new_val4").await;
 
