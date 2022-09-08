@@ -362,8 +362,8 @@ mod tests {
 
         commit_test(&mut db).await;
 
+        put_test(&mut db, "key6", "val6").await;
         put_test(&mut db, "key7", "val7").await;
-        put_test(&mut db, "key8", "val8").await;
 
         commit_test(&mut db).await;
 
@@ -377,7 +377,7 @@ mod tests {
         assert!(!get_test(&db, "key3", "val3").await);
         assert!(!get_test(&db, "key4", "val4").await);
         assert!(!get_test(&db, "key5", "val5").await);
+        assert!(get_test(&db, "key6", "val6").await);
         assert!(get_test(&db, "key7", "val7").await);
-        assert!(get_test(&db, "key8", "val8").await);
     }
 }
