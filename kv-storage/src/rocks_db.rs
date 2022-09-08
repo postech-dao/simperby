@@ -189,40 +189,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_once_with_open() {
-        let tmp_directory = init_db().await;
-        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-            .await
-            .unwrap();
-
-        assert!(get_test(&db, "key1", "val1").await);
-    }
-
-    #[tokio::test]
-    async fn get_all_with_open() {
-        let tmp_directory = init_db().await;
-        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-            .await
-            .unwrap();
-
-        assert!(get_test(&db, "key1", "val1").await);
-        assert!(get_test(&db, "key2", "val2").await);
-        assert!(get_test(&db, "key3", "val3").await);
-        assert!(get_test(&db, "key4", "val4").await);
-    }
-
-    #[tokio::test]
-    async fn get_once_with_new() {
-        let tmp_directory = init_db().await;
-        let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
-            .await
-            .unwrap();
-
-        assert!(get_test(&db, "key1", "val1").await);
-    }
-
-    #[tokio::test]
-    async fn get_all_with_new() {
+    async fn get_multiple() {
         let tmp_directory = init_db().await;
         let db = RocksDB::open(tmp_directory.to_path_buf().to_str().unwrap())
             .await
