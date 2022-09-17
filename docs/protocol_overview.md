@@ -38,12 +38,12 @@ Here is a summarized version of the Simperby protocol.
 1. We want the node operation to be **simple and lightweight** to realize a truly distributed, decentralized and self-hosted organization.
 2. To be so, the key assumption is that most of the nodes are **rarely online** and the protocol produces new blocks **on-demand**.
 3. To accomplish that, the **consensus round must be very long**.
-4. For every block, members can **vote on or propose an agenda, propagating** to each other.
+4. For every block, members can **vote on or propose an agenda**. Agendas and votes are **propagated to each other**.
 5. At the same time, members can also **propagate their chats** used for the communication, which is **coordinated by the block proposer**.
 6. If there is a **governance-approved (majority-voted) agenda** on the network, the block proposer should **include it in the block along with the chat log**, and propose to the consensus.
 7. In that the block proposer should be online most of the time (chat coordination and block proposing), this **responsibility should be laid on a few of the validators most of the time**, to ensure the rarely-online assumption.
 8. Also the role of **block proposer has some authorities** (chat coordination and agenda inclusion) that can't be cryptographically verified if misused (typically censorship).
-9. Thus there exists **'few of the validators' that can be lazy or commit harmful misuses** of their authorities which aren't really byzantine faults or invalid blocks.
+9. Thus there exists **'few validators' that take over the block proposal most of the time, but can be lazy or commit harmful misuses** of their authorities which aren't really byzantine faults or invalid blocks.
 10. Normally in ordinary blockchains, this isn't a problem because the rounds are short and the block proposer changes regularly. And as explained, we're not.
 11. Therefore, we need a special mechanism to **'veto' the block proposer not to waste long rounds in the consensus layer**. Thus we introduce a special variation of Tendermint called *Vetomint*.
 12. In Vetomint, validators can veto the current block proposer, but still, the round will progress (changing the block proposer) if all the honest validators either vote or veto.
@@ -153,7 +153,7 @@ These two transactions are the only exceptions that are not part of the agenda.
 
 You might notice that the role of the consensus leader is very important in the simperby governance.
 
-### Responsibilities
+### Responsibiliy
 
 The leader should be **responsible**.
 
@@ -186,7 +186,7 @@ A *good* node should be objective to agendas; they should choose the first eligi
 As long as the selected first few leaders are honest, faithful, and even good,
 the network will be not only **live** but also **fair**. (note that it's always **safe** regardless of the leader's behavior; safety is guaranteed by the BFT consensus)
 
-### So What?
+### Single Point of Failure
 
 To summarize, the leader has **responsibilities** and **authority**.
 Actually, this is not so different from other blockchains that use a leader-based BFT consensus. The leader should be online for the whole round, to receive enough amount of transactions (in the 'mempool'), and the leader chooses which transactions to include in the block. The only difference is that we don't have a user-signed transaction but a governance-signed agenda instead and that we have an additional protocol for the chat finalization.
@@ -231,15 +231,15 @@ To improve this, we propose a variation of Tendermint, called *Vetomint*, which 
 
 1. `<1/6` BFT
 2. It is allowed (i.e., considered as a non-byzantine behavior) to cast a nil-vote before the timeout, with *some kind of reason*.
-3. If all the honest nodes cast either a vote or nil-vote, it is guaranteed that the round progresses; the **early termination**.
-4. If all the honest nodes cast a vote, it is guaranteed that the block progresses.
-5. If over 2/3 of the nodes cast a vote, the block progresses with the probability of `>0`.
+3. If all the honest nodes cast either a non-nil-vote or nil-vote, it is guaranteed that the round progresses; the **early termination**.
+4. If all the honest nodes cast a non-nil-vote, it is guaranteed that the block progresses.
+5. If over 2/3 of the nodes cast a non-nil-vote, the block progresses with the probability of `>0`.
 
 ### How does it work?
 
 In Vetomint, unlike Tendermint, the round **always instantly progresses** if over 5/6 nodes either non-nil-vote or nil-vote. Especially when 5/6 nodes vote, it is guaranteed that the height progresses. The threshold 5/6 is just enough to ensure that all nodes observe at least 2/3 (Tendermint majority) of non-nil-votes no matter the individual arrival order of the votes, even with the possible 1/6 nil-votes.
 Note that the 'arrival order' matters, unlike Tendermint, because we have a new 'early termination' condition.
 
-Details are explained in issue #4 and the pseudo-code is [here](./vetomint-spec.pdf)
+Details are explained in issue [#4](https://github.com/postech-dao/simperby/issues/4) and the pseudo-code is [here](./vetomint-spec.pdf)
 
 One can easily prove that it is formally safe and live, after some trivial reduction to the original Tendermint.
