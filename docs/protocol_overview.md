@@ -36,7 +36,7 @@ The reader of this document should be familiar with the basic concepts of blockc
 Here is a summarized version of the Simperby protocol.
 
 1. We want the node operation to be **simple and lightweight** to realize a truly distributed, decentralized and self-hosted organization.
-2. To be so, it is assumed that most of the nodes are **rarely online** and the protocol produces new blocks **on-demand**.
+2. To be so, the key assumption is that most of the nodes are **rarely online** and the protocol produces new blocks **on-demand**.
 3. To accomplish that, the **consensus round must be very long**.
 4. For every block, members can **vote on or propose an agenda, propagating** to each other.
 5. At the same time, members can also **propagate their chats** used for the communication, which is **coordinated by the block proposer**.
@@ -107,7 +107,7 @@ Simperby's governance is implemented by P2P voting.
 - Only a **single agenda** can be included in a block. This is for preventing complicated dependency problems.
   - If multiple agendas are allowed, each agenda must be independent; Otherwise, voters can't be sure how each agenda is ordered, or even whether it is included in the finalized block. This will cause a severe restriction of the possible agenda items.
 - Because `Height` is a part of an agenda,
-  every vote will be outdated and thus discarded if the block height progresses.
+  every agenda and its vote will be outdated and thus discarded if the block height progresses.
 
 ## Chatting
 
@@ -145,7 +145,7 @@ The consensus leader (*block proposer*; don't be confused with the *agenda propo
 In addition to the agenda, the leader can also include some other transactions.
 
 1. RecordChatLog (chatting logs for the very height): this doesn't change the state, but is used as the governance minutes for the agenda.
-2. ReportMisbehavior (double votes in the consensus and chat finalization misbehaviors by a past consensus leader): this will lead to the slashing of the voting power of the misbehaving validator.
+2. ReportMisbehavior (double votes in the consensus and chat finalization misbehaviors by a past consensus leader): this will automatically lead to the slashing of the voting power of the misbehaving validator.
 
 These two transactions are the only exceptions that are not part of the agenda.
 
