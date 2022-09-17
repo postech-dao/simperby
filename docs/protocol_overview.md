@@ -44,8 +44,8 @@ Here is a summarized version of the Simperby protocol.
 7. In that the block proposer should be online most of the time (chat coordination and block proposing), this **responsibility should be laid on a few of the validators most of the time**, to ensure the rarely-online assumption.
 8. Also the role of **block proposer has some authorities** (chat coordination and agenda inclusion) that can't be cryptographically verified if misused (typically censorship).
 9. Thus there exists **'few of the validators' that can be lazy or commit harmful misuses** of their authorities which aren't really byzantine faults or invalid blocks.
-10. Normally this isn't a problem, if the rounds are short and the block proposer changes regularly, but we're not.
-11. We need a special mechanism to **'veto' the block proposer not to waste long rounds in the consensus layer**. Thus we introduce a special variation of Tendermint called *Vetomint*.
+10. Normally in ordinary blockchains, this isn't a problem because the rounds are short and the block proposer changes regularly. And as explained, we're not.
+11. Therefore, we need a special mechanism to **'veto' the block proposer not to waste long rounds in the consensus layer**. Thus we introduce a special variation of Tendermint called *Vetomint*.
 12. In Vetomint, validators can veto the current block proposer, but still, the round will progress (changing the block proposer) if all the honest validators either vote or veto.
 
 ## Simple and Light Node Operation
