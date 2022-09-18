@@ -22,7 +22,8 @@ The reader of this document should be familiar with the basic concepts of blockc
   `StoreData`, `DelegateGovernanceVotingPower`, `AddValidator` are the examples.
 - A sequence of transactions is called an *agenda*.
   **Any governance voting is performed on an agenda and the target block height**.
-- A *block* consists of the header and **a single agenda, which is mandatory**.
+- A *block* consists of the header and **a single agenda. A block without agenda is not permitted**.
+- Additionally, a block may include some *extra-agenda transactions* which the proposer can include ex officio, but it is strictly restricted in only three types.
 - The participants of the governance are called *members*.
 - The participants of the consensus are called *validators*, which is a subset of the *members*.
 - A *consensus leader* or a *block proposer* is a validator that proposes a block for the round.
@@ -38,15 +39,15 @@ Here is a summarized version of the Simperby protocol.
 1. We want the node operation to be **simple and lightweight** to realize a truly distributed, decentralized and self-hosted organization.
 2. To be so, the key assumption is that most of the nodes are **rarely online** and the protocol produces new blocks **on-demand**.
 3. To accomplish that, the **consensus round must be very long**.
-4. For every block, members can **vote on or propose an agenda**. Agendas and votes are **propagated to each other**.
-5. At the same time, members can also **propagate their chats** used for the communication, which is **coordinated by the block proposer**.
+4. For every block, members can **vote on or propose an agenda**. Agendas and votes are **propagated to each other by gossip network**.
+5. At the same time, members may also **propagate their arbitrary chats** used for the human communication, which is **ordered by the block proposer**.
 6. If there is a **governance-approved (majority-voted) agenda** on the network, the block proposer should **include it in the block along with the chat log**, and propose to the consensus.
 7. In that the block proposer should be online most of the time (chat coordination and block proposing), this **responsibility should be laid on a few of the validators most of the time**, to ensure the rarely-online assumption.
 8. Also the role of **block proposer has some authorities** (chat coordination and agenda inclusion) that can't be cryptographically verified if misused (typically censorship).
 9. Thus there exists **'few validators' that take over the block proposal most of the time, but can be lazy or commit harmful misuses** of their authorities which aren't really byzantine faults or invalid blocks.
 10. Normally in ordinary blockchains, this isn't a problem because the rounds are short and the block proposer changes regularly. And as explained, we're not.
 11. Therefore, we need a special mechanism to **'veto' the block proposer not to waste long rounds in the consensus layer**. Thus we introduce a special variation of Tendermint called *Vetomint*.
-12. In Vetomint, validators can veto the current block proposer, but still, the round will progress (changing the block proposer) if all the honest validators either vote or veto.
+12. In Vetomint, validators may veto the current block proposer, but still, the round will progress withtout timeout expiration (changing the block proposer) if all the honest validators either vote or veto.
 
 ## Simple and Light Node Operation
 
@@ -61,7 +62,7 @@ If we want to make the validators run nodes on their laptops, it is not realisti
 Since Simperby's BFT consensus assumes a partially-synchronous network, rarely-online nodes can be trivially handled because it's no more than one typical case of an asynchrony, if
 
 1. the consensus round is (or has grown to be) long enough to cover all appearances of the nodes.
-2. at least one node is online when there is a network broadcast
+2. at least one node stays online serving the gossip protocol reliably when there is a network broadcast
 
 Condition 1 turns out to be a tough challenge in the later sections, so keep it in mind.
 
@@ -107,7 +108,7 @@ Simperby's governance is implemented by P2P voting.
 - Only a **single agenda** can be included in a block. This is for preventing complicated dependency problems.
   - If multiple agendas are allowed, each agenda must be independent; Otherwise, voters can't be sure how each agenda is ordered, or even whether it is included in the finalized block. This will cause a severe restriction of the possible agenda items.
 - Because `Height` is a part of an agenda,
-  every agenda and its vote will be outdated and thus discarded if the block height progresses.
+  every agenda and its vote will be outdated and thus discarded if the block height progresses though it may be re-proposed and re-voted.
 
 ## Chatting
 
@@ -142,12 +143,13 @@ Note that if there is a malicious member who tries to spam the chat, the leader 
 The consensus leader (*block proposer*; don't be confused with the *agenda proposer*) includes an eligible agenda (if there were multiple eligible agendas, the leader just chooses one) in the block, and proposes it.
 **A valid block MUST contain an eligible agenda.**. In other words, if there is no eligible agenda, there is no block progress in the blockchain.
 
-In addition to the agenda, the leader can also include some other transactions.
+In addition to the agenda, the leader can also include *extra-agenda* transactions that don't require governance approval, but have its own proof to be desirable to accept.
 
 1. RecordChatLog (chatting logs for the very height): this doesn't change the state, but is used as the governance minutes for the agenda.
 2. ReportMisbehavior (double votes in the consensus and chat finalization misbehaviors by a past consensus leader): this will automatically lead to the slashing of the voting power of the misbehaving validator.
+3. Delegate/Undelegate: delegate or undelegate the voting power (for either consensus and governance) to another member. This requires a signature of the delegator.
 
-These two transactions are the only exceptions that are not part of the agenda.
+These three transactions are the only exceptions that are not part of the agenda, and included directly by the proposer, ex officio.
 
 ## Consensus Leader
 
