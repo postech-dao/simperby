@@ -1,3 +1,4 @@
+#[cfg(feature = "full")]
 pub mod propagation_network;
 
 use async_trait::async_trait;

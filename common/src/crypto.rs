@@ -116,6 +116,13 @@ impl<T: serde::Serialize> TypedSignature<T> {
         })
     }
 
+    pub fn new(signature: Signature) -> Self {
+        TypedSignature {
+            signature,
+            _mark: std::marker::PhantomData,
+        }
+    }
+
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: &T, public_key: &PublicKey) -> Result<(), Error> {
         let data = serde_json::to_vec(data).map_err(|_| Error::InvalidFormat("data".to_owned()))?;
