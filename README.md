@@ -11,6 +11,9 @@ Simperby is a blockchain engine that provides
 3. **Communication Channel**: a mechanism to communicate with each other in a decentralized, verifiable, fault-tolerant way.
 4. **Git Repository**: a distributed Git repository that every member can fetch and verify, and also can push commits with governance approval.
 
+Also, Simperby is provided as an **extremley lightweight CLI** software.
+It *does NOT run in background*. All the operations except `simperby update` and `simperby relay` are done *synchronously and explicitly* (i.e. performs the given operation and returns the result immediately).
+
 ## DAO
 
 Simperby is the best solution for **decentralized organizations** which is required to be
@@ -33,9 +36,9 @@ If you build a chain with Simperby, it instantly becomes **a DAO**, as it functi
 
 See [docs](docs/protocol_overview.md)
 
-## Storage
+## Blockchain as a Git Repository
 
-See [docs](docs/git_storage.md)
+See [docs](docs/git.md)
 
 ## Multichain DAO
 
