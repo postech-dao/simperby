@@ -7,5 +7,6 @@ members = [
     "network",
     "kv-storage",
     "vetomint",
-    "light-client"
+    "light-client",
+    "cli"
 ]

@@ -1,0 +1,20 @@
+[package]
+name = "simperby-cli"
+version = "0.0.0"
+authors = ["PDAO Team <hello@postech-dao.xyz>"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1.42"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde_json = "1.0"
+futures = "0.3"
+log = "0.4"
+simperby = { version = "0.0.0", path = "../simperby" }
+thiserror = "1.0.32"
+semver = "1.0.0"
+clap = { version = "3.2.20", features = ["derive"] }
+rand = "0.8.5"
