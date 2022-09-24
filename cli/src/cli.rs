@@ -20,6 +20,10 @@ pub enum Commands {
     /// This will verify every commit along the way.
     /// If the given commit is not a descendant of the
     /// current `main` (i.e., cannot be fast-forwarded), it fails.
+    ///
+    /// Note that if you sync to a block `H`, then the `main` branch will move to `H-1`.
+    /// To sync the last block `H`, you have to run `update`.
+    /// (This is because that the finalization proof for a block appears in the next block.)
     Sync { commit: String },
     /// Print the information about the block data Git server that this node is hosting.
     Git,
