@@ -50,12 +50,18 @@ pub enum Commands {
     ///
     /// 3. If the commit is a block, the `proposal` tag will be moved to the commit.
     Propose { commit: String },
-    /// Veto the block, leaving a `veto` tag on the commit (with some postfix).
+    /// Veto the round.
     ///
-    /// It will be broadcasted to the network in the next `update`, if the conditions are met.
-    /// It fails if the given commit is already set to `proposal`.
-    /// If the given commit is already set to `veto`, it will be removed.
-    Veto { commit: String },
+    /// It will be broadcasted to the network as a nil-vote
+    /// in the next `update`, if the consensus conditions are met.
+    /// You can check whether the round is vetoed by running `consensus --show`.
+    Veto {
+        /// If specified, it vetoes a specific block proposal,
+        /// leaving a `veto` tag on the commit (with some postfix).
+        /// It fails if the given commit is already set to `proposal`.
+        /// If the given commit is already set to `veto`, it will be removed.
+        commit: Option<String>,
+    },
     /// Show the governance status of the given agenda.
     Show { commit: String },
     /// Run the Simperby node indefinitely. This is same as running `relay` while
