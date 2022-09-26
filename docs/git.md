@@ -78,7 +78,7 @@ agenda H+1
 block H
 ```
 
-If the node receives multiple agendas, it presents multiple branches that consist of `ordinary transactions` and a single `agenda` grwon from `block`.
+If the node receives multiple agendas, it presents multiple branches that consist of `ordinary transactions` and a single `agenda` grown from `block`.
 
 ### Example
 

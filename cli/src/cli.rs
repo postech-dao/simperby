@@ -38,11 +38,11 @@ pub enum Commands {
     Vote { commit: String },
     /// Propose the given agenda or block.
     ///
-    /// 1. If the commit is the last transaction,
+    /// 1. If the commit is the last transaction of the agenda,
     /// it will create an 'agenda' commit and append on top,
     /// immediately broadcast it to the network, and automatically vote on it.
     ///
-    /// 2. If the commit is the last extra-agenda transaction,
+    /// 2. If the commit is the last extra-agenda transaction of the block,
     /// it will create a `chat` and 'block' commit and append on top,
     /// leaving a `proposal` tag on the commit.
     /// This will be broadcasted in running the command `consensus`
