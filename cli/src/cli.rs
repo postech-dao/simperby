@@ -23,7 +23,7 @@ pub enum Commands {
     ///
     /// Note that if you sync to a block `H`, then the `main` branch will move to `H-1`.
     /// To sync the last block `H`, you have to run `update`.
-    /// (This is because that the finalization proof for a block appears in the next block.)
+    /// (This is because the finalization proof for a block appears in the next block.)
     Sync { commit: String },
     /// Print the information about the block data Git server that this node is hosting.
     Git,
@@ -72,7 +72,7 @@ pub enum Commands {
     /// The node may broadcast the proposal or consensus messages depending on the
     /// current consensus round state.
     Consensus {
-        /// If enabled, it show the status of the consensus.
+        /// If enabled, it shows the status of the consensus.
         ///
         /// Unlike the governance which is performed on each agenda,
         /// the consensus is 'global' so this option is not associated with any commit.

@@ -11,8 +11,8 @@ Simperby is a blockchain engine that provides
 3. **Communication Channel**: a mechanism to communicate with each other in a decentralized, verifiable, fault-tolerant way.
 4. **Git Repository**: a distributed Git repository that every member can fetch and verify, and also can push commits with governance approval.
 
-Also, Simperby is provided as an **extremley lightweight CLI** software.
-It *does NOT run in background*. All the operations except `simperby update` and `simperby relay` are done *synchronously and explicitly* (i.e. performs the given operation and returns the result immediately).
+Also, Simperby is provided as an **extremely lightweight CLI** software.
+It *does NOT run in the background*. All the operations except `simperby update` and `simperby relay` are done *synchronously and explicitly* (i.e. performs the given operation and returns the result immediately).
 
 ## DAO
 

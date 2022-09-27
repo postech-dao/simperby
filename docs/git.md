@@ -19,7 +19,7 @@ You should have a basic understanding of
 5. **Every to-be-finalized data is also managed in a Git repository.**
 6. All the pending agendas (waiting for approval) will be presented as multiple branches grown from the `main` branch.
 7. The node operator may create their own transaction as a commit and push to a particular branch which represents an agenda proposal.
-8. **Simperby funtions as a general distributed Git repository**, that may contain any useful data for the organization. This is trivially achieved because **we take transactions as Git commits.** (This can be understood as exploiting the 'blockchain state' as a Git repository)
+8. **Simperby functions as a general distributed Git repository**, that may contain any useful data for the organization. This is trivially achieved because **we take transactions as Git commits.** (This can be understood as exploiting the 'blockchain state' as a Git repository)
 
 ## Lifecycle of a Simperby Chain
 
@@ -28,7 +28,7 @@ TODO
 ### Step 0: finalized block
 
 Let's assume that there is the last finalized block with the height of `H`.
-We will take that has a starting point of our recursive process. Of course the base case of the finalized block would be the genesis block.
+We will take that as a starting point of our recursive process. Of course, the base case of the finalized block would be the genesis block.
 
 ### Step 1: Agenda
 
@@ -46,9 +46,9 @@ A commit is defined as follows
 2. `genesis`: a non-empty commit that contains the initial state and the genesis info.
 3. `block`: an empty commit for the either proposed or finalized block
 4. `tx`: a transaction of an arbitrary update on the state (except the reserved directory). Note that a `tx` commit is the only exception that the commit title does not start with its type, `tx`. It may be empty.
-5. `tx-delegate`, `tx-undelegate`: an non-empty extra-agenda transaction that updates the delegation state which resides in the reserved directory of the repository.
-6. `tx-report`: a non-empty commit that reports a misbehavior of a validator with the cryptographic proof. This must include the state change caused by the slahsing.
-7. `chat`: a empty commit for the chat logs for the height.
+5. `tx-delegate`, `tx-undelegate`: a non-empty extra-agenda transaction that updates the delegation state which resides in the reserved directory of the repository.
+6. `tx-report`: a non-empty commit that reports the misbehavior of a validator with cryptographic proof. This must include the state change caused by the slashing.
+7. `chat`: an empty commit for the chat logs of the height.
 8. `agenda-proof`: an empty commit for the proof of the governance approval of an agenda.
 
 ### Commit Format
@@ -82,6 +82,6 @@ If the node receives multiple agendas, it presents multiple branches that consis
 
 ### Example
 
-If an organization using Simperby keeps their repository public, it is natural to have a mirror of the block data repository on a publicly hosted service like Github.
+If an organization using Simperby keeps its repository public, it is natural to have a mirror of the block data repository on a publicly hosted service like Github.
 
 We present an example of the block data [here](https://github.com/postech-dao/simperby-git-example)
