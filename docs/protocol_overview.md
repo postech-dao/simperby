@@ -1,6 +1,6 @@
 # Simperby: Protocol Overview
 
-Simperby is a blockchain engine that runs an organiziation which is
+Simperby is a blockchain engine that runs an organization which is
 
 1. **Decentralized**
 2. **Standalone, Sovereign and Self-hosted**
@@ -27,7 +27,7 @@ The reader of this document should be familiar with the basic concepts of blockc
 - The participants of the governance are called *members*.
 - The participants of the consensus are called *validators*, which is a subset of the *members*.
 - A *consensus leader* or a *block proposer* is a validator that proposes a block for the round.
-- A *round* is a period of time in which a consensus leader proposes a block, and consensus votes(pre-vote, pre-commit) are performed. Refer to Tendermint for more details.
+- A *round* is a period of time in which a consensus leader proposes a block, and consensus votes(pre-vote, pre-commit) are performed. Refer to [Tendermint](https://tendermint.com/) for more details.
 - A validator is *honest* or *not byzantine* if they follow the consensus protocol.
 - A block proposer is *faithful* if they fulfill their responsibility and *good* if they don't overuse their power. They are *lazy* and *bad* otherwise.
   The notion of *responsibility* and *power* will be explained [later](#consensus-leader).
@@ -47,7 +47,7 @@ Here is a summarized version of the Simperby protocol.
 9. Thus there exists **'few validators' that take over the block proposal most of the time, but can be lazy or commit harmful misuses** of their authorities which aren't really byzantine faults or invalid blocks.
 10. Normally in ordinary blockchains, this isn't a problem because the rounds are short and the block proposer changes regularly. And as explained, we're not.
 11. Therefore, we need a special mechanism to **'veto' the block proposer not to waste long rounds in the consensus layer**. Thus we introduce a special variation of Tendermint called *Vetomint*.
-12. In Vetomint, validators may veto the current block proposer, but still, the round will progress withtout timeout expiration (changing the block proposer) if all the honest validators either vote or veto.
+12. In Vetomint, validators may veto the current block proposer, but still, the round will progress without timeout expiration (changing the block proposer) if all the honest validators either vote or veto.
 
 ## Simple and Light Node Operation
 
@@ -56,7 +56,7 @@ to ensure that the network is decentralized and distributed (and so truly self-h
 
 ### Rarely-online nodes
 
-One of the most important conditions for 'simple' and 'lightweight' node operations is how often the node needs to be online.
+One of the most important conditions for *simple* and *lightweight* node operations is how often the node needs to be online.
 If we want to make the validators run nodes on their laptops, it is not realistic to assume that they will be online 24/7.
 
 Since Simperby's BFT consensus assumes a partially-synchronous network, rarely-online nodes can be trivially handled because it's no more than one typical case of an asynchrony, if
@@ -104,7 +104,7 @@ Simperby's governance is implemented by P2P voting.
 ### What can be an agenda?
 
 - Transaction is only the unit of a **state transition**, not an individual item signed and broadcasted as in the case of a conventional blockchain.
-- An 'agenda' is defined as `(Proposer, Height, [Transaction])`.
+- An 'agenda' is defined as `(Proposer, Height, [Transaction(s)])`.
 - Only a **single agenda** can be included in a block. This is for preventing complicated dependency problems.
   - If multiple agendas are allowed, each agenda must be independent; Otherwise, voters can't be sure how each agenda is ordered, or even whether it is included in the finalized block. This will cause a severe restriction of the possible agenda items.
 - Because `Height` is a part of an agenda,
@@ -143,7 +143,7 @@ Note that if there is a malicious member who tries to spam the chat, the leader 
 The consensus leader (*block proposer*; don't be confused with the *agenda proposer*) includes an eligible agenda (if there were multiple eligible agendas, the leader just chooses one) in the block, and proposes it.
 **A valid block MUST contain an eligible agenda.**. In other words, if there is no eligible agenda, there is no block progress in the blockchain.
 
-In addition to the agenda, the leader can also include *extra-agenda* transactions that don't require governance approval, but have its own proof to be desirable to accept.
+In addition to the agenda, the leader can also include *extra-agenda* that don't require governance approval, but have its own proof to be desirable to accept.
 
 1. RecordChatLog (chatting logs for the very height): this doesn't change the state, but is used as the governance minutes for the agenda.
 2. ReportMisbehavior (double votes in the consensus and chat finalization misbehaviors by a past consensus leader): this will automatically lead to the slashing of the voting power of the misbehaving validator.
@@ -153,7 +153,7 @@ These three transactions are the only exceptions that are not part of the agenda
 
 ## Consensus Leader
 
-You might notice that the role of the consensus leader is very important in the simperby governance.
+You might notice that the role of the consensus leader is very important in the Simperby governance.
 
 ### Responsibiliy
 
@@ -169,12 +169,12 @@ To mitigate this problem, Simperby supports a **stable leader** feature.
 
 - The leader order is determined in the state.
 - The leader order doesn't change throughout the heights if the order specified in the state stays the same.
-(i.e., the leader for the first round stays the same)
-- For a single height, it is also possible to repeat the first few leaders for several rounds. (e.g., `1->1->1->2->2->3->4->...` instead of `1->2->3->4->...`)
+(*i.e.*, the leader for the first round stays the same)
+- For a single height, it is also possible to repeat the first few leaders for several rounds. (*e.g.*, `1->1->1->2->2->3->4->...` instead of `1->2->3->4->...`)
 
 Another advantage of a stable leader is that it is **predictable**. Every validator can be quite sure how often they should turn on their node based on the order in the stable leader list.
 
-As long as the selected first few leaders are honest(not byzantine), and *faithful* (fulfilling their responsibilities), the network will be **live**.
+As long as the selected first few leaders are honest(not byzantine), and *faithful* (fulfilling their responsibilities), the network will keep on **live**.
 
 ### Authority
 
@@ -183,7 +183,7 @@ The leader has **authority**.
 - The leader can choose which agenda to include in the block if there are multiple eligible agendas.
 - The leader can choose which chat chain to semifinalize.
 
-A *good* node should be objective to agendas; they should choose the first eligible agenda, instead of waiting until it observes another one in their personal favor. Similarly, a 'good' node should be objective to the chat chain semifinalization as well.
+A *good* node should be objective to agendas; they should choose the first eligible agenda, instead of waiting until it observes another one in their personal favor. Similarly, a *good* node should be objective to the chat chain semifinalization as well.
 
 As long as the selected first few leaders are honest, faithful, and even good,
 the network will be not only **live** but also **fair**. (note that it's always **safe** regardless of the leader's behavior; safety is guaranteed by the BFT consensus)
@@ -191,7 +191,7 @@ the network will be not only **live** but also **fair**. (note that it's always 
 ### Single Point of Failure
 
 To summarize, the leader has **responsibilities** and **authority**.
-Actually, this is not so different from other blockchains that use a leader-based BFT consensus. The leader should be online for the whole round, to receive enough amount of transactions (in the 'mempool'), and the leader chooses which transactions to include in the block. The only difference is that we don't have a user-signed transaction but a governance-signed agenda instead and that we have an additional protocol for the chat finalization.
+Actually, this is not so different from other blockchains that use a leader-based BFT consensus. The leader should be online for the whole round, to receive enough amount of transactions (in the 'mempool'), and the leader chooses which agenda to include in the block. The only difference is that we don't have a user-signed transaction but a governance-signed agenda instead and that we have an additional protocol for the chat finalization.
 
 So how do the 'other blockchains' deal with the leader's responsibilities and authorities? It's simple; they have a very short round time (several seconds),
 and rotate the round order every block, so that the actual experience of 'users' (corresponding to 'members' in Simperby) converges to the average of the validator population. In other words, even if some block proposer is lazy (not faithful) or bad (attempting censorship), the users will not severely suffer from it, because it doesn't take long until the next block proposer comes to serve their transactions.
@@ -232,7 +232,7 @@ To improve this, we propose a variation of Tendermint, called *Vetomint*, which 
 ### Properties
 
 1. `<1/6` BFT
-2. It is allowed (i.e., considered as a non-byzantine behavior) to cast a nil-vote before the timeout, with *some kind of reason*.
+2. It is allowed (*i.e.*, considered as a non-byzantine behavior) to cast a nil-vote before the timeout, with *some kind of reason*.
 3. If all the honest nodes cast either a non-nil-vote or nil-vote, it is guaranteed that the round progresses; the **early termination**.
 4. If all the honest nodes cast a non-nil-vote, it is guaranteed that the block progresses.
 5. If over 2/3 of the nodes cast a non-nil-vote, the block progresses with the probability of `>0`.
