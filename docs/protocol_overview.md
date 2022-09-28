@@ -191,7 +191,7 @@ the network will be not only **live** but also **fair**. (note that it's always 
 ### Single Point of Failure
 
 To summarize, the leader has **responsibilities** and **authority**.
-Actually, this is not so different from other blockchains that use a leader-based BFT consensus. The leader should be online for the whole round, to receive enough amount of transactions (in the 'mempool'), and the leader chooses which agenda to include in the block. The only difference is that we don't have a user-signed transaction but a governance-signed agenda instead and that we have an additional protocol for the chat finalization.
+Actually, this is not so different from other blockchains that use a leader-based BFT consensus. The leader should be online for the whole round, to receive enough amount of transactions (in the 'mempool'), and the leader chooses which transactions to include in the block. The only difference is that we don't have a user-signed transaction but a governance-signed agenda instead and that we have an additional protocol for the chat finalization.
 
 So how do the 'other blockchains' deal with the leader's responsibilities and authorities? It's simple; they have a very short round time (several seconds),
 and rotate the round order every block, so that the actual experience of 'users' (corresponding to 'members' in Simperby) converges to the average of the validator population. In other words, even if some block proposer is lazy (not faithful) or bad (attempting censorship), the users will not severely suffer from it, because it doesn't take long until the next block proposer comes to serve their transactions.
