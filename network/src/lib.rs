@@ -19,7 +19,7 @@ pub struct Peer {
     pub address: SocketAddrV4,
     /// An arbitrary string that the peer has set for itself.
     /// This is usually used for indicating ports for the other services
-    /// that ths peer is running (e.g., Git, RPC, Message, ...)
+    /// that this peer is running (e.g., Git, RPC, Message, ...)
     pub message: String,
 }
 
@@ -68,14 +68,14 @@ pub trait P2PNetwork {
 /// A **cumulative** set that is shared in the p2p network, backed by the local file system.
 ///
 /// One of the notable characteristics of blockchain is that it is based on heights;
-/// The key idea here is that we retanin an instance (both in memory or on disk)
+/// The key idea here is that we retain an instance (both in memory or on disk)
 /// of `DistributedMessageSet` only for a specific height,
 /// and discard if the height progresses, creating a new and empty one again.
 ///
 /// For every methods,
 /// - If the given directory is empty, it fails (except `create()`).
 /// - It locks the storage.
-/// - If the given directory is locked (possibly by another instnace of `DistributedMessageSet`),
+/// - If the given directory is locked (possibly by another instance of `DistributedMessageSet`),
 /// it will `await` until the lock is released.
 #[async_trait]
 pub trait DistributedMessageSet {
