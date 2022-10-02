@@ -1,12 +1,15 @@
+mod dms;
+mod primitives;
+
 #[cfg(feature = "full")]
 pub mod propagation_network;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use simperby_common::{crypto::*, BlockHeight};
+use simperby_common::{crypto::*, BlockHeight, Timestamp};
 use std::{net::SocketAddrV4, sync::Arc};
 use thiserror::Error;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -14,6 +17,7 @@ pub enum Error {
     Unknown(String),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Peer {
     pub public_key: PublicKey,
     pub address: SocketAddrV4,
@@ -21,17 +25,7 @@ pub struct Peer {
     /// This is usually used for indicating ports for the other services
     /// that this peer is running (e.g., Git, RPC, Message, ...)
     pub message: String,
-}
-
-#[async_trait]
-pub trait PeerDiscovery {
-    /// Remains online on the network indefinitely,
-    /// responding to discovery requests from other nodes,
-    /// updating `known_peers`.
-    async fn serve(
-        network_config: &NetworkConfig,
-        known_peers: Arc<RwLock<Vec<Peer>>>,
-    ) -> Result<(), Error>;
+    pub recently_seen_timestamp: Timestamp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,25 +38,49 @@ pub struct NetworkConfig {
     pub private_key: PrivateKey,
 }
 
-/// The p2p gossip network.
-#[async_trait]
-pub trait P2PNetwork {
-    /// Broadcasts a message to the network.
-    async fn broadcast(
-        config: &NetworkConfig,
-        known_peers: &[Peer],
-        message: Vec<u8>,
-    ) -> Result<(), Error>;
+/// The currently known peers that are for other modules,
+/// which will be updated by `PeerDiscovery`.
+#[derive(Clone, Debug)]
+pub struct SharedKnownPeers {
+    lock: Arc<RwLock<Vec<Peer>>>,
+}
 
-    /// Remains online on the network indefinitely,
-    /// relaying (propagating) messages broadcasted over the network.
+impl SharedKnownPeers {
+    pub async fn read(&self) -> Vec<Peer> {
+        self.lock.read().await.clone()
+    }
+}
+
+/// The peer discovery protocol backed by the local file system.
+///
+/// For every methods,
+/// - If the given directory is empty, it fails (except `create()`).
+/// - It locks the storage.
+/// - If the given directory is locked (possibly by another instance of `DistributedMessageSet`),
+/// it will `await` until the lock is released.
+#[async_trait]
+pub trait PeerDiscovery {
+    /// Creates a new and empty storage with the given directory.
+    /// Fails if there is already a directory.
+    async fn create(storage_directory: &str) -> Result<(), Error>;
+
+    /// Serve the discovery protocol indefinitely, updating the known peers on the storage.
     ///
-    /// * `send` - A channel to send the received messages to.
+    /// - The initial data given in `known_peers` will be ignored.
+    /// - It may discard members in the storage who are not in `NetworkConfig::members`.
     async fn serve(
-        config: &NetworkConfig,
-        peers: Arc<RwLock<Vec<Peer>>>,
-        send: mpsc::Sender<Vec<u8>>,
-    ) -> Result<(), Error>;
+        storage_directory: &str,
+        network_config: &NetworkConfig,
+    ) -> Result<(SharedKnownPeers, tokio::task::JoinHandle<Result<(), Error>>), Error>;
+
+    /// Reads the known peers from the storage.
+    async fn read_known_peers(storage_directory: &str) -> Result<Vec<Peer>, Error>;
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Message {
+    pub data: Vec<u8>,
+    pub author: PublicKey,
 }
 
 /// A **cumulative** set that is shared in the p2p network, backed by the local file system.
@@ -85,50 +103,38 @@ pub trait DistributedMessageSet {
 
     /// Fetches the unknown messages from the peers and updates the storage.
     async fn fetch(
+        storage_directory: &str,
         network_config: NetworkConfig,
         known_peers: &[Peer],
-        storage_directory: &str,
     ) -> Result<(), Error>;
 
     /// Add the given message to the storage, immediately broadcasting it to the network.
+    ///
+    /// Note that it is guaranteed that the message will not be broadcasted unless it
+    /// is successfully added to the storage. (but it is not guaranteed for the other way around)
     async fn add_message(
-        network_config: NetworkConfig,
         storage_directory: &str,
+        network_config: NetworkConfig,
+        known_peers: &[Peer],
         message: Vec<u8>,
+        height_to_assert: BlockHeight,
     ) -> Result<(), Error>;
 
-    /// Reads the messages for the storage.
+    /// Reads the messages and the height from the storage.
     async fn read_messages(storage_directory: &str) -> Result<(BlockHeight, Vec<Message>), Error>;
 
-    /// Reads the height for the storage.
+    /// Reads the height from the storage.
     async fn read_height(storage_directory: &str) -> Result<BlockHeight, Error>;
 
     /// Advance the height of the message set, discarding all the messages.
-    async fn advance(storage_directory: &str) -> Result<(), Error>;
+    async fn advance(storage_directory: &str, height_to_assert: BlockHeight) -> Result<(), Error>;
 
     /// Serves the p2p network node and the RPC server indefinitely, constantly updating the storage.
     async fn serve(
-        network_config: NetworkConfig,
-        peers: Arc<RwLock<Vec<Peer>>>,
         storage_directory: &str,
-    ) -> Result<(), Error>;
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Message {
-    pub data: Vec<u8>,
-    pub author: PublicKey,
-}
-
-/// The interface that will be wrapped into an HTTP RPC server for the peers.
-#[async_trait]
-pub trait DistributedMessageSetRpcInterface {
-    /// Returns the messages except `knowns`. If the height is different, it returns `Err(height)`.
-    async fn get_message(
-        &self,
-        height: BlockHeight,
-        knowns: Vec<Hash256>,
-    ) -> Result<Vec<Message>, BlockHeight>;
+        network_config: NetworkConfig,
+        peers: SharedKnownPeers,
+    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>;
 }
 
 // TODO: remove this
