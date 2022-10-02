@@ -58,7 +58,7 @@ impl fmt::Display for Hash256 {
 }
 
 /// A cryptographic signature.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct Signature {
     signature: Vec<u8>,
 }
@@ -99,7 +99,7 @@ impl Signature {
 /// A signature that is explicitly marked with the type of the signed data.
 ///
 /// This implies that the signature is created on `Hash256::hash(serde_json::to_vec(T).unwrap())`.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct TypedSignature<T> {
     pub signature: Signature,
     pub _mark: std::marker::PhantomData<T>,
@@ -144,7 +144,7 @@ impl fmt::Display for Signature {
 }
 
 /// A public key.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct PublicKey {
     key: Vec<u8>,
 }
@@ -162,7 +162,7 @@ impl fmt::Display for PublicKey {
 }
 
 /// A private key.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct PrivateKey {
     pub key: Vec<u8>,
 }
