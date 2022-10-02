@@ -10,6 +10,7 @@ pub type VotingPower = u64;
 pub type Timestamp = u64;
 /// A block height. The genesis block is at height 0.
 pub type BlockHeight = u64;
+pub type ConsensusRound = u64;
 pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
 
 /// All about the delegation status, which will be stored in the blockchain state.
@@ -224,4 +225,9 @@ impl MerkleProof {
             ))
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct Agenda {
+    pub hash: Hash256,
 }

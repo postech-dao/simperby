@@ -1,12 +1,15 @@
 [workspace]
 members = [
     "common",
-    "simperby",
+    "node",
     "test-suite",
     "merkle-tree",
     "network",
     "kv-storage",
     "vetomint",
     "light-client",
-    "cli"
+    "cli",
+    "repository",
+    "consensus",
+    "governance"
 ]
