@@ -12,6 +12,43 @@ pub struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum CreateCommands {
+    /// An extra-agenda transaction that delegates the consensus voting power.
+    TxDelegate {
+        delegator: String,
+        delegatee: String,
+        /// Whether to delegate the governance voting power too.
+        governance: bool,
+        proof: String,
+    },
+    /// An extra-agenda transaction that undelegates the consensus voting power and
+    /// the governance voting power (if delegated).
+    TxUndelegate { delegator: String, proof: String },
+    /// An extra-agenda transaction that reports a misbehaving validator.
+    TxReport, // TODO
+    /// A block waiting for finalization.
+    Block,
+    /// An agenda waiting for governance approval.
+    Agenda,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SignCommands {
+    TxDelegate {
+        delegatee: String,
+        /// Whether to delegate the governance voting power too.
+        governance: bool,
+        target_height: u64,
+    },
+    TxUndelegate {
+        target_height: u64,
+    },
+    Custom {
+        message: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Initialize a new Simperby node in the current directory.
     Init,
@@ -27,33 +64,22 @@ pub enum Commands {
     Sync { commit: String },
     /// Print the information about the block data Git server that this node is hosting.
     Git,
-    /// Clean the repository, removing all the outdated (incompatible with `main`) branches.
+    /// Clean the repository, removing all the outdated (incompatible with `main`) commits.
     Clean {
-        /// If enabled, it will remove all the branches except `main`.
+        /// If enabled, it will remove all the commits except those included in `main`.
         #[clap(long, action)]
         hard: bool,
     },
+    /// Create a new commit on top of the `work` branch.
+    #[command(subcommand)]
+    Create(CreateCommands),
     /// Vote on the agenda, broadcasting to the network.
     /// It will also leave a `vote` tag on the commit (with some postfix).
     Vote { commit: String },
-    /// Propose the given agenda or block.
-    ///
-    /// 1. If the commit is the last transaction of the agenda,
-    /// it will create an 'agenda' commit and append on top,
-    /// immediately broadcast it to the network, and automatically vote on it.
-    ///
-    /// 2. If the commit is the last extra-agenda transaction of the block,
-    /// it will create a `chat` and 'block' commit and append on top,
-    /// leaving a `proposal` tag on the commit.
-    /// This will be broadcasted in running the command `consensus`
-    /// if this node becomes the consensus leader then.
-    ///
-    /// 3. If the commit is a block, the `proposal` tag will be moved to the commit.
-    Propose { commit: String },
     /// Veto the round.
     ///
     /// It will be broadcasted to the network as a nil-vote
-    /// in the next `update`, if the consensus conditions are met.
+    /// in the next `consensus`, if the conditions are met.
     /// You can check whether the round is vetoed by running `consensus --show`.
     Veto {
         /// If specified, it vetoes a specific block proposal,
@@ -65,7 +91,7 @@ pub enum Commands {
     /// Show the governance status of the given agenda.
     Show { commit: String },
     /// Run the Simperby node indefinitely. This is same as running `relay` while
-    /// invoking `consensus` and `update` repeatedly.
+    /// invoking `consensus` and `fetch` repeatedly.
     Run,
     /// Make a progress on the consensus.
     ///
@@ -81,9 +107,9 @@ pub enum Commands {
     },
     /// Serve the gossip protocol indefinitely, relaying the incoming packets to other peers.
     Relay,
-    /// Fetch the data broadcasted over the network and update it to the repository and
-    /// the consensus.
-    Update,
+    /// Fetch the data broadcasted over the network and update it to the repository,
+    /// the governance, and the consensus.
+    Fetch,
     /// Chat on the P2P network.
     Chat {
         /// The message to say. If not specified, it prints the chat log.
@@ -95,6 +121,9 @@ pub enum Commands {
         #[clap(short, long, action)]
         interactive: bool,
     },
+    /// Sign a message with the configured private key.
+    #[command(subcommand)]
+    Sign(SignCommands),
     /// Notify that there was a Git push on the repository.
     ///
     /// This is invoked from the Git hook.

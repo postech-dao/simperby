@@ -16,5 +16,5 @@ log = "0.4"
 simperby-node = { version = "0.0.0", path = "../node" }
 thiserror = "1.0.32"
 semver = "1.0.0"
-clap = { version = "3.2.20", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 rand = "0.8.5"
