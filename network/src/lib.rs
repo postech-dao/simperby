@@ -30,6 +30,8 @@ pub struct Peer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
+    /// The unique id for distinguishing the network.
+    pub network_id: String,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
     /// The public key of this node.
