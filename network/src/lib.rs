@@ -7,6 +7,7 @@ pub mod propagation_network;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::{crypto::*, BlockHeight, Timestamp};
+use std::collections::HashMap;
 use std::{net::SocketAddrV4, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -21,9 +22,9 @@ pub enum Error {
 pub struct Peer {
     pub public_key: PublicKey,
     pub address: SocketAddrV4,
-    /// An arbitrary string that the peer has set for itself.
-    /// This is usually used for indicating ports for the other services
-    /// that this peer is running (e.g., Git, RPC, Message, ...)
+    /// For the other network services like gossip or RPC,
+    /// it provides a map of `identifier->port`.
+    pub ports: HashMap<String, u16>,
     pub message: String,
     pub recently_seen_timestamp: Timestamp,
 }
