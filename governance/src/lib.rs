@@ -50,5 +50,6 @@ pub trait Governance {
     async fn serve(
         directory: &str,
         network_config: &NetworkConfig,
+        peers: SharedKnownPeers,
     ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>;
 }

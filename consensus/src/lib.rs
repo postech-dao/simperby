@@ -51,8 +51,8 @@ pub trait Consensus {
         directory: &str,
         network_config: NetworkConfig,
         known_peers: &[Peer],
-        height_to_assert: BlockHeight,
         round: ConsensusRound,
+        height_to_assert: BlockHeight,
     ) -> Result<(), Error>;
 
     /// Makes a progress in the consensus process.
@@ -70,7 +70,7 @@ pub trait Consensus {
         network_config: NetworkConfig,
         known_peers: &[Peer],
         height_to_assert: BlockHeight,
-    ) -> Result<ProgressResult, Error>;
+    ) -> Result<Vec<ProgressResult>, Error>;
 
     async fn fetch(
         directory: &str,

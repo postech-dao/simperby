@@ -10,7 +10,6 @@ pub trait PeerDiscoveryPrimitive {
     async fn serve(
         network_config: &NetworkConfig,
         initially_known_peers: Vec<Peer>,
-        known_peers_send: mpsc::Sender<Peer>,
     ) -> Result<(SharedKnownPeers, tokio::task::JoinHandle<Result<(), Error>>), Error>;
 }
 

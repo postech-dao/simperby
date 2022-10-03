@@ -69,7 +69,6 @@ pub trait PeerDiscovery {
 
     /// Serve the discovery protocol indefinitely, updating the known peers on the storage.
     ///
-    /// - The initial data given in `known_peers` will be ignored.
     /// - It may discard members in the storage who are not in `NetworkConfig::members`.
     async fn serve(
         storage_directory: &str,
