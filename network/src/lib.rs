@@ -56,7 +56,7 @@ impl SharedKnownPeers {
 
 /// The peer discovery protocol backed by the local file system.
 ///
-/// For every methods,
+/// For every method,
 /// - If the given directory is empty, it fails (except `create()`).
 /// - It locks the storage.
 /// - If the given directory is locked (possibly by another instance of `DistributedMessageSet`),
@@ -67,7 +67,7 @@ pub trait PeerDiscovery {
     /// Fails if there is already a directory.
     async fn create(storage_directory: &str) -> Result<(), Error>;
 
-    /// Serve the discovery protocol indefinitely, updating the known peers on the storage.
+    /// Serves the discovery protocol indefinitely, updating the known peers on the storage.
     ///
     /// - It may discard members in the storage who are not in `NetworkConfig::members`.
     async fn serve(
@@ -128,7 +128,7 @@ pub trait DistributedMessageSet {
     /// Reads the height from the storage.
     async fn read_height(storage_directory: &str) -> Result<BlockHeight, Error>;
 
-    /// Advance the height of the message set, discarding all the messages.
+    /// Advances the height of the message set, discarding all the messages.
     async fn advance(storage_directory: &str, height_to_assert: BlockHeight) -> Result<(), Error>;
 
     /// Serves the p2p network node and the RPC server indefinitely, constantly updating the storage.
