@@ -1,6 +1,6 @@
-use simperby_common::crypto::Hash256;
-use simperby_common::MerkleProof;
-use simperby_common::MerkleProofEntry;
+use crate::*;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// A Merkle tree that is created once but never modified.
 ///
@@ -121,10 +121,57 @@ impl OneshotMerkleTree {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct MerkleProof {
+    pub proof: Vec<MerkleProofEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum MerkleProofEntry {
+    LeftChild(Hash256),
+    RightChild(Hash256),
+    OnlyChild,
+}
+
+#[derive(Error, Debug, Serialize, Deserialize, Clone)]
+pub enum MerkleProofError {
+    /// When the proof is malformed.
+    #[error("malformed proof: {0}")]
+    MalformedProof(String),
+    /// When the root doesn't match
+    #[error("unmatched string: expected {0} but found {1}")]
+    UnmatchedRoot(String, String),
+}
+
+impl MerkleProof {
+    /// Verifies whether the given data is in the block.
+    pub fn verify(&self, root: Hash256, data: &[u8]) -> Result<(), MerkleProofError> {
+        let mut calculated_root: Hash256 = Hash256::hash(data);
+        for node in &self.proof {
+            calculated_root = match node {
+                MerkleProofEntry::LeftChild(pair_hash) => {
+                    Hash256::aggregate(pair_hash, &calculated_root)
+                }
+                MerkleProofEntry::RightChild(pair_hash) => {
+                    Hash256::aggregate(&calculated_root, pair_hash)
+                }
+                MerkleProofEntry::OnlyChild => Hash256::hash(calculated_root),
+            };
+        }
+        if root == calculated_root {
+            Ok(())
+        } else {
+            Err(MerkleProofError::UnmatchedRoot(
+                hex::encode(root.hash),
+                hex::encode(calculated_root.hash),
+            ))
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use simperby_common::{crypto::Hash256, MerkleProof};
 
     /// Returns a hash list with `number` elements
     ///

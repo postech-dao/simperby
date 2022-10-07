@@ -3,13 +3,10 @@ members = [
     "common",
     "node",
     "test-suite",
-    "merkle-tree",
     "network",
-    "kv-storage",
     "vetomint",
-    "light-client",
     "cli",
     "repository",
     "consensus",
-    "governance"
+    "governance",
 ]

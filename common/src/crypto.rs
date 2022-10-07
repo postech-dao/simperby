@@ -16,6 +16,10 @@ pub enum CryptoError {
 
 type Error = CryptoError;
 
+pub trait ToHash256 {
+    fn to_hash256(&self) -> Hash256;
+}
+
 /// A cryptographic hash.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct Hash256 {
@@ -105,11 +109,10 @@ pub struct TypedSignature<T> {
     pub _mark: std::marker::PhantomData<T>,
 }
 
-impl<T: serde::Serialize> TypedSignature<T> {
+impl<T: ToHash256> TypedSignature<T> {
     /// Creates a new signature from the given data and keys.
     pub fn sign(data: &T, public_key: &PublicKey, private_key: &PrivateKey) -> Result<Self, Error> {
-        let data = serde_json::to_vec(data).map_err(|_| Error::InvalidFormat("data".to_owned()))?;
-        let data = Hash256::hash(data);
+        let data = data.to_hash256();
         Signature::sign(data, public_key, private_key).map(|signature| TypedSignature {
             signature,
             _mark: std::marker::PhantomData,
@@ -125,8 +128,7 @@ impl<T: serde::Serialize> TypedSignature<T> {
 
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: &T, public_key: &PublicKey) -> Result<(), Error> {
-        let data = serde_json::to_vec(data).map_err(|_| Error::InvalidFormat("data".to_owned()))?;
-        let data = Hash256::hash(data);
+        let data = data.to_hash256();
         self.signature.verify(data, public_key)
     }
 }
