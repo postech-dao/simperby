@@ -1,6 +1,5 @@
+use crate::*;
 use serde::{Deserialize, Serialize};
-use simperby_common::crypto::*;
-use simperby_common::*;
 
 /// A Merkle proof.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,7 +10,7 @@ pub struct MerkleProof {
 /// A light client state machine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightClient {
-    pub state_roots: Vec<Hash256>,
+    pub repository_roots: Vec<Hash256>,
     pub state_roots_height_offset: u64,
     pub tx_roots: Vec<Hash256>,
     pub tx_roots_height_offset: u64,
@@ -22,7 +21,7 @@ impl LightClient {
     /// Intializes a new light client with the initial header.
     pub fn new(initial_header: BlockHeader) -> Self {
         Self {
-            state_roots: vec![initial_header.state_merkle_root.clone()],
+            repository_roots: vec![initial_header.repository_merkle_root.clone()],
             state_roots_height_offset: initial_header.height,
             tx_roots: vec![initial_header.tx_merkle_root.clone()],
             tx_roots_height_offset: initial_header.height,
@@ -32,9 +31,10 @@ impl LightClient {
 
     /// Updates the header by providing the next block and the proof of it.
     pub fn update(&mut self, header: BlockHeader, proof: FinalizationProof) -> Result<(), String> {
-        self.last_header.verify_next_block(&header)?;
-        header.verify_finalization_proof(&proof)?;
-        self.state_roots.push(header.state_merkle_root.clone());
+        verify::verify_header_to_header(&self.last_header, &header).map_err(|e| e.to_string())?;
+        verify::verify_finalization_proof(&header, &proof).map_err(|e| e.to_string())?;
+        self.repository_roots
+            .push(header.repository_merkle_root.clone());
         self.tx_roots.push(header.tx_merkle_root.clone());
         self.last_header = header;
         Ok(())

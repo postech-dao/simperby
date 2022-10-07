@@ -1,9 +1,5 @@
-#![allow(dead_code)]
-pub mod node;
-
 pub use simperby_common;
 pub use simperby_kv_storage;
-pub use simperby_merkle_tree;
 pub use simperby_network;
 
 use async_trait::async_trait;
@@ -11,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_kv_storage::KVStorage;
-use simperby_network::AuthorizedNetwork;
 use thiserror::Error;
 use vetomint::Round;
 
@@ -110,22 +105,6 @@ pub struct ConsensusVoteItem {
     pub block: Option<Block>,
     /// A human-readable description of the item.
     pub description: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct GenesisInfo {
-    pub header: BlockHeader,
-    pub genesis_proof: FinalizationProof,
-    pub chain_name: String,
-}
-
-impl GenesisInfo {
-    fn create_genesis_block(&self) -> Block {
-        Block {
-            header: self.header.clone(),
-            transactions: vec![],
-        }
-    }
 }
 
 /// A set of operations that may update the Simperby node state.
@@ -263,18 +242,4 @@ pub trait SimperbyApi {
         signature: Signature, // This is untyped because the signer doesn't know the source type.
         timestamp: Timestamp,
     ) -> Result<(), SimperbyError>;
-}
-
-/// Initiates a live Simperby node.
-///
-/// - `state_storage` represents the current finalized state of the blockchain.
-/// - `history_storage` is for storing a history of blockchain data, such as past blocks.
-/// This is not essential to validate incoming blocks, but is used for sync protocol and queries.
-pub async fn initiate_node(
-    genesis_info: GenesisInfo,
-    network: Box<dyn AuthorizedNetwork>,
-    state_storage: Box<dyn KVStorage>,
-    history_storage: Box<dyn KVStorage>,
-) -> Result<impl SimperbyApi, anyhow::Error> {
-    node::Node::new(genesis_info, network, state_storage, history_storage).await
 }
