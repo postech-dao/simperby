@@ -1,9 +1,6 @@
 mod dms;
 mod primitives;
 
-#[cfg(feature = "full")]
-pub mod propagation_network;
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::{crypto::*, BlockHeight, Timestamp};
