@@ -1,4 +1,5 @@
 mod dms;
+mod peer_discovery;
 mod primitives;
 
 use async_trait::async_trait;
