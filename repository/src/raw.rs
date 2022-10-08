@@ -54,9 +54,9 @@ pub trait RawRepository {
     async fn locate_branch(&self, branch: &Branch) -> Result<CommitHash, Error>;
 
     /// Gets the list of branches from the commit.
-    async fn get_branches(&self) -> Result<Vec<Branch>, Error>;
+    async fn get_branches(&self, commit_hash: &CommitHash) -> Result<Vec<Branch>, Error>;
 
-    /// Deletes the branch.
+    /// Moves the branch.
     async fn move_branch(&mut self, branch: &Branch, commit_hash: &CommitHash)
         -> Result<(), Error>;
 
@@ -67,7 +67,7 @@ pub trait RawRepository {
     // Tag-related methods
     // -------------------
 
-    /// Returns the list of branches.
+    /// Returns the list of tags.
     async fn list_tags(&self) -> Result<Vec<Tag>, Error>;
 
     /// Creates a tag on the given commit.
@@ -141,6 +141,7 @@ pub trait RawRepository {
     /// Lists the ancestor commits of the given commit (The first element is the direct parent).
     ///
     /// It fails if there is a merge commit.
+    /// * `max`: the maximum number of entries to be returned.
     async fn list_ancestors(
         &self,
         commit_hash: &CommitHash,
@@ -150,6 +151,7 @@ pub trait RawRepository {
     /// Lists the descendant commits of the given commit (The first element is the direct child).
     ///
     /// It fails if there are diverged commits (i.e., having multiple children commit)
+    /// * `max`: the maximum number of entries to be returned.
     async fn list_descendants(
         &self,
         commit_hash: &CommitHash,
@@ -180,9 +182,13 @@ pub trait RawRepository {
     async fn fetch_all(&mut self) -> Result<(), Error>;
 
     /// Lists all the remote repositories.
+    ///
+    /// Returns `(remote_name, remote_url)`.
     async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error>;
 
     /// Lists all the remote tracking branches.
+    ///
+    /// Returns `(remote_name, remote_url, commit_hash)`
     async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error>;
