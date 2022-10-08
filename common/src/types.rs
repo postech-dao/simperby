@@ -13,8 +13,8 @@ pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
 pub struct Member {
     pub public_key: PublicKey,
     pub name: String,
-    pub governance_voting_power: u64,
-    pub consensus_voting_power: u64,
+    pub governance_voting_power: VotingPower,
+    pub consensus_voting_power: VotingPower,
     pub governance_delegations: Option<PublicKey>,
     pub consensus_delegations: Option<PublicKey>,
     // TODO: add various conditions for each delegation.
@@ -50,7 +50,7 @@ pub struct BlockHeader {
     pub validator_set: Vec<(PublicKey, VotingPower)>,
     /// The protocol version that must be used from next block.
     ///
-    /// It must be a valid semver (e.g., `0.2.3`).
+    /// It must be a valid semantic version (e.g., `0.2.3`).
     pub version: String,
 }
 
@@ -92,6 +92,7 @@ pub enum ExtraAgendaTransaction {
 pub struct TxDelegate {
     pub delegator: PublicKey,
     pub delegatee: PublicKey,
+    /// Whether to delegate the governance voting power too.
     pub governance: bool,
     pub proof: TypedSignature<(PublicKey, PublicKey, bool, BlockHeight)>,
 }
