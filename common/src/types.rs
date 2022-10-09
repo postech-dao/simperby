@@ -8,11 +8,14 @@ pub type Timestamp = u64;
 pub type BlockHeight = u64;
 pub type ConsensusRound = u64;
 pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
+pub type MemberName = String;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Member {
     pub public_key: PublicKey,
-    pub name: String,
+    /// The name of the member that will be used in human-readable interfaces.
+    /// This must be unique.
+    pub name: MemberName,
     pub governance_voting_power: VotingPower,
     pub consensus_voting_power: VotingPower,
     pub governance_delegations: Option<PublicKey>,
