@@ -1,4 +1,4 @@
-use crate::crypto::*;
+use crate::{crypto::*, reserved::ReservedState};
 use serde::{Deserialize, Serialize};
 
 pub type VotingPower = u64;
@@ -75,13 +75,26 @@ pub struct AgendaProof {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum Diff {
+    /// There is nothing changed in the repository; an empty commit.
+    None,
+    /// It only changes non-reserved area. Contains the hash of the diff.
+    ///
+    /// The actual content of diff is not covered by this crate; see `simperby-repository`.
+    General(Hash256),
+    /// It changes the reserved area. Contains the new reserved state and the hash of the diff.
+    /// It holds the reserved state as a `Box` to flatten the variant size.
+    /// (see [this](https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant))
+    Reserved(Box<ReservedState>, Hash256),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Transaction {
     pub author: PublicKey,
     pub timestamp: Timestamp,
     pub head: String,
     pub body: String,
-    /// The actual content of diff is not covered by this crate; see `simperby-repository`.
-    pub diff_hash: Option<Hash256>,
+    pub diff: Diff,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
