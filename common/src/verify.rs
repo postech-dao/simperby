@@ -85,9 +85,17 @@ pub fn verify_finalization_proof(
 /// Verifies whether the given sequence of commits can be a subset of a finalized chain.
 ///
 /// It may accept sequences that contain more than one `BlockHeader`.
-pub fn verify_commit_sequence(
-    _start_header: &BlockHeader,
-    _commits: &[Commit],
-) -> Result<(), Error> {
-    unimplemented!()
+#[derive(Debug, Clone)]
+pub struct CommitSequenceVerifier {
+    // TODO
+}
+
+impl CommitSequenceVerifier {
+    pub fn new(_start_header: BlockHeader) -> Result<Self, Error> {
+        unimplemented!()
+    }
+
+    pub fn apply_commit(&mut self, _commit: &Commit) -> Result<(), Error> {
+        unimplemented!()
+    }
 }
