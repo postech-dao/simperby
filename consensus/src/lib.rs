@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
-    BlockHeight, ConsensusRound, Timestamp,
+    BlockHeight, ConsensusRound, Timestamp, VotingPower,
 };
 use simperby_network::*;
 use std::collections::{HashMap, HashSet};
@@ -35,7 +35,11 @@ pub enum ProgressResult {
 
 #[async_trait]
 pub trait Consensus {
-    async fn create(directory: &str, height: BlockHeight) -> Result<(), Error>;
+    async fn create(
+        directory: &str,
+        height: BlockHeight,
+        validator_set: &[(PublicKey, VotingPower)],
+    ) -> Result<(), Error>;
 
     async fn read(directory: &str) -> Result<ConsensusState, Error>;
 
