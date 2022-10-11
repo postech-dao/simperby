@@ -2,7 +2,7 @@ use crate::{primitives::PeerDiscoveryPrimitive, *};
 use async_trait::async_trait;
 use tokio::task::JoinHandle;
 
-struct PeerDiscoveryPrimitiveImpl;
+pub(crate) struct PeerDiscoveryPrimitiveImpl;
 
 #[async_trait]
 impl PeerDiscoveryPrimitive for PeerDiscoveryPrimitiveImpl {
