@@ -27,19 +27,12 @@ pub struct Peer {
     pub recently_seen_timestamp: Timestamp,
 }
 
-/// The policy for assigning a port that will be used during a network operation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum Port {
-    Exact(u16),
-    Any,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
     /// The unique id for distinguishing the network.
     pub network_id: String,
-    /// The port used during a network operation.
-    pub port: Port,
+    /// The port that will be used during a network operation.
+    pub port: Option<u16>,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
     /// The public key of this node.

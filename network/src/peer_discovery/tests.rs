@@ -62,13 +62,13 @@ impl KeyStore {
     }
 }
 
-static AVAILABLE_PORTS: OnceCell<Mutex<Vec<Port>>> = OnceCell::const_new();
+static AVAILABLE_PORTS: OnceCell<Mutex<Vec<u16>>> = OnceCell::const_new();
 
-async fn init_available_ports() -> Mutex<Vec<Port>> {
-    Mutex::new(Vec::from_iter(AVAILABLE_PORT_RANGE.map(Port::Exact)))
+async fn init_available_ports() -> Mutex<Vec<u16>> {
+    Mutex::new(Vec::from_iter(AVAILABLE_PORT_RANGE))
 }
 
-async fn get_port() -> Port {
+async fn get_port() -> u16 {
     let available_ports = AVAILABLE_PORTS.get_or_init(init_available_ports).await;
     available_ports
         .lock()
@@ -100,7 +100,7 @@ impl TestNet {
     fn new() -> Self {
         let keystore = KeyStore::new();
         let (dummy_pubkey, dummy_privkey) = generate_keypair(DeterministicRng::new(0).get_bytes(1));
-        let dummy_port = Port::Exact(1);
+        let dummy_port = Some(1);
         let default_network_config = NetworkConfig {
             network_id: format!("test-{}", thread_rng().gen::<u32>()),
             port: dummy_port,
@@ -149,7 +149,7 @@ impl TestNet {
         let port = get_port().await;
         let (public_key, private_key) = self.keystore.generate_keypair();
         let network_config = NetworkConfig {
-            port,
+            port: Some(port),
             public_key,
             private_key,
             ..self.default_network_config.to_owned()
@@ -177,13 +177,11 @@ impl TestNet {
                     .div_euclid(self.nodes.len() as u64)
             })
             .map(|peer_index| self.nodes[peer_index as usize].network_config.to_owned())
-            .map(|network_config| (network_config.public_key, network_config.port))
-            .map(|(pubkey, port)| {
-                if let Port::Exact(port) = port {
-                    (pubkey, port)
-                } else {
-                    panic!("binding port was not provided")
-                }
+            .map(|network_config| {
+                (
+                    network_config.public_key,
+                    network_config.port.expect("binding port was not provided"),
+                )
             })
             .map(|(pubkey, port)| Peer {
                 public_key: pubkey,
