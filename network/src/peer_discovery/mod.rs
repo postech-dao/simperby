@@ -1,4 +1,6 @@
 mod primitive;
+#[cfg(test)]
+mod tests;
 
 use super::*;
 use async_trait::async_trait;
