@@ -3,7 +3,7 @@ mod primitive;
 use super::*;
 use async_trait::async_trait;
 
-struct PeerDiscoveryImpl {}
+pub struct PeerDiscoveryImpl {}
 
 #[async_trait]
 impl PeerDiscovery for PeerDiscoveryImpl {
