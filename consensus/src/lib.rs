@@ -34,29 +34,33 @@ pub enum ProgressResult {
 }
 
 #[async_trait]
-pub trait Consensus {
+pub trait Consensus: Send + Sync {
     async fn create(
         directory: &str,
         height: BlockHeight,
         validator_set: &[(PublicKey, VotingPower)],
     ) -> Result<(), Error>;
 
-    async fn read(directory: &str) -> Result<ConsensusState, Error>;
+    async fn new(directory: &str) -> Result<Self, Error>
+    where
+        Self: Sized;
+
+    async fn read(&self) -> Result<ConsensusState, Error>;
 
     async fn veto_block(
-        directory: &str,
+        &mut self,
         network_config: NetworkConfig,
         known_peers: &[Peer],
         block_hash: Hash256,
-        height_to_assert: BlockHeight,
     ) -> Result<(), Error>;
 
+    async fn set_proposal(&mut self, block_hash: Hash256) -> Result<(), Error>;
+
     async fn veto_round(
-        directory: &str,
+        &mut self,
         network_config: NetworkConfig,
         known_peers: &[Peer],
         round: ConsensusRound,
-        height_to_assert: BlockHeight,
     ) -> Result<(), Error>;
 
     /// Makes a progress in the consensus process.
@@ -70,14 +74,13 @@ pub trait Consensus {
     /// For the case 4, it will clear the storage and will leave the finalization proof
     /// of the previous (just finalized) block.
     async fn progress(
-        directory: &str,
+        &mut self,
         network_config: NetworkConfig,
         known_peers: &[Peer],
-        height_to_assert: BlockHeight,
     ) -> Result<Vec<ProgressResult>, Error>;
 
     async fn fetch(
-        directory: &str,
+        &mut self,
         network_config: NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error>;
@@ -87,7 +90,7 @@ pub trait Consensus {
     /// 1. It does `DistributedMessageSet::serve()`.
     /// 2. It does `Consensus::progress()` continuously.
     async fn serve(
-        directory: &str,
+        self,
         network_config: NetworkConfig,
         peers: SharedKnownPeers,
     ) -> Result<
