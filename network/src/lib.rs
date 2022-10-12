@@ -10,6 +10,8 @@ use std::{net::SocketAddrV4, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+pub use dms::DistributedMessageSetImpl;
+
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     #[error("unknown error: {0}")]
@@ -105,10 +107,15 @@ pub trait DistributedMessageSet {
     /// Fails if there is already a directory.
     async fn create(storage_directory: &str, height: u64) -> Result<(), Error>;
 
+    /// Opens an existing storage with the given directory.
+    async fn open(storage_directory: &str) -> Result<Self, Error>
+    where
+        Self: Sized;
+
     /// Fetches the unknown messages from the peers and updates the storage.
     async fn fetch(
-        storage_directory: &str,
-        network_config: NetworkConfig,
+        &mut self,
+        network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error>;
 
@@ -117,26 +124,25 @@ pub trait DistributedMessageSet {
     /// Note that it is guaranteed that the message will not be broadcasted unless it
     /// is successfully added to the storage. (but it is not guaranteed for the other way around)
     async fn add_message(
-        storage_directory: &str,
-        network_config: NetworkConfig,
+        &mut self,
+        network_config: &NetworkConfig,
         known_peers: &[Peer],
         message: Vec<u8>,
-        height_to_assert: BlockHeight,
     ) -> Result<(), Error>;
 
     /// Reads the messages and the height from the storage.
-    async fn read_messages(storage_directory: &str) -> Result<(BlockHeight, Vec<Message>), Error>;
+    async fn read_messages(&self) -> Result<(BlockHeight, Vec<Message>), Error>;
 
     /// Reads the height from the storage.
-    async fn read_height(storage_directory: &str) -> Result<BlockHeight, Error>;
+    async fn read_height(&self) -> Result<BlockHeight, Error>;
 
     /// Advances the height of the message set, discarding all the messages.
-    async fn advance(storage_directory: &str, height_to_assert: BlockHeight) -> Result<(), Error>;
+    async fn advance(&mut self) -> Result<(), Error>;
 
     /// Serves the p2p network node and the RPC server indefinitely, constantly updating the storage.
     async fn serve(
-        storage_directory: &str,
-        network_config: NetworkConfig,
+        self,
+        network_config: &NetworkConfig,
         peers: SharedKnownPeers,
     ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>;
 }
