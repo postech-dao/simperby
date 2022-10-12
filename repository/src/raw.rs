@@ -23,7 +23,7 @@ impl From<git2::Error> for Error {
 ///
 /// It automatically locks the repository once created.
 #[async_trait]
-pub trait RawRepository {
+pub trait RawRepository: Send + Sync {
     /// Initialize the genesis repository from the genesis working tree.
     ///
     /// Fails if there is already a repository.
