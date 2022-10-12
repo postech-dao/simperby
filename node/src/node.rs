@@ -1,221 +1,106 @@
-mod history_storage;
-mod network;
-mod state_storage;
-mod state_transition;
-
 use super::*;
-use history_storage::*;
-use network::NetworkOperation;
-use simperby_kv_storage::KVStorage;
-use simperby_network::AuthorizedNetwork;
-use state_storage::*;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use vetomint::Round;
+use anyhow::anyhow;
+use simperby_consensus::Consensus;
+use simperby_network::NetworkConfig;
+use simperby_repository::raw::RawRepository;
+use simperby_repository::DistributedRepository;
 
 pub struct Node {
-    state: Arc<RwLock<NodeState>>,
-    network_task: tokio::task::JoinHandle<()>,
-    genesis_info: GenesisInfo,
+    config: Config,
 }
 
-impl Node {
-    pub(crate) async fn new(
-        genesis_info: GenesisInfo,
-        network: Box<dyn AuthorizedNetwork>,
-        state_storage: Box<dyn KVStorage>,
-        history_storage: Box<dyn KVStorage>,
-    ) -> Result<Self, anyhow::Error> {
-        let last_header = genesis_info.header.clone();
-        let state_ = Arc::new(RwLock::new(NodeState {
-            state_storage: StateStorage::new(state_storage).await?,
-            history_storage: HistoryStorage::new(history_storage, genesis_info.clone()).await?,
-            last_header,
-        }));
-        Ok(Node {
-            state: Arc::clone(&state_),
-            network_task: tokio::task::spawn(async move {
-                network::run_network_task(network, state_).await;
-            }),
-            genesis_info,
-        })
-    }
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        self.network_task.abort();
-    }
+async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
+    unimplemented!()
 }
 
 #[async_trait]
-impl SimperbyApi for Node {
-    fn get_genesis_info(&self) -> &GenesisInfo {
-        &self.genesis_info
-    }
-
-    async fn get_height(&self) -> u64 {
-        self.state.read().await.last_header.height
-    }
-
-    async fn get_block(&self, height: BlockHeight) -> Result<Block, SimperbyError> {
-        let state = self.state.read().await;
-        if state.last_header.height < height {
-            return Err(SimperbyError::InvalidOperation(format!(
-                "height {} is greater than the current height {}",
-                height, state.last_header.height
-            )));
-        }
-
-        state
-            .history_storage
-            .get_block(height)
-            .await
-            .map_err(|e| e.into())
-    }
-
-    async fn check_block(&self, _block: Block, _height: BlockHeight) -> Result<(), SimperbyError> {
+impl<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governance>
+    SimperbyApi<RR, R, C, G> for Node
+{
+    async fn genesis(&self) -> Result<()> {
         unimplemented!()
     }
 
-    async fn read_state(&self, key: String, height: BlockHeight) -> Result<Vec<u8>, SimperbyError> {
-        let state = self.state.read().await;
-        assert_eq!(
-            height, state.last_header.height,
-            "currently state query is supported only for the last block"
-        );
-        state
-            .state_storage
-            .get_data(Hash256::hash(key))
-            .await
-            .map_err(|e| e.into())
-    }
-
-    async fn get_consensus_vote_options(&self) -> Result<Vec<ConsensusVoteItem>, SimperbyError> {
+    async fn initialize(&self) -> Result<()> {
         unimplemented!()
     }
 
-    async fn get_consensus_status(&self) -> () {
+    async fn sync(&self, _commmit: CommitHash) -> Result<()> {
         unimplemented!()
     }
 
-    async fn get_network_status(&self) -> () {
+    async fn clean(&self, _hard: bool) -> Result<()> {
         unimplemented!()
     }
 
-    async fn get_operation_log(&self, _number: usize) -> Vec<SimperbyOperationLog> {
+    async fn create_block(&self) -> Result<()> {
         unimplemented!()
     }
 
-    async fn propose_block(
-        &self,
-        block: Block,
-        round: Round,
-        prevote_signature: TypedSignature<(BlockHeader, Round)>,
-        timestamp: Timestamp,
-    ) -> Result<(), SimperbyError> {
-        self.state
-            .write()
-            .await
-            .submit_block_proposal(block, round, prevote_signature, timestamp)
-    }
-
-    async fn submit_consensus_vote(
-        &self,
-        _hash: Hash256,
-        _signature: Signature,
-        _timestamp: Timestamp,
-    ) -> Result<(), SimperbyError> {
-        unimplemented!()
-    }
-}
-
-/// The node state machine.
-///
-/// Both `SimperbyApi` and `run_network_task()` can concurrently access this state
-/// and it will be synchronized by `RwLock`.
-struct NodeState {
-    history_storage: HistoryStorage,
-    // TODO: introduce `struct StateStorage`.
-    state_storage: StateStorage,
-    // TODO: add `consensus: vetomint::ConsensusState,`
-    /// A cache of the latest finalized block (which is also in the history storage)
-    last_header: BlockHeader,
-}
-
-impl NodeState {
-    /// Invoked by [`crate::SimperbyApi`].
-    fn submit_block_proposal(
-        &mut self,
-        _block: Block,
-        _round: Round,
-        _prevote_signature: TypedSignature<(BlockHeader, Round)>,
-        _timestamp: Timestamp,
-    ) -> Result<(), SimperbyError> {
+    async fn create_agenda(&self) -> Result<()> {
         unimplemented!()
     }
 
-    /// Invoked by [`crate::SimperbyApi`].
-    fn submit_vote_favor(
-        &mut self,
-        _hash: Hash256,
-        _signature: Signature,
-        _timestamp: Timestamp,
-    ) -> Result<(), SimperbyError> {
+    async fn create_extra_agenda_transaction(&self, _tx: ExtraAgendaTransaction) -> Result<()> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`].
-    fn report_proposal(
-        &mut self,
-        _block: Block,
-        _round: Round,
-        _author_prevote: TypedSignature<(BlockHeader, Round)>,
-        _timestamp: Timestamp,
-    ) -> Result<NetworkOperation, SimperbyError> {
+    async fn vote(&self, agenda_commit: CommitHash) -> Result<()> {
+        let repo = R::new(RR::open(&self.config.repository_directory).await?).await?;
+        let valid_agendas = repo.get_agendas().await?;
+        let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
+            x.1
+        } else {
+            return Err(anyhow!(
+                "the given commit hash {} is not one of the valid agendas",
+                agenda_commit
+            ));
+        };
+        let mut governance = G::open(&self.config.governance_directory).await?;
+        governance
+            .vote(
+                &create_network_config(&self.config).await?,
+                &[],
+                agenda_hash,
+                &self.config.private_key,
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn veto_round(&self) -> Result<()> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`].
-    ///
-    /// In case of a nil-vote, `block_hash` is zero and the signature is signed on `(None, round)`.
-    fn report_prevote(
-        &mut self,
-        _block_hash: Hash256,
-        _round: Round,
-        _signature: TypedSignature<(Option<BlockHeader>, Round)>,
-        _timestamp: Timestamp,
-    ) -> Result<NetworkOperation, SimperbyError> {
+    async fn veto_block(&self, _block_commit: CommitHash) -> Result<()> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`].
-    ///
-    /// In case of a nil-vote, `block_hash` is zero and the signature is signed on `(None, round)`.
-    fn report_precommit(
-        &mut self,
-        _block_hash: Hash256,
-        _round: vetomint::Round,
-        _signature: TypedSignature<(Option<BlockHeader>, Round)>,
-        _timestamp: Timestamp,
-    ) -> Result<NetworkOperation, SimperbyError> {
+    async fn run(&self) -> Result<()> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`].
-    ///
-    /// For sync.
-    fn receive_finalized_block(
-        &mut self,
-        _block: Block,
-        _finalization_proof: FinalizationProof,
-        _timestamp: Timestamp,
-    ) -> Result<NetworkOperation, SimperbyError> {
+    async fn progress_for_consensus(&self) -> Result<String> {
         unimplemented!()
     }
 
-    /// Invoked by [`network::run_network_task()`]
-    fn timer(&mut self, _timestamp: Timestamp) -> Result<NetworkOperation, SimperbyError> {
+    async fn get_consensus_status(&self) -> Result<ConsensusStatus> {
+        unimplemented!()
+    }
+
+    async fn get_network_status(&self) -> Result<NetworkStatus> {
+        unimplemented!()
+    }
+
+    async fn relay(&self) -> Result<()> {
+        unimplemented!()
+    }
+
+    async fn fetch(&self) -> Result<()> {
+        unimplemented!()
+    }
+
+    async fn notify_git_push(&self) -> Result<String> {
         unimplemented!()
     }
 }
