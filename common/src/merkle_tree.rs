@@ -41,13 +41,13 @@ impl OneshotMerkleTree {
                     if pair.len() == 2 {
                         let is_right_node: bool = pair[0] == target_hash;
                         if is_right_node {
-                            merkle_proof.proof.push(MerkleProofEntry::RightChild(
-                                pair[is_right_node as usize].clone(),
-                            ))
+                            merkle_proof
+                                .proof
+                                .push(MerkleProofEntry::RightChild(pair[is_right_node as usize]))
                         } else {
-                            merkle_proof.proof.push(MerkleProofEntry::LeftChild(
-                                pair[is_right_node as usize].clone(),
-                            ))
+                            merkle_proof
+                                .proof
+                                .push(MerkleProofEntry::LeftChild(pair[is_right_node as usize]))
                         }
                         target_hash = Hash256::aggregate(&pair[0], &pair[1]);
                     } else {

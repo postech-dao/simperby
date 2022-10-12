@@ -21,9 +21,9 @@ impl LightClient {
     /// Intializes a new light client with the initial header.
     pub fn new(initial_header: BlockHeader) -> Self {
         Self {
-            repository_roots: vec![initial_header.repository_merkle_root.clone()],
+            repository_roots: vec![initial_header.repository_merkle_root],
             state_roots_height_offset: initial_header.height,
-            tx_roots: vec![initial_header.tx_merkle_root.clone()],
+            tx_roots: vec![initial_header.tx_merkle_root],
             tx_roots_height_offset: initial_header.height,
             last_header: initial_header,
         }
@@ -33,9 +33,8 @@ impl LightClient {
     pub fn update(&mut self, header: BlockHeader, proof: FinalizationProof) -> Result<(), String> {
         verify::verify_header_to_header(&self.last_header, &header).map_err(|e| e.to_string())?;
         verify::verify_finalization_proof(&header, &proof).map_err(|e| e.to_string())?;
-        self.repository_roots
-            .push(header.repository_merkle_root.clone());
-        self.tx_roots.push(header.tx_merkle_root.clone());
+        self.repository_roots.push(header.repository_merkle_root);
+        self.tx_roots.push(header.tx_merkle_root);
         self.last_header = header;
         Ok(())
     }

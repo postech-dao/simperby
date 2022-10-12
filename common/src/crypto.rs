@@ -21,7 +21,7 @@ pub trait ToHash256 {
 }
 
 /// A cryptographic hash.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash, Copy)]
 pub struct Hash256 {
     pub hash: [u8; 32],
 }
@@ -69,16 +69,10 @@ pub struct Signature {
 
 impl Signature {
     /// Creates a new signature from the given data and keys.
-    pub fn sign(
-        data: Hash256,
-        public_key: &PublicKey,
-        private_key: &PrivateKey,
-    ) -> Result<Self, Error> {
-        check_keypair_match(public_key, private_key)?;
-        let public_key = ed25519_dalek::PublicKey::from_bytes(&public_key.key)
-            .map_err(|_| Error::InvalidFormat(format!("public key: {}", public_key)))?;
+    pub fn sign(data: Hash256, private_key: &PrivateKey) -> Result<Self, Error> {
         let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key)
             .map_err(|_| Error::InvalidFormat("private key: [omitted]".to_owned()))?;
+        let public_key: ed25519_dalek::PublicKey = (&private_key).into();
         let keypair = ed25519_dalek::Keypair {
             secret: private_key,
             public: public_key,
@@ -111,9 +105,9 @@ pub struct TypedSignature<T> {
 
 impl<T: ToHash256> TypedSignature<T> {
     /// Creates a new signature from the given data and keys.
-    pub fn sign(data: &T, public_key: &PublicKey, private_key: &PrivateKey) -> Result<Self, Error> {
+    pub fn sign(data: &T, private_key: &PrivateKey) -> Result<Self, Error> {
         let data = data.to_hash256();
-        Signature::sign(data, public_key, private_key).map(|signature| TypedSignature {
+        Signature::sign(data, private_key).map(|signature| TypedSignature {
             signature,
             _mark: std::marker::PhantomData,
         })
@@ -175,10 +169,21 @@ impl std::convert::AsRef<[u8]> for PrivateKey {
     }
 }
 
+impl PrivateKey {
+    pub fn public_key(&self) -> PublicKey {
+        let private_key =
+            ed25519_dalek::SecretKey::from_bytes(&self.key).expect("private key is invalid");
+        let public_key: ed25519_dalek::PublicKey = (&private_key).into();
+        PublicKey {
+            key: public_key.to_bytes().to_vec(),
+        }
+    }
+}
+
 /// Checkes whether the given public and private keys match.
 pub fn check_keypair_match(public_key: &PublicKey, private_key: &PrivateKey) -> Result<(), Error> {
     let msg = "Some Random Message".as_bytes();
-    let signature = Signature::sign(Hash256::hash(msg), public_key, private_key)?;
+    let signature = Signature::sign(Hash256::hash(msg), private_key)?;
     signature.verify(Hash256::hash(msg), public_key)
 }
 
