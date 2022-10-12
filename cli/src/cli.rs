@@ -105,6 +105,8 @@ pub enum Commands {
         #[clap(long, action)]
         show: bool,
     },
+    /// Show the current status of the p2p network.
+    Network,
     /// Serve the gossip protocol indefinitely, relaying the incoming packets to other peers.
     Relay,
     /// Fetch the data broadcasted over the network and update it to the repository,
