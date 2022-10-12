@@ -15,7 +15,8 @@ futures = "0.3"
 log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
 simperby-network = { version = "0.0.0", path = "../network" }
-simperby-kv-storage = { version = "0.0.0", path = "../kv-storage" }
-vetomint = { version = "0.0.0", path = "../vetomint" }
+simperby-governance = { version = "0.0.0", path = "../governance" }
+simperby-consensus = { version = "0.0.0", path = "../consensus" }
+simperby-repository = { version = "0.0.0", path = "../repository" }
 thiserror = "1.0.32"
 semver = "1.0.0"
