@@ -14,9 +14,9 @@ use tokio::{
 const MAX_NODES: u64 = 300;
 const AVAILABLE_PORT_RANGE: Range<u16> = 55000..56000;
 const MAX_INITIALLY_KNOWN_PEERS: u64 = 2;
-// prime number
+/// A prime number used in RNG.
 const LCG_MULTIPLIER: u64 = 16536801242360453141;
-// in seconds
+/// An allowed amount of difference between real timestamp and discovered timestamp, in seconds.
 const PERMITTED_ERROR_FOR_PEER_DISCOVERY: u64 = 10;
 
 type Keypair = (PublicKey, PrivateKey);
