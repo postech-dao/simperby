@@ -143,7 +143,12 @@ impl TestNet {
     async fn panic_if_discovery_failed(&self) {
         for node in &self.nodes {
             let known_peers = node.shared_known_peers.read().await;
-            self.panic_if_known_peers_is_incorrect(known_peers);
+            self.panic_if_known_peers_is_incorrect(known_peers.to_owned());
+            let recently_seen_peers = known_peers
+                .iter()
+                .filter(|peer| self.is_peer_recently_seen(peer))
+                .collect();
+            self.panic_if_recently_seen_peers_incorrect(recently_seen_peers);
         }
     }
 }
@@ -202,11 +207,6 @@ impl TestNet {
         for peer in &known_peers {
             assert!(self.is_peer_a_member(peer));
         }
-        let recently_seen_peers = known_peers
-            .iter()
-            .filter(|peer| self.is_peer_recently_seen(peer))
-            .collect();
-        self.panic_if_recently_seen_peers_incorrect(recently_seen_peers);
     }
 
     fn is_peer_a_member(&self, peer: &Peer) -> bool {
