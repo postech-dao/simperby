@@ -101,6 +101,7 @@ struct TestNet {
     nodes: Vec<TestNetNode>,
 }
 
+#[allow(dead_code)]
 /// The set of methods that will be directly called by test functions.
 impl TestNet {
     fn new() -> Self {
@@ -236,13 +237,93 @@ impl TestNet {
     }
 }
 
+#[ignore = "unimplemented"]
 #[tokio::test]
-#[should_panic = "not implemented"]
-async fn demo_test() {
+async fn sequential_join_1() {
+    let mut testnet = TestNet::new();
+    for _ in 0..5 {
+        testnet.add_members(1).await;
+        wait_ms(2_000).await;
+    }
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn sequential_join_2() {
+    let mut testnet = TestNet::new();
+    for _ in 0..10 {
+        testnet.add_members(1).await;
+        wait_ms(1_000).await;
+    }
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn sequential_join_3() {
+    let mut testnet = TestNet::new();
+    for _ in 0..30 {
+        testnet.add_members(1).await;
+        wait_ms(200).await;
+    }
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn concurrent_join_1() {
     let mut testnet = TestNet::new();
     testnet.add_members(10).await;
-    wait_ms(10_000).await;
-    testnet.remove_members(vec![0, 3, 4]);
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn concurrent_join_2() {
+    let mut testnet = TestNet::new();
+    testnet.add_members(30).await;
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn arbitrary_join_1() {
+    // 20 nodes
+    let mut testnet = TestNet::new();
     testnet.add_members(3).await;
+    for _ in 0..5 {
+        testnet.add_members(1).await;
+        wait_ms(200).await;
+    }
+    testnet.add_members(3).await;
+    testnet.add_members(5).await;
+    for _ in 0..4 {
+        testnet.add_members(1).await;
+        wait_ms(500).await;
+    }
+    wait_ms(3_000).await;
+    testnet.panic_if_discovery_failed().await;
+}
+
+#[ignore = "unimplemented"]
+#[tokio::test]
+async fn arbitrary_join_2() {
+    // 15 nodes
+    let mut testnet = TestNet::new();
+    testnet.add_members(4).await;
+    for _ in 0..3 {
+        testnet.add_members(1).await;
+        wait_ms(1_000).await;
+    }
+    testnet.add_members(4).await;
+    wait_ms(5_000).await;
+    testnet.add_members(4).await;
+    wait_ms(3_000).await;
     testnet.panic_if_discovery_failed().await;
 }
