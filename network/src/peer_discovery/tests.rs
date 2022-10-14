@@ -88,6 +88,12 @@ struct TestNetNode {
     network_config: NetworkConfig,
 }
 
+impl Drop for TestNetNode {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
 /// A network model of peer discovery nodes.
 struct TestNet {
     keystore: KeyStore,
@@ -130,7 +136,6 @@ impl TestNet {
         indices.sort();
         indices.reverse();
         for index in indices {
-            self.nodes[index].handle.abort();
             self.nodes.remove(index);
         }
     }
