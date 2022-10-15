@@ -13,7 +13,7 @@ pub type Tag = String;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
-    pub hash: [u8; 32],
+    pub hash: [u8; 20],
 }
 
 impl fmt::Display for CommitHash {
