@@ -22,7 +22,7 @@ pub enum Error {
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Peer {
     pub public_key: PublicKey,
-    /// The address used for the discovery protoocl
+    /// The address used for the discovery protocol
     pub address: SocketAddrV4,
     /// For the other network services like gossip or RPC,
     /// it provides a map of `identifier->port`.

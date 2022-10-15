@@ -55,14 +55,14 @@ pub trait DistributedRepository<T: RawRepository>: Send + Sync {
     /// only if they are valid.
     async fn fetch(
         &mut self,
-        network_config: NetworkConfig,
+        network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error>;
 
     /// Notifies there was a push for the given repository.
     async fn notify_push(
         &mut self,
-        network_config: NetworkConfig,
+        network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error>;
 
@@ -79,7 +79,7 @@ pub trait DistributedRepository<T: RawRepository>: Send + Sync {
     ///
     /// It checks
     /// 1. all the reserved branches and tags
-    /// 2. existence of merge commits
+    /// 2. the existence of merge commits
     /// 3. the canonical history of the `main` branch.
     async fn check(&self, starting_height: BlockHeight) -> Result<bool, Error>;
 
@@ -94,10 +94,10 @@ pub trait DistributedRepository<T: RawRepository>: Send + Sync {
     /// (This is because the finalization proof for a block appears in the next block.)
     async fn sync(&mut self, block_commit: &CommitHash) -> Result<(), Error>;
 
-    /// Returns the current valid and height-acceptable agendas in the repository.
+    /// Returns the currently valid and height-acceptable agendas in the repository.
     async fn get_agendas(&self) -> Result<Vec<(CommitHash, Hash256)>, Error>;
 
-    /// Returns the current valid and height-acceptable blocks in the repository.
+    /// Returns the currently valid and height-acceptable blocks in the repository.
     async fn get_blocks(&self) -> Result<Vec<(CommitHash, Hash256)>, Error>;
 
     /// Finalizes a single block and moves the `main` branch to it.
