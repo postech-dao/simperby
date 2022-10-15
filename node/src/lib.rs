@@ -37,7 +37,7 @@ pub struct NetworkStatus {
 
 /// The API for the Simperby node.
 ///
-/// It is for serving the **CLI**, providing low-level funcitons and type-specified interfaces.
+/// It is for serving the **CLI**, providing low-level functions and type-specified interfaces.
 #[async_trait]
 pub trait SimperbyApi<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governance>
 {
@@ -53,7 +53,7 @@ pub trait SimperbyApi<RR: RawRepository, R: DistributedRepository<RR>, C: Consen
     /// Synchronizes the `main` branch to the given commit.
     async fn sync(&self, commmit: CommitHash) -> Result<()>;
 
-    /// Cleans the repository, removing all the oudated commits.
+    /// Cleans the repository, removing all the outdated commits.
     async fn clean(&self, hard: bool) -> Result<()>;
 
     /// Creates a block commit on the `main` branch.
@@ -65,7 +65,7 @@ pub trait SimperbyApi<RR: RawRepository, R: DistributedRepository<RR>, C: Consen
     /// Creates an extra-agenda transaction on the `main` branch.
     async fn create_extra_agenda_transaction(&self, tx: ExtraAgendaTransaction) -> Result<()>;
 
-    /// Votes and propagates
+    /// Votes and propagates.
     async fn vote(&self, agenda_commit: CommitHash) -> Result<()>;
 
     /// Vetos the current round.
