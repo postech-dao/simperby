@@ -110,19 +110,17 @@ pub trait DistributedRepository<T: RawRepository>: Send + Sync {
     ) -> Result<(), Error>;
 
     /// Informs that the given agenda has been approved.
-    async fn approve(&mut self, agenda_commit_hash: &CommitHash) -> Result<(), Error>;
+    async fn approve(
+        &mut self,
+        agenda_commit_hash: &CommitHash,
+        proof: Vec<(PublicKey, TypedSignature<Agenda>)>,
+    ) -> Result<CommitHash, Error>;
 
     /// Creates an agenda commit on top of the `work` branch.
-    async fn create_agenda(
-        &mut self,
-        last_transaction_commit_hash: &CommitHash,
-    ) -> Result<CommitHash, Error>;
+    async fn create_agenda(&mut self, author: PublicKey) -> Result<CommitHash, Error>;
 
     /// Creates a block commit on top of the `work` branch.
-    async fn create_block(
-        &mut self,
-        last_transaction_commit_hash: &CommitHash,
-    ) -> Result<CommitHash, Error>;
+    async fn create_block(&mut self, author: PublicKey) -> Result<CommitHash, Error>;
 
     /// Creates an agenda commit on top of the `work` branch.
     async fn create_extra_agenda_transaction(
