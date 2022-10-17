@@ -1,3 +1,5 @@
+pub mod format;
+mod implementation;
 pub mod raw;
 
 use async_trait::async_trait;
@@ -11,7 +13,10 @@ use thiserror::Error;
 pub type Branch = String;
 pub type Tag = String;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+pub const FINALIZED_BRANCH_NAME: &str = "main";
+pub const WORK_BRANCH_NAME: &str = "work";
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
     pub hash: [u8; 20],
 }
@@ -28,8 +33,26 @@ pub enum Error {
     Network(simperby_network::Error),
     #[error("raw repository error: {0}")]
     Raw(raw::Error),
+    #[error("format error on {0}: {1}")]
+    Format(CommitHash, String),
+    #[error("verification error on {0}: {1}")]
+    Verification(CommitHash, verify::Error),
+    #[error("invalid argument: {0}")]
+    InvalidArgument(String),
     #[error("unknown error: {0}")]
     Unknown(String),
+}
+
+impl From<simperby_network::Error> for Error {
+    fn from(e: simperby_network::Error) -> Self {
+        Error::Network(e)
+    }
+}
+
+impl From<raw::Error> for Error {
+    fn from(e: raw::Error) -> Self {
+        Error::Raw(e)
+    }
 }
 
 /// The local Simperby blockchain data repository.
