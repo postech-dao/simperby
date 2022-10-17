@@ -1,5 +1,6 @@
 use super::*;
 use async_trait::async_trait;
+use simperby_common::reserved::ReservedState;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -17,6 +18,14 @@ impl From<git2::Error> for Error {
     fn from(e: git2::Error) -> Self {
         Error::Git2Error(e)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticCommit {
+    pub title: String,
+    pub body: String,
+    /// (If this commit made any change) the new reserved state.
+    pub reserved_state: Option<ReservedState>,
 }
 
 /// A raw handle for the local repository.
@@ -86,25 +95,20 @@ pub trait RawRepository: Send + Sync {
     // Commit-related methods
     // ----------------------
 
-    /// Create a commit with the branch.
-    ///
-    /// Same as `checkout_clean() && git checkout <branch> && git add -A && git commit`.
+    /// Create a commit from the currently checked out branch.
     async fn create_commit(
         &mut self,
-        branch: &Branch,
         commit_message: &str,
         diff: Option<&str>,
-    ) -> Result<(), Error>;
+    ) -> Result<CommitHash, Error>;
 
-    /// Create a commit with the given list to overwrite files.
-    ///
-    /// * `files`: the list of `(file_path, file_content_to_overwrite)`.
-    async fn create_commit_overwrite(
-        &mut self,
-        branch: &Branch,
-        commit_message: &str,
-        files: Vec<(String, String)>,
-    ) -> Result<(), Error>;
+    /// Create a semantic commit from the currently checked out branch.
+    async fn create_semantic_commit(&mut self, commit: SemanticCommit)
+        -> Result<CommitHash, Error>;
+
+    /// Reads the reserved state from the current working tree.
+    async fn read_semantic_commit(&self, commit_hash: &CommitHash)
+        -> Result<SemanticCommit, Error>;
 
     /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     async fn run_garbage_collection(&mut self) -> Result<(), Error>;
@@ -168,9 +172,9 @@ pub trait RawRepository: Send + Sync {
         commit_hash2: &CommitHash,
     ) -> Result<CommitHash, Error>;
 
-    // ----------------------------
+    // ----------------------
     // Remote-related methods
-    // ----------------------------
+    // ----------------------
 
     /// Adds a remote repository.
     async fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error>;
