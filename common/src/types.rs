@@ -60,6 +60,7 @@ pub struct BlockHeader {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Agenda {
     pub author: PublicKey,
+    pub timestamp: Timestamp,
     pub hash: Hash256,
 }
 
