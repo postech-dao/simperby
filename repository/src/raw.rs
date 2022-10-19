@@ -20,6 +20,7 @@ impl From<git2::Error> for Error {
     }
 }
 
+/// A commit without any diff on non-reserved area.
 #[derive(Debug, Clone)]
 pub struct SemanticCommit {
     pub title: String,
@@ -95,14 +96,14 @@ pub trait RawRepository: Send + Sync {
     // Commit-related methods
     // ----------------------
 
-    /// Create a commit from the currently checked out branch.
+    /// Creates a commit from the currently checked out branch.
     async fn create_commit(
         &mut self,
         commit_message: &str,
         diff: Option<&str>,
     ) -> Result<CommitHash, Error>;
 
-    /// Create a semantic commit from the currently checked out branch.
+    /// Creates a semantic commit from the currently checked out branch.
     async fn create_semantic_commit(&mut self, commit: SemanticCommit)
         -> Result<CommitHash, Error>;
 
