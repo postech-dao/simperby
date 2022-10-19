@@ -41,7 +41,7 @@ pub trait RawRepository: Send + Sync {
     // ----------------------
 
     /// Returns the list of branches.
-    async fn list_branchs(&self) -> Result<Vec<Branch>, Error>;
+    async fn list_branches(&self) -> Result<Vec<Branch>, Error>;
 
     /// Creates a branch on the commit.
     async fn create_branch(
