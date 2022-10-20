@@ -1,5 +1,11 @@
 use crate::*;
 
+impl ToHash256 for String {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(self.as_bytes())
+    }
+}
+
 impl ToHash256 for Member {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_json::to_vec(self).unwrap())
