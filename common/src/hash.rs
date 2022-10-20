@@ -94,7 +94,7 @@ impl BlockHeader {
         hash
     }
 
-    pub fn calculate_tx_merkle_root(&self, transactions: &[Transaction]) -> Hash256 {
+    pub fn calculate_tx_merkle_root(transactions: &[Transaction]) -> Hash256 {
         let merkle_tree = crate::merkle_tree::OneshotMerkleTree::create(
             transactions.iter().map(|x| x.to_hash256()).collect(),
         );
