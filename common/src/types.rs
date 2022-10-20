@@ -7,7 +7,7 @@ pub type Timestamp = u64;
 /// A block height. The genesis block is at height 0.
 pub type BlockHeight = u64;
 pub type ConsensusRound = u64;
-pub type FinalizationProof = Vec<(PublicKey, TypedSignature<BlockHeader>)>;
+pub type FinalizationProof = Vec<TypedSignature<BlockHeader>>;
 pub type MemberName = String;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]

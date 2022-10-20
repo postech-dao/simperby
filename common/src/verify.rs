@@ -45,8 +45,8 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
             h1.timestamp, h2.timestamp
         )));
     }
-    for (public_key, signature) in &h2.prev_block_finalization_proof {
-        signature.verify(h1, public_key).map_err(|e| {
+    for signature in &h2.prev_block_finalization_proof {
+        signature.verify(h1).map_err(|e| {
             Error::CryptoError("Invalid prev_block_finalization_proof".to_string(), e)
         })?;
     }
@@ -61,11 +61,11 @@ pub fn verify_finalization_proof(
     let total_voting_power: VotingPower = header.validator_set.iter().map(|(_, v)| v).sum();
     // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
     let mut voted_validators = BTreeSet::new();
-    for (public_key, signature) in block_finalization_proof {
+    for signature in block_finalization_proof {
         signature
-            .verify(header, public_key)
+            .verify(header)
             .map_err(|e| Error::CryptoError("Invalid finalization proof".to_string(), e))?;
-        voted_validators.insert(public_key);
+        voted_validators.insert(signature.signer().clone());
     }
     let voted_voting_power: VotingPower = header
         .validator_set
