@@ -99,8 +99,9 @@ impl Signature {
 /// This implies that the signature is created on `Hash256::hash(serde_json::to_vec(T).unwrap())`.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct TypedSignature<T> {
-    pub signature: Signature,
-    pub _mark: std::marker::PhantomData<T>,
+    signature: Signature,
+    signer: PublicKey,
+    _mark: std::marker::PhantomData<T>,
 }
 
 impl<T: ToHash256> TypedSignature<T> {
@@ -109,21 +110,27 @@ impl<T: ToHash256> TypedSignature<T> {
         let data = data.to_hash256();
         Signature::sign(data, private_key).map(|signature| TypedSignature {
             signature,
+            signer: private_key.public_key(),
             _mark: std::marker::PhantomData,
         })
     }
 
-    pub fn new(signature: Signature) -> Self {
+    pub fn new(signature: Signature, signer: PublicKey) -> Self {
         TypedSignature {
             signature,
+            signer,
             _mark: std::marker::PhantomData,
         }
     }
 
+    pub fn signer(&self) -> &PublicKey {
+        &self.signer
+    }
+
     /// Verifies the signature against the given data and public key.
-    pub fn verify(&self, data: &T, public_key: &PublicKey) -> Result<(), Error> {
+    pub fn verify(&self, data: &T) -> Result<(), Error> {
         let data = data.to_hash256();
-        self.signature.verify(data, public_key)
+        self.signature.verify(data, &self.signer)
     }
 }
 
