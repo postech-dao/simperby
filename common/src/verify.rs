@@ -21,33 +21,33 @@ pub enum Error {
 pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(), Error> {
     if h2.height != h1.height + 1 {
         return Err(Error::InvalidArgument(format!(
-            "Invalid height: expected {}, got {}",
+            "invalid height: expected {}, got {}",
             h1.height + 1,
             h2.height
         )));
     }
     if h2.previous_hash != h1.to_hash256() {
         return Err(Error::InvalidArgument(format!(
-            "Invalid previous hash: expected {}, got {}",
+            "invalid previous hash: expected {}, got {}",
             h1.to_hash256(),
             h2.previous_hash
         )));
     }
     if !h2.validator_set.iter().any(|(pk, _)| pk == &h1.author) {
         return Err(Error::InvalidArgument(format!(
-            "Invalid author: got {}",
+            "invalid author: got {}",
             h2.author
         )));
     }
     if h2.timestamp <= h1.timestamp {
         return Err(Error::InvalidArgument(format!(
-            "Invalid timestamp: expected larger than {}, got {}",
+            "invalid timestamp: expected larger than {}, got {}",
             h1.timestamp, h2.timestamp
         )));
     }
-    for signature in &h2.prev_block_finalization_proof {
-        signature.verify(h1).map_err(|e| {
-            Error::CryptoError("Invalid prev_block_finalization_proof".to_string(), e)
+    for (public_key, signature) in &h2.prev_block_finalization_proof {
+        signature.verify(h1, public_key).map_err(|e| {
+            Error::CryptoError("invalid prev_block_finalization_proof".to_string(), e)
         })?;
     }
     Ok(())
@@ -63,9 +63,9 @@ pub fn verify_finalization_proof(
     let mut voted_validators = BTreeSet::new();
     for signature in block_finalization_proof {
         signature
-            .verify(header)
-            .map_err(|e| Error::CryptoError("Invalid finalization proof".to_string(), e))?;
-        voted_validators.insert(signature.signer().clone());
+            .verify(header, public_key)
+            .map_err(|e| Error::CryptoError("invalid finalization proof".to_string(), e))?;
+        voted_validators.insert(public_key);
     }
     let voted_voting_power: VotingPower = header
         .validator_set
@@ -75,7 +75,7 @@ pub fn verify_finalization_proof(
         .sum();
     if voted_voting_power * 3 <= total_voting_power * 2 {
         return Err(Error::InvalidProof(format!(
-            "Invalid finalization proof - voted voting power is too low: {} / {}",
+            "invalid finalization proof - voted voting power is too low: {} / {}",
             voted_voting_power, total_voting_power
         )));
     }
