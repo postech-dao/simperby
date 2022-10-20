@@ -1,7 +1,6 @@
 pub mod node;
 
 pub use simperby_common;
-use simperby_consensus::Consensus;
 use simperby_governance::Governance;
 pub use simperby_network;
 
@@ -10,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
-use simperby_repository::{raw::RawRepository, CommitHash, DistributedRepository};
+use simperby_repository::CommitHash;
 
 pub const PROTOCOL_VERSION: &str = "0.0.0";
 
@@ -39,8 +38,7 @@ pub struct NetworkStatus {
 ///
 /// It is for serving the **CLI**, providing low-level functions and type-specified interfaces.
 #[async_trait]
-pub trait SimperbyApi<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governance>
-{
+pub trait SimperbyApi {
     /// Initializes a new Simperby node from the genesis state
     /// stored in the given directory (which is not yet a Git repository).
     async fn genesis(&self) -> Result<()>;

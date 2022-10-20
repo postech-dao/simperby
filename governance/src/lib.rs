@@ -1,33 +1,13 @@
-pub mod implementation;
-
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::*;
-use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
+use simperby_network::{
+    dms::{DistributedMessageSet as DMS, Message},
+    primitives::{P2PNetwork, Storage},
+    NetworkConfig, Peer, SharedKnownPeers,
+};
 use std::collections::{HashMap, HashSet};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("network error: {0}")]
-    Network(simperby_network::Error),
-    #[error("crypto error: {0}")]
-    Crypto(CryptoError),
-    #[error("unknown error: {0}")]
-    Unknown(String),
-}
-
-impl From<simperby_network::Error> for Error {
-    fn from(e: simperby_network::Error) -> Self {
-        Error::Network(e)
-    }
-}
-
-impl From<CryptoError> for Error {
-    fn from(e: CryptoError) -> Self {
-        Error::Crypto(e)
-    }
-}
+pub type Error = anyhow::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceState {
@@ -36,37 +16,73 @@ pub struct GovernanceState {
     pub height: BlockHeight,
 }
 
-#[async_trait]
-pub trait Governance: Send + Sync {
-    async fn create(directory: &str, height: BlockHeight) -> Result<(), Error>;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Vote {
+    pub agenda_hash: Hash256,
+    pub voter: PublicKey,
+    pub signature: Signature,
+}
 
-    async fn open(directory: &str) -> Result<Self, Error>
-    where
-        Self: Sized;
+pub struct Governance<N: P2PNetwork, S: Storage> {
+    pub dms: DMS<N, S>,
+}
 
-    async fn read(&self) -> Result<GovernanceState, Error>;
+impl<N: P2PNetwork, S: Storage> Governance<N, S> {
+    pub async fn create(_dms: DMS<N, S>, _height: BlockHeight) -> Result<(), Error> {
+        unimplemented!()
+    }
 
-    async fn vote(
+    pub async fn open(_dms: DMS<N, S>) -> Result<Self, Error> {
+        unimplemented!()
+    }
+
+    pub async fn read(&self) -> Result<GovernanceState, Error> {
+        unimplemented!()
+    }
+
+    pub async fn vote(
         &mut self,
         network_config: &NetworkConfig,
         known_peers: &[Peer],
         agenda_hash: Hash256,
         private_key: &PrivateKey,
-    ) -> Result<(), Error>;
+    ) -> Result<(), Error> {
+        let data = serde_json::to_string(&Vote {
+            agenda_hash,
+            voter: private_key.public_key(),
+            signature: Signature::sign(agenda_hash, private_key)?,
+        })
+        .unwrap();
+        let message = Message::new(
+            data.clone(),
+            TypedSignature::sign(&data, &network_config.private_key)?,
+        )?;
+
+        self.dms
+            .add_message(network_config, known_peers, message)
+            .await?;
+        Ok(())
+    }
 
     /// Advances the block height, discarding all the votes.
-    async fn advance(&mut self, height_to_assert: BlockHeight) -> Result<(), Error>;
+    pub async fn advance(&mut self, _height_to_assert: BlockHeight) -> Result<(), Error> {
+        unimplemented!()
+    }
 
-    async fn fetch(
+    pub async fn fetch(
         &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error>;
+        _network_config: &NetworkConfig,
+        _known_peers: &[Peer],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
 
     /// Serves the governance protocol indefinitely.
-    async fn serve(
+    pub async fn serve(
         self,
-        network_config: &NetworkConfig,
-        peers: SharedKnownPeers,
-    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>;
+        _network_config: &NetworkConfig,
+        _peers: SharedKnownPeers,
+    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
+        unimplemented!()
+    }
 }

@@ -1,12 +1,16 @@
 use super::*;
 use anyhow::anyhow;
-use simperby_consensus::Consensus;
+use simperby_network::dms::DistributedMessageSet;
+use simperby_network::primitives::{P2PNetwork, Storage};
 use simperby_network::NetworkConfig;
 use simperby_repository::raw::RawRepository;
 use simperby_repository::DistributedRepository;
 
-pub struct Node {
+pub struct Node<N: P2PNetwork, S: Storage, R: RawRepository> {
     config: Config,
+    _marker1: std::marker::PhantomData<N>,
+    _marker2: std::marker::PhantomData<S>,
+    _marker3: std::marker::PhantomData<R>,
 }
 
 async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
@@ -14,9 +18,7 @@ async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
 }
 
 #[async_trait]
-impl<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governance>
-    SimperbyApi<RR, R, C, G> for Node
-{
+impl<N: P2PNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
     async fn genesis(&self) -> Result<()> {
         unimplemented!()
     }
@@ -46,7 +48,8 @@ impl<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governanc
     }
 
     async fn vote(&self, agenda_commit: CommitHash) -> Result<()> {
-        let repo = R::new(RR::open(&self.config.repository_directory).await?).await?;
+        let repo =
+            DistributedRepository::new(R::open(&self.config.repository_directory).await?).await?;
         let valid_agendas = repo.get_agendas().await?;
         let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
             x.1
@@ -56,7 +59,9 @@ impl<RR: RawRepository, R: DistributedRepository<RR>, C: Consensus, G: Governanc
                 agenda_commit
             ));
         };
-        let mut governance = G::open(&self.config.governance_directory).await?;
+        let governance_dms =
+            DistributedMessageSet::open(S::open(&self.config.governance_directory).await?).await?;
+        let mut governance = Governance::<N, S>::open(governance_dms).await?;
         governance
             .vote(
                 &create_network_config(&self.config).await?,

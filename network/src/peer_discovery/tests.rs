@@ -167,7 +167,7 @@ impl TestNet {
         };
         let initially_known_peers = self.get_initially_known_peers();
         let (shared_known_peers, handle) =
-            PeerDiscoveryPrimitiveImpl::serve(&network_config, initially_known_peers)
+            PeerDiscoveryPrimitiveImpl::serve(network_config.clone(), initially_known_peers)
                 .await
                 .unwrap();
         self.nodes.push(TestNetNode {

@@ -1,20 +1,16 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
     BlockHeight, ConsensusRound, Timestamp, VotingPower,
 };
-use simperby_network::*;
+use simperby_network::{
+    dms::DistributedMessageSet as DMS,
+    primitives::{P2PNetwork, Storage},
+    *,
+};
 use std::collections::{HashMap, HashSet};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("network error: {0}")]
-    Network(simperby_network::Error),
-    #[error("unknown error: {0}")]
-    Unknown(String),
-}
+pub type Error = anyhow::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsensusState {
@@ -33,35 +29,48 @@ pub enum ProgressResult {
     Finalized(Timestamp),
 }
 
-#[async_trait]
-pub trait Consensus: Send + Sync {
-    async fn create(
-        directory: &str,
-        height: BlockHeight,
-        validator_set: &[(PublicKey, VotingPower)],
-    ) -> Result<(), Error>;
+pub struct Consensus<N: P2PNetwork, S: Storage> {
+    pub dms: DMS<N, S>,
+}
 
-    async fn new(directory: &str) -> Result<Self, Error>
-    where
-        Self: Sized;
+impl<N: P2PNetwork, S: Storage> Consensus<N, S> {
+    pub async fn create(
+        _dms: DMS<N, S>,
+        _height: BlockHeight,
+        _validator_set: &[(PublicKey, VotingPower)],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
 
-    async fn read(&self) -> Result<ConsensusState, Error>;
+    pub async fn new(_dms: DMS<N, S>) -> Result<Self, Error> {
+        unimplemented!()
+    }
 
-    async fn veto_block(
+    pub async fn read(&self) -> Result<ConsensusState, Error> {
+        unimplemented!()
+    }
+
+    pub async fn veto_block(
         &mut self,
-        network_config: NetworkConfig,
-        known_peers: &[Peer],
-        block_hash: Hash256,
-    ) -> Result<(), Error>;
+        _network_config: NetworkConfig,
+        _known_peers: &[Peer],
+        _block_hash: Hash256,
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
 
-    async fn set_proposal(&mut self, block_hash: Hash256) -> Result<(), Error>;
+    pub async fn set_proposal(&mut self, _block_hash: Hash256) -> Result<(), Error> {
+        unimplemented!()
+    }
 
-    async fn veto_round(
+    pub async fn veto_round(
         &mut self,
-        network_config: NetworkConfig,
-        known_peers: &[Peer],
-        round: ConsensusRound,
-    ) -> Result<(), Error>;
+        _network_config: NetworkConfig,
+        _known_peers: &[Peer],
+        _round: ConsensusRound,
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
 
     /// Makes a progress in the consensus process.
     /// It might
@@ -73,31 +82,37 @@ pub trait Consensus: Send + Sync {
     ///
     /// For the case 4, it will clear the storage and will leave the finalization proof
     /// of the previous (just finalized) block.
-    async fn progress(
+    pub async fn progress(
         &mut self,
-        network_config: NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<Vec<ProgressResult>, Error>;
+        _network_config: NetworkConfig,
+        _known_peers: &[Peer],
+    ) -> Result<Vec<ProgressResult>, Error> {
+        unimplemented!()
+    }
 
-    async fn fetch(
+    pub async fn fetch(
         &mut self,
-        network_config: NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error>;
+        _network_config: NetworkConfig,
+        _known_peers: &[Peer],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
 
     /// Serves the consensus protocol indefinitely.
     ///
     /// 1. It does `DistributedMessageSet::serve()`.
     /// 2. It does `Consensus::progress()` continuously.
-    async fn serve(
+    pub async fn serve(
         self,
-        network_config: NetworkConfig,
-        peers: SharedKnownPeers,
+        _network_config: NetworkConfig,
+        _peers: SharedKnownPeers,
     ) -> Result<
         (
             tokio::sync::mpsc::Receiver<ProgressResult>,
             tokio::task::JoinHandle<Result<(), Error>>,
         ),
         Error,
-    >;
+    > {
+        unimplemented!()
+    }
 }

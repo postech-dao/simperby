@@ -33,7 +33,7 @@ pub struct SemanticCommit {
 ///
 /// It automatically locks the repository once created.
 #[async_trait]
-pub trait RawRepository: Send + Sync {
+pub trait RawRepository: Send + Sync + 'static {
     /// Initialize the genesis repository from the genesis working tree.
     ///
     /// Fails if there is already a repository.
