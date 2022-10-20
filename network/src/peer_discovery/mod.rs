@@ -1,3 +1,6 @@
+#[cfg(feature = "full")]
+mod behaviour;
+#[cfg(feature = "full")]
 mod primitive;
 #[cfg(test)]
 mod tests;
