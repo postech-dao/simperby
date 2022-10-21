@@ -51,7 +51,7 @@ impl RawMessage {
     pub fn from_message(message: Message) -> Self {
         RawMessage {
             data: message.data().to_owned(),
-            signature: message.signature().clone(),
+            signature: message.signature().to_owned(),
         }
     }
 }
@@ -59,7 +59,7 @@ impl RawMessage {
 /// The interface that will be wrapped into an HTTP RPC server for the peers.
 #[serde_tc_full]
 trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
-    /// Returns the messages except `knowns`. If the height is different, it returns `Err(height)`.
+    /// Returns the messages except `knowns`.
     async fn get_message(
         &self,
         height: BlockHeight,
@@ -95,8 +95,6 @@ impl<N: P2PNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Opens an existing storage with the given directory.
-    ///
-    /// - `dms_key`: The unique key for distinguishing the DMS.
     pub async fn open(_storage: S) -> Result<Self, Error>
     where
         Self: Sized,
