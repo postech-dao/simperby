@@ -45,11 +45,7 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
             h1.timestamp, h2.timestamp
         )));
     }
-    for (public_key, signature) in &h2.prev_block_finalization_proof {
-        signature.verify(h1, public_key).map_err(|e| {
-            Error::CryptoError("invalid prev_block_finalization_proof".to_string(), e)
-        })?;
-    }
+    verify_finalization_proof(h1, &h2.prev_block_finalization_proof)?;
     Ok(())
 }
 
