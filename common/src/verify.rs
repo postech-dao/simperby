@@ -33,9 +33,9 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
             h2.previous_hash
         )));
     }
-    if !h2.validator_set.iter().any(|(pk, _)| pk == &h1.author) {
+    if !h1.validator_set.iter().any(|(pk, _)| pk == &h2.author) {
         return Err(Error::InvalidArgument(format!(
-            "invalid author: got {}",
+            "invalid author: {} is not in the validator set",
             h2.author
         )));
     }
