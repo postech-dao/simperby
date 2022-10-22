@@ -11,7 +11,7 @@ pub trait Storage: Send + Sync + 'static {
     /// Fails if there is already a directory.
     async fn create(storage_directory: &str) -> Result<(), StorageError>;
 
-    /// Opens an existing directory.
+    /// Opens an existing directory, locking it.
     async fn open(storage_directory: &str) -> Result<Self, StorageError>
     where
         Self: Sized;
@@ -22,15 +22,18 @@ pub trait Storage: Send + Sync + 'static {
     /// Adds the given file to the storage.
     async fn add_or_overwrite_file(
         &mut self,
-        path: &str,
+        name: &str,
         content: String,
     ) -> Result<(), StorageError>;
 
     /// Reads the given file.
-    async fn read_file(&self, path: &str) -> Result<String, StorageError>;
+    async fn read_file(&self, name: &str) -> Result<String, StorageError>;
 
     /// Removes the given file.
-    async fn remove_file(&mut self, path: &str) -> Result<(), StorageError>;
+    async fn remove_file(&mut self, name: &str) -> Result<(), StorageError>;
+
+    /// Removes all files.
+    async fn remove_all_files(&mut self) -> Result<(), StorageError>;
 }
 
 #[async_trait]

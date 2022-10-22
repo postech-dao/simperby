@@ -1,6 +1,7 @@
 pub mod dms;
 mod peer_discovery;
 pub mod primitives;
+pub mod storage;
 
 use async_trait::async_trait;
 use primitives::*;
