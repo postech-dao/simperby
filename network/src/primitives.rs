@@ -2,35 +2,35 @@ use super::*;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
-pub type StroageError = std::io::Error;
+pub type StorageError = std::io::Error;
 
 /// An abstraction of the synchronized storage backed by the host file system.
 #[async_trait]
 pub trait Storage: Send + Sync + 'static {
     /// Creates a new and empty directory.
     /// Fails if there is already a directory.
-    async fn create(storage_directory: &str) -> Result<(), StroageError>;
+    async fn create(storage_directory: &str) -> Result<(), StorageError>;
 
     /// Opens an existing directory.
-    async fn open(storage_directory: &str) -> Result<Self, StroageError>
+    async fn open(storage_directory: &str) -> Result<Self, StorageError>
     where
         Self: Sized;
 
     /// Shows the list of files.
-    async fn list_files(&self) -> Result<Vec<String>, StroageError>;
+    async fn list_files(&self) -> Result<Vec<String>, StorageError>;
 
     /// Add the given file to the storage.
     async fn add_or_overwrite_file(
         &mut self,
-        path: String,
+        path: &str,
         content: String,
-    ) -> Result<(), StroageError>;
+    ) -> Result<(), StorageError>;
 
     /// Reads the given file.
-    async fn read_file(&self, path: &str) -> Result<String, StroageError>;
+    async fn read_file(&self, path: &str) -> Result<String, StorageError>;
 
     /// Removes the given file.
-    async fn remove_file(&mut self, path: &str) -> Result<(), StroageError>;
+    async fn remove_file(&mut self, path: &str) -> Result<(), StorageError>;
 }
 
 #[async_trait]
