@@ -19,7 +19,7 @@ pub trait Storage: Send + Sync + 'static {
     /// Shows the list of files.
     async fn list_files(&self) -> Result<Vec<String>, StorageError>;
 
-    /// Add the given file to the storage.
+    /// Adds the given file to the storage.
     async fn add_or_overwrite_file(
         &mut self,
         path: &str,

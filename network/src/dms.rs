@@ -74,7 +74,7 @@ trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
 /// of `DistributedMessageSet` only for a specific height,
 /// and discard if the height progresses, creating a new and empty one again.
 ///
-/// For every methods,
+/// For every method,
 /// - If the given directory is empty, it fails (except `create()`).
 /// - It locks the storage.
 /// - If the given directory is locked (possibly by another instance of `DistributedMessageSet`),
@@ -111,7 +111,7 @@ impl<N: P2PNetwork, S: Storage> DistributedMessageSet<N, S> {
         unimplemented!()
     }
 
-    /// Add the given message to the storage, immediately broadcasting it to the network.
+    /// Adds the given message to the storage, immediately broadcasting it to the network.
     ///
     /// Note that it is guaranteed that the message will not be broadcasted unless it
     /// is successfully added to the storage. (but it is not guaranteed for the other way around)
