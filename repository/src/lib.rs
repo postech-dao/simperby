@@ -223,7 +223,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&agenda_commit, &last_header);
 
         self.raw.checkout_clean().await?;
-        self.raw.checkout(&FINALIZED_BRANCH_NAME.into()).await?;
+        self.raw.checkout(&WORK_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         Ok(result)
     }
