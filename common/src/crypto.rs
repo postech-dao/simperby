@@ -57,7 +57,7 @@ impl std::convert::AsRef<[u8]> for Hash256 {
 
 impl fmt::Display for Hash256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "?")
+        write!(f, "{}", hex::encode(&self.hash))
     }
 }
 
