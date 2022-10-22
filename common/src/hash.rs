@@ -18,6 +18,12 @@ impl ToHash256 for BlockHeader {
     }
 }
 
+impl ToHash256 for Diff {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(serde_json::to_vec(self).unwrap())
+    }
+}
+
 impl ToHash256 for Transaction {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_json::to_vec(self).unwrap())
