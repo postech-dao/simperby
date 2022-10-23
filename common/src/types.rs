@@ -112,12 +112,14 @@ pub struct TxDelegate {
     /// Whether to delegate the governance voting power too.
     pub governance: bool,
     pub proof: TypedSignature<(PublicKey, PublicKey, bool, BlockHeight)>,
+    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TxUndelegate {
     pub delegator: PublicKey,
     pub proof: TypedSignature<(PublicKey, BlockHeight)>,
+    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
