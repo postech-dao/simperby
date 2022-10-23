@@ -68,9 +68,9 @@ pub fn verify_finalization_proof(
     let mut voted_validators = BTreeSet::new();
     for signature in block_finalization_proof {
         signature
-            .verify(header, public_key)
+            .verify(header)
             .map_err(|e| Error::CryptoError("invalid finalization proof".to_string(), e))?;
-        voted_validators.insert(public_key);
+        voted_validators.insert(signature.signer());
     }
     let voted_voting_power: VotingPower = header
         .validator_set

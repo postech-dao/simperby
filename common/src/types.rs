@@ -72,7 +72,7 @@ pub struct ChatLog {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct AgendaProof {
     pub agenda_hash: Hash256,
-    pub proof: Vec<(PublicKey, TypedSignature<Agenda>)>,
+    pub proof: Vec<TypedSignature<Agenda>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
