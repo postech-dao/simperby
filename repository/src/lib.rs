@@ -6,6 +6,7 @@ use format::*;
 use futures::prelude::*;
 use raw::RawRepository;
 use serde::{Deserialize, Serialize};
+use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
@@ -57,6 +58,11 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
     /// Returns the block header from the `main` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
+        unimplemented!()
+    }
+
+    /// Returns the reserved state from the `main` branch.
+    pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
         unimplemented!()
     }
 
@@ -193,7 +199,8 @@ impl<T: RawRepository> DistributedRepository<T> {
             .map_err(|(error, hash)| anyhow!("failed to convert the commit {}: {}", hash, error))?;
 
         // Check the validity of the commit sequence
-        let mut verifier = CommitSequenceVerifier::new(last_header.clone())
+        let reserved_state = self.get_reserved_state().await?;
+        let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
             .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
         for (commit, hash) in commits.iter() {
             verifier
