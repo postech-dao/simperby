@@ -8,6 +8,8 @@ pub(crate) struct PeerDiscoveryPrimitiveImpl;
 impl PeerDiscoveryPrimitive for PeerDiscoveryPrimitiveImpl {
     async fn serve(
         _network_config: NetworkConfig,
+        _message: String,
+        _port_map: HashMap<String, u16>,
         _initially_known_peers: Vec<Peer>,
     ) -> Result<(SharedKnownPeers, JoinHandle<Result<(), Error>>), Error> {
         unimplemented!();
