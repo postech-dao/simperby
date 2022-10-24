@@ -40,6 +40,8 @@ pub trait PeerDiscoveryPrimitive: Send + Sync + 'static {
     /// updating `known_peers`.
     async fn serve(
         network_config: NetworkConfig,
+        message: String,
+        port_map: HashMap<String, u16>,
         initially_known_peers: Vec<Peer>,
     ) -> Result<(SharedKnownPeers, tokio::task::JoinHandle<Result<(), Error>>), Error>;
 }
