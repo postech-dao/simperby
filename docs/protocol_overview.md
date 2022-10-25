@@ -239,7 +239,7 @@ To improve this, we propose a variation of Tendermint, called *Vetomint*, which 
 
 ### How does it work?
 
-In Vetomint, unlike Tendermint, the round **always instantly progresses** if over 5/6 nodes either non-nil-vote or nil-vote. Especially when 5/6 nodes vote, it is guaranteed that the height progresses. The threshold 5/6 is just enough to ensure that all nodes observe at least 2/3 (Tendermint majority) of non-nil-votes no matter the individual arrival order of the votes, even with the possible 1/6 nil-votes.
+In Vetomint, unlike Tendermint, the round **always instantly progresses** if over 5/6 nodes either non-nil-vote or nil-vote. Especially when 5/6 nodes non-nil-vote, it is guaranteed that the height progresses. The threshold 5/6 is just enough to ensure that all nodes observe at least 2/3 (Tendermint majority) of non-nil-votes no matter the individual arrival order of the votes, even with the possible 1/6 nil-votes.
 Note that the 'arrival order' matters, unlike Tendermint, because we have a new 'early termination' condition.
 
 Details are explained in issue [#4](https://github.com/postech-dao/simperby/issues/4) and the pseudo-code is [here](./vetomint-spec.pdf)
