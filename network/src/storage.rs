@@ -65,8 +65,8 @@ impl Storage for StorageImpl {
         fs::read_to_string(format!("{}/{}", self.path, name)).await
     }
 
-    async fn remove_file(&mut self, path: &str) -> Result<(), StorageError> {
-        fs::remove_file(format!("{}/{}", self.path, path)).await
+    async fn remove_file(&mut self, name: &str) -> Result<(), StorageError> {
+        fs::remove_file(format!("{}/{}", self.path, name)).await
     }
 
     async fn remove_all_files(&mut self) -> Result<(), StorageError> {

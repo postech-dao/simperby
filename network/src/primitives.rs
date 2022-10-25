@@ -8,7 +8,7 @@ pub type StorageError = std::io::Error;
 #[async_trait]
 pub trait Storage: Send + Sync + 'static {
     /// Creates a new and empty directory.
-    /// Fails if there is already a directory.
+    /// If there is already a directory, it just removes it and re-create.
     async fn create(storage_directory: &str) -> Result<(), StorageError>;
 
     /// Opens an existing directory, locking it.
