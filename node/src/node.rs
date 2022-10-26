@@ -61,8 +61,14 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
                 agenda_commit
             ));
         };
-        let governance_dms =
-            DistributedMessageSet::open(S::open(&self.config.governance_directory).await?).await?;
+        let governance_dms = DistributedMessageSet::open(
+            S::open(&self.config.governance_directory).await?,
+            DmsConfig {
+                broadcast_interval: self.config.broadcast_interval_ms.map(Duration::from_millis),
+                fetch_interval: self.config.fetch_interval_ms.map(Duration::from_millis),
+            },
+        )
+        .await?;
         let mut governance = Governance::<N, S>::open(governance_dms).await?;
         governance
             .vote(
