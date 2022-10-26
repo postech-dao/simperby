@@ -18,10 +18,14 @@ pub struct Config {
     pub public_key: PublicKey,
     pub private_key: PrivateKey,
     pub chain_name: String,
-    pub p2p_directory: String,
+
+    pub peer_directory: String,
     pub governance_directory: String,
     pub consensus_directory: String,
     pub repository_directory: String,
+
+    pub broadcast_interval_ms: Option<u64>,
+    pub fetch_interval_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
