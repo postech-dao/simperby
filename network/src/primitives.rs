@@ -51,7 +51,7 @@ pub trait PeerDiscoveryPrimitive: Send + Sync + 'static {
 
 /// The p2p gossip network.
 #[async_trait]
-pub trait P2PNetwork: Send + Sync + 'static {
+pub trait GossipNetwork: Send + Sync + 'static {
     /// Broadcasts a message to the network.
     async fn broadcast(
         config: &NetworkConfig,

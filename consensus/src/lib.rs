@@ -5,7 +5,7 @@ use simperby_common::{
 };
 use simperby_network::{
     dms::DistributedMessageSet as DMS,
-    primitives::{P2PNetwork, Storage},
+    primitives::{GossipNetwork, Storage},
     *,
 };
 use std::collections::{HashMap, HashSet};
@@ -29,11 +29,11 @@ pub enum ProgressResult {
     Finalized(Timestamp),
 }
 
-pub struct Consensus<N: P2PNetwork, S: Storage> {
+pub struct Consensus<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
 }
 
-impl<N: P2PNetwork, S: Storage> Consensus<N, S> {
+impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn create(
         _dms: DMS<N, S>,
         _height: BlockHeight,
