@@ -13,11 +13,11 @@ You should have a basic understanding of
 ## Summary
 
 1. **Every finalized data in a Simperby chain is stored in a Git repository.**
-2. It includes transactions, agendas, agenda proofs, chats, and blocks, linearly committed in the `main` branch.
+2. It includes transactions, agendas, agenda proofs, chats, and blocks, linearly committed in the `finalized` branch.
 3. A Simperby node manages its own Git repository and provides a Git server of it to the node operator.
 4. The node operator can fetch the blockchain data, walk through the history, and check the diffs using the Git protocol.
 5. **Every to-be-finalized data is also managed in a Git repository.**
-6. All the pending agendas (waiting for approval) will be presented as multiple branches grown from the `main` branch.
+6. All the pending agendas (waiting for approval) will be presented as multiple branches grown from the `finalized` branch.
 7. The node operator may create their own transaction as a commit and push to a particular branch which represents an agenda proposal.
 8. **Simperby functions as a general distributed Git repository**, that may contain any useful data for the organization. This is trivially achieved because **we take transactions as Git commits.** (This can be understood as exploiting the 'blockchain state' as a Git repository)
 
@@ -57,7 +57,7 @@ A commit is defined as follows
 
 These are the names of the branches that are specially treated by the Simperby node. Branches other than `work` and `p` are managed by the node; it will be rejected if pushed.
 
-1. `main`: always points to the last finalized block. It is strongly protected; users can't push to this branch.
+1. `finalized`: always points to the last finalized block. It is strongly protected; users can't push to this branch.
 2. `work`: the branch that users can freely push or force-push. CLI commands like `create` interact with this.
 3. `p`: the block proposal for this node. The node operator may push or force-push to this branch. When pushed, the Git server will check the validity of the branch. The consensus engine will recognize this branch and propose to the consensus. It stands for 'block proposal'.
 4. `a-<number>`: a valid agenda (but not yet approved) propagated from other nodes. If the governance has approved the agenda, it will point to the `agenda-proof` commit which lies on top of the agenda commit. The number is arbitrarily assigned.
@@ -76,7 +76,7 @@ Tags can't be pushed by the users. They are always managed by the nodes.
 // The history grows from the bottom to the top.
 // Each line represents a Git commit.
 
-block H+1 (branch: main)
+block H+1 (branch: finalized)
 chat H+1
 [extra-agenda transactions]
 ...

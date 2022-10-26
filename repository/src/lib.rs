@@ -15,7 +15,7 @@ use std::fmt;
 pub type Branch = String;
 pub type Tag = String;
 
-pub const FINALIZED_BRANCH_NAME: &str = "main";
+pub const FINALIZED_BRANCH_NAME: &str = "finalized";
 pub const WORK_BRANCH_NAME: &str = "work";
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
@@ -56,7 +56,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn genesis(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
-    /// Returns the block header from the `main` branch.
+    /// Returns the block header from the `finalized` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
         unimplemented!()
     }
@@ -102,18 +102,18 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// It checks
     /// 1. all the reserved branches and tags
     /// 2. the existence of merge commits
-    /// 3. the canonical history of the `main` branch.
+    /// 3. the canonical history of the `finalized` branch.
     pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
         unimplemented!()
     }
 
-    /// Synchronizes the `main` branch to the given commit.
+    /// Synchronizes the `finalized` branch to the given commit.
     ///
     /// This will verify every commit along the way.
     /// If the given commit is not a descendant of the
-    /// current `main` (i.e., cannot be fast-forwarded), it fails.
+    /// current `finalized` (i.e., cannot be fast-forwarded), it fails.
     ///
-    /// Note that if you sync to a block `H`, then the `main` branch will move to `H-1`.
+    /// Note that if you sync to a block `H`, then the `finalized` branch will move to `H-1`.
     /// To sync the last block `H`, you have to run `finalize()`.
     /// (This is because the finalization proof for a block appears in the next block.)
     pub async fn sync(&mut self, _block_commit: &CommitHash) -> Result<(), Error> {
@@ -129,7 +129,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         unimplemented!()
     }
 
-    /// Finalizes a single block and moves the `main` branch to it.
+    /// Finalizes a single block and moves the `finalized` branch to it.
     ///
     /// It will verify the finalization proof and the commits.
     pub async fn finalize(

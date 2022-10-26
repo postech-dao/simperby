@@ -49,22 +49,22 @@ pub trait SimperbyApi {
 
     /// Initializes a new Simperby node from the repository.
     ///
-    /// The `main` branch MUST be on a valid block commit.
+    /// The `finalized` branch MUST be on a valid block commit.
     async fn initialize(&self) -> Result<()>;
 
-    /// Synchronizes the `main` branch to the given commit.
+    /// Synchronizes the `finalized` branch to the given commit.
     async fn sync(&self, commmit: CommitHash) -> Result<()>;
 
     /// Cleans the repository, removing all the outdated commits.
     async fn clean(&self, hard: bool) -> Result<()>;
 
-    /// Creates a block commit on the `main` branch.
+    /// Creates a block commit on the `finalized` branch.
     async fn create_block(&self) -> Result<()>;
 
-    /// Creates a block commit on the `main` branch.
+    /// Creates a block commit on the `finalized` branch.
     async fn create_agenda(&self) -> Result<()>;
 
-    /// Creates an extra-agenda transaction on the `main` branch.
+    /// Creates an extra-agenda transaction on the `finalized` branch.
     async fn create_extra_agenda_transaction(&self, tx: ExtraAgendaTransaction) -> Result<()>;
 
     /// Votes and propagates.
