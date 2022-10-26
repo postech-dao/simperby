@@ -52,21 +52,21 @@ pub enum SignCommands {
 pub enum Commands {
     /// Initialize a new Simperby node in the current directory.
     Init,
-    /// Sync the `main` branch to the given commit.
+    /// Sync the `finalized` branch to the given commit.
     ///
     /// This will verify every commit along the way.
     /// If the given commit is not a descendant of the
-    /// current `main` (i.e., cannot be fast-forwarded), it fails.
+    /// current `finalized` (i.e., cannot be fast-forwarded), it fails.
     ///
-    /// Note that if you sync to a block `H`, then the `main` branch will move to `H-1`.
+    /// Note that if you sync to a block `H`, then the `finalized` branch will move to `H-1`.
     /// To sync the last block `H`, you have to run `update`.
     /// (This is because the finalization proof for a block appears in the next block.)
     Sync { commit: String },
     /// Print the information about the block data Git server that this node is hosting.
     Git,
-    /// Clean the repository, removing all the outdated (incompatible with `main`) commits.
+    /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
-        /// If enabled, it will remove all the commits except those included in `main`.
+        /// If enabled, it will remove all the commits except those included in `finalized`.
         #[clap(long, action)]
         hard: bool,
     },
