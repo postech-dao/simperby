@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use simperby_common::*;
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message},
-    primitives::{P2PNetwork, Storage},
+    primitives::{GossipNetwork, Storage},
     NetworkConfig, Peer, SharedKnownPeers,
 };
 use std::collections::{HashMap, HashSet};
@@ -23,11 +23,11 @@ struct Vote {
     pub signature: Signature,
 }
 
-pub struct Governance<N: P2PNetwork, S: Storage> {
+pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
 }
 
-impl<N: P2PNetwork, S: Storage> Governance<N, S> {
+impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     pub async fn create(_dms: DMS<N, S>, _height: BlockHeight) -> Result<(), Error> {
         unimplemented!()
     }

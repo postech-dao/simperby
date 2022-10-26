@@ -1,12 +1,14 @@
+use std::time::Duration;
+
 use super::*;
 use anyhow::anyhow;
-use simperby_network::dms::DistributedMessageSet;
-use simperby_network::primitives::{P2PNetwork, Storage};
+use simperby_network::dms::{Config as DmsConfig, DistributedMessageSet};
+use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_network::NetworkConfig;
 use simperby_repository::raw::RawRepository;
 use simperby_repository::DistributedRepository;
 
-pub struct Node<N: P2PNetwork, S: Storage, R: RawRepository> {
+pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     config: Config,
     _marker1: std::marker::PhantomData<N>,
     _marker2: std::marker::PhantomData<S>,
@@ -18,7 +20,7 @@ async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
 }
 
 #[async_trait]
-impl<N: P2PNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
+impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
     async fn genesis(&self) -> Result<()> {
         unimplemented!()
     }
