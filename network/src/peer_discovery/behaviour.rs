@@ -20,7 +20,7 @@ pub struct DiscoveryBehaviour {
 }
 
 impl DiscoveryBehaviour {
-    pub(crate) fn _new(pubkey: PublicKey, message: String) -> Self {
+    pub(crate) fn new(pubkey: PublicKey, message: String) -> Self {
         let peer_id = pubkey.to_peer_id();
 
         let identify_config = identify::Config::new("/simperby/discovery".to_string(), pubkey)
