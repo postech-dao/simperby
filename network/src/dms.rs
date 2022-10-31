@@ -189,8 +189,7 @@ async fn fetch<S: Storage>(
             )));
             let messages = stub
                 .get_message(height, known_messages_)
-                .await
-                .map_err(|e| anyhow!(e))?
+                .await?
                 .map_err(|e| anyhow!(e))?;
             let mut storage = storage.write().await;
             for message in messages {
@@ -242,7 +241,8 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     /// If there is already a directory, it discards everything and creates a new one.
     /// You should try `open()` first!
     ///
-    /// - `dms_key`: The unique key for distinguishing the DMS.
+    /// - `dms_key`: The unique key for distinguishing the DMS instance
+    /// among the networks and among the types (e.g. governance, consensus, ...).
     pub async fn create(mut storage: S, height: u64, dms_key: String) -> Result<(), Error> {
         storage.remove_all_files().await?;
         write_state(
@@ -325,7 +325,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(())
     }
 
-    /// Serves the p2p network node and the RPC server indefinitely, constantly updating the storage.
+    /// Serves the gossip network node and the RPC server indefinitely, constantly updating the storage.
     pub async fn serve(
         self,
         network_config: NetworkConfig,
@@ -343,7 +343,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                 return Result::<(), Error>::Ok(());
             };
             loop {
-                let peers = peers_.read().await.to_vec();
+                let peers = peers_.read().await;
                 fetch(Arc::clone(&storage_), &network_config_, &peers).await?;
                 tokio::time::sleep(interval).await;
             }
@@ -357,7 +357,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                 return Result::<(), Error>::Ok(());
             };
             loop {
-                let peers = peers_.read().await.to_vec();
+                let peers = peers_.read().await;
                 let messages = read_messages(&*storage_.read().await).await?;
                 let tasks = messages.into_iter().map(|message| {
                     let network_config = network_config.clone();
