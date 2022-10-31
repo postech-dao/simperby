@@ -4,6 +4,9 @@ mod behaviour;
 mod primitive;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "full")]
+#[allow(dead_code)]
+mod utils;
 
 use super::*;
 use async_trait::async_trait;
