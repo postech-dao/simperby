@@ -92,6 +92,13 @@ impl Signature {
             .verify(data.as_ref(), &signature)
             .map_err(|_| Error::VerificationFailed)
     }
+
+    /// Constructs a signature from the given bytes, but does not verify its validity.
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Signature {
+            signature: bytes.to_vec(),
+        }
+    }
 }
 
 /// A signature that is explicitly marked with the type of the signed data.
@@ -164,6 +171,16 @@ impl fmt::Display for PublicKey {
     }
 }
 
+impl PublicKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let key = ed25519_dalek::PublicKey::from_bytes(bytes)
+            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(bytes))))?
+            .to_bytes()
+            .to_vec();
+        Ok(PublicKey { key })
+    }
+}
+
 /// A private key.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
 pub struct PrivateKey {
@@ -177,6 +194,14 @@ impl std::convert::AsRef<[u8]> for PrivateKey {
 }
 
 impl PrivateKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let key = ed25519_dalek::SecretKey::from_bytes(bytes)
+            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(bytes))))?
+            .to_bytes()
+            .to_vec();
+        Ok(PrivateKey { key })
+    }
+
     pub fn public_key(&self) -> PublicKey {
         let private_key =
             ed25519_dalek::SecretKey::from_bytes(&self.key).expect("private key is invalid");
