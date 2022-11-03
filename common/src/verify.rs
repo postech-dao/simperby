@@ -423,13 +423,10 @@ mod test {
         validator_keypair
     }
 
-    fn get_timestamp() -> Timestamp {
-        let now = std::time::SystemTime::now();
-        let since_the_epoch = now.duration_since(std::time::UNIX_EPOCH).unwrap();
-        since_the_epoch.as_millis() as Timestamp
-    }
-
-    fn generate_block_header(validator_keypair: &[(PublicKey, PrivateKey)]) -> BlockHeader {
+    fn generate_block_header(
+        validator_keypair: &[(PublicKey, PrivateKey)],
+        time: Timestamp,
+    ) -> BlockHeader {
         let validator_set: Vec<(PublicKey, u64)> = validator_keypair
             .iter()
             .map(|(public_key, _)| (public_key.clone(), 1))
@@ -439,7 +436,7 @@ mod test {
             prev_block_finalization_proof: vec![],
             previous_hash: Hash256::zero(),
             height: 0,
-            timestamp: get_timestamp(),
+            timestamp: time,
             commit_hash: Hash256::zero(),
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -480,10 +477,11 @@ mod test {
     fn generate_empty_transaction_commit(
         validator_keypair: &[(PublicKey, PrivateKey)],
         author_index: usize,
+        time: Timestamp,
     ) -> Commit {
         Commit::Transaction(Transaction {
             author: validator_keypair[author_index].0.clone(),
-            timestamp: get_timestamp(),
+            timestamp: time,
             head: "Test empty commit".to_string(),
             body: "This is important!".to_string(),
             diff: Diff::None,
@@ -493,10 +491,11 @@ mod test {
     fn generate_general_diff_transaction_commit(
         validator_keypair: &[(PublicKey, PrivateKey)],
         author_index: usize,
+        time: Timestamp,
     ) -> Commit {
         Commit::Transaction(Transaction {
             author: validator_keypair[author_index].0.clone(),
-            timestamp: get_timestamp(),
+            timestamp: time,
             head: "Test general-diff commit".to_string(),
             body: serde_json::to_string(&json!({
                 "type": "transfer-ft",
@@ -512,6 +511,7 @@ mod test {
     fn generate_reserved_diff_transaction_commit(
         validator_keypair: &mut Vec<(PublicKey, PrivateKey)>,
         reserved_state: &mut ReservedState,
+        time: Timestamp,
     ) -> Commit {
         // Update reserved state
         validator_keypair.push(generate_keypair([3]));
@@ -533,7 +533,7 @@ mod test {
         .unwrap();
         Commit::Transaction(Transaction {
             author: validator_keypair[2].0.clone(),
-            timestamp: get_timestamp(),
+            timestamp: time,
             head: "Test reserved-diff commit".to_string(),
             body: diff.clone(),
             diff: Diff::Reserved(Box::new(reserved_state.clone()), diff.to_hash256()),
@@ -570,10 +570,12 @@ mod test {
         finalization_proof
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn generate_block_commit(
         validator_keypair: &[(PublicKey, PrivateKey)],
         author_index: usize,
         previous_header: BlockHeader,
+        time: Timestamp,
         commit_hash_value: Hash256,
         tx_merkle_root_value: Hash256,
         chat_merkle_root_value: Hash256,
@@ -587,7 +589,7 @@ mod test {
             ),
             previous_hash: Commit::Block(previous_header.clone()).to_hash256(),
             height: previous_header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: time,
             commit_hash: commit_hash_value,
             tx_merkle_root: tx_merkle_root_value,
             chat_merkle_root: chat_merkle_root_value,
@@ -604,27 +606,28 @@ mod test {
     /// Test the case where the commit sequence is correct.
     fn correct_commit_sequence1() {
         let mut validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let mut reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state.clone()).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply general-diff commit
         csv.apply_commit(&generate_general_diff_transaction_commit(
             &validator_keypair,
             1,
+            2,
         ))
         .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
             &mut validator_keypair,
             &mut reserved_state,
+            3,
         ))
         .unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -632,7 +635,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 4,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -649,12 +652,11 @@ mod test {
     /// Test the case where the commit sequence is correct but there are no transaction commits.
     fn correct_commit_sequence2() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -662,7 +664,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -679,12 +681,11 @@ mod test {
     /// Test the case where the block commit is invalid because the block height is invalid.
     fn invalid_block_commit_with_invalid_height() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -692,7 +693,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -712,7 +713,7 @@ mod test {
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 2,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -730,12 +731,11 @@ mod test {
     /// Test the case where the block commit is invalid because the previous hash is invalid.
     fn invalid_block_commit_with_invalid_previous_hash() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -743,7 +743,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -763,7 +763,7 @@ mod test {
             ),
             previous_hash: Hash256::zero(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -781,12 +781,11 @@ mod test {
     /// Test the case where the block commit is invalid because the author is invalid.
     fn invalid_block_commit_with_invalid_author() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -794,7 +793,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -814,7 +813,7 @@ mod test {
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -832,12 +831,11 @@ mod test {
     /// Test the case where the block commit is invalid because the timestamp is invalid.
     fn invalid_block_commit_with_invalid_timestamp() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -845,7 +843,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -883,12 +881,11 @@ mod test {
     /// Test the case where the block commit is invalid because the finalization proof is invalid for invalid signature.
     fn invalid_block_commit_with_invalid_finalization_proof_for_invalid_signature() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -896,7 +893,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -912,11 +909,11 @@ mod test {
             author: validator_keypair[0].0.clone(),
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
-                &generate_block_header(&validator_keypair[1..]),
+                &generate_block_header(&validator_keypair[1..], 0),
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -934,12 +931,11 @@ mod test {
     /// Test the case where the block commit is invalid because the finalization proof is invalid for low voting power.
     fn invalid_block_commit_with_invalid_finalization_proof_for_low_voting_power() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -947,7 +943,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -970,7 +966,7 @@ mod test {
             .clone()],
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -988,12 +984,11 @@ mod test {
     /// Test the case where the block commit is invalid because the transaction merkle root is invalid.
     fn invalid_block_commit_with_invalid_transaction_merkle_root() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1001,7 +996,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1021,10 +1016,11 @@ mod test {
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: csv.commit_hash,
             tx_merkle_root: OneshotMerkleTree::create(vec![generate_empty_transaction_commit(
                 &validator_keypair,
+                0,
                 0,
             )
             .to_hash256()])
@@ -1044,12 +1040,11 @@ mod test {
     /// Test the case where the block commit is invalid because the commit hash is invalid.
     fn invalid_block_commit_with_invalid_commit_hash() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1057,7 +1052,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1077,7 +1072,7 @@ mod test {
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: get_timestamp(),
+            timestamp: 2,
             commit_hash: Hash256::zero(),
             tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             chat_merkle_root: Hash256::zero(),
@@ -1095,7 +1090,7 @@ mod test {
     /// Test the case where the block commit is invalid because block commit already exists.
     fn multiple_block_commits() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
@@ -1104,6 +1099,7 @@ mod test {
             &validator_keypair,
             0,
             csv.header.clone(),
+            1,
             Hash256::zero(),
             Hash256::zero(),
             Hash256::zero(),
@@ -1116,18 +1112,19 @@ mod test {
     /// Test the case where the block commit is invalid because it is transaction phase.
     fn phase_mismatch_for_block_commit1() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply block commit at transaction phase
         csv.apply_commit(&generate_block_commit(
             &validator_keypair,
             0,
             csv.header.clone(),
+            2,
             Hash256::zero(),
             Hash256::zero(),
             Hash256::zero(),
@@ -1140,27 +1137,28 @@ mod test {
     /// Test the case where the block commit is invalid because it is agenda phase.
     fn phase_mismatch_for_block_commit2() {
         let mut validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let mut reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state.clone()).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply general-diff commit
         csv.apply_commit(&generate_general_diff_transaction_commit(
             &validator_keypair,
             1,
+            2,
         ))
         .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
             &mut validator_keypair,
             &mut reserved_state,
+            3,
         ))
         .unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1168,7 +1166,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 4,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1177,6 +1175,7 @@ mod test {
             &validator_keypair,
             0,
             csv.header.clone(),
+            5,
             Hash256::zero(),
             Hash256::zero(),
             Hash256::zero(),
@@ -1189,12 +1188,12 @@ mod test {
     /// Test the case where the transaction commit is invalid because the transaction timestamp is invalid.
     fn invalid_transaction_commit_with_invalid_timestamp() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply empty transaction commit with invalid timestamp
         csv.apply_commit(&Commit::Transaction(Transaction {
@@ -1211,12 +1210,11 @@ mod test {
     /// Test the case where the transaction commit is invalid because it is agenda phase.
     fn phase_mismatch_for_transaction_commit1() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1224,12 +1222,12 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply transaction commit at agenda phase
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 2))
             .unwrap_err();
     }
 
@@ -1237,12 +1235,11 @@ mod test {
     /// Test the case where the transaction commit is invalid because it is agenda proof phase.
     fn phase_mismatch_for_transaction_commit2() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1250,7 +1247,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1262,7 +1259,7 @@ mod test {
         ))
         .unwrap();
         // Apply transaction commit at agenda proof phase
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 2))
             .unwrap_err();
     }
 
@@ -1272,13 +1269,13 @@ mod test {
     /// Test the case where the agenda commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_commit_with_invalid_agenda_hash1() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit with invalid agenda hash
         let agenda_hash_value = if let Commit::Transaction(transaction) =
-            generate_empty_transaction_commit(&validator_keypair, 0)
+            generate_empty_transaction_commit(&validator_keypair, 0, 0)
         {
             Agenda::calculate_hash(csv.header.height, &[transaction])
         } else {
@@ -1286,7 +1283,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1297,18 +1294,18 @@ mod test {
     /// Test the case where the agenda commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_commit_with_invalid_agenda_hash2() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply agenda commit with invalid agenda hash
         let agenda_hash_value = Agenda::calculate_hash(csv.header.height, &[]);
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 2,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1319,12 +1316,12 @@ mod test {
     /// Test the case where the agenda commit is invalid because the timestamp is invalid.
     fn invalid_agenda_commit_with_invalid_timestamp() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply agenda commit with invalid timestamp
         let agenda: Agenda = Agenda {
@@ -1340,12 +1337,11 @@ mod test {
     /// Test the case where the agenda commit is invalid because agenda commit already exists.
     fn multiple_agendas() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1353,7 +1349,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1366,12 +1362,11 @@ mod test {
     /// Test the case where the agenda commit is invalid because it is in agenda proof phase.
     fn phase_mismatch_for_agenda_commit() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1379,7 +1374,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1401,12 +1396,11 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_proof_with_invalid_agenda_hash() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1414,7 +1408,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1431,12 +1425,11 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because the signature is invalid.
     fn invalid_agenda_proof_with_invalid_signature() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1444,7 +1437,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1465,12 +1458,11 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because agenda proof already exists.
     fn multiple_agenda_proofs() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply agenda commit
-        let agenda_timestamp = get_timestamp();
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
             Agenda::calculate_hash(csv.header.height, transactions)
         } else {
@@ -1478,7 +1470,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1502,12 +1494,12 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because it is transaction phase.
     fn phase_mismatch_for_agenda_proof_commit1() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0))
+        csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply agenda-proof commit at transaction phase
         let agenda_hash_value = if let Phase::Transaction { ref transactions } = csv.phase {
@@ -1517,7 +1509,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 2,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
@@ -1534,7 +1526,7 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because it is block phase.
     fn phase_mismatch_for_agenda_proof_commit2() {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> = generate_validator_keypair(3);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair);
+        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
         let reserved_state: ReservedState = generate_reserved_state(&start_header);
         let mut csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state).unwrap();
@@ -1546,7 +1538,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
-            timestamp: agenda_timestamp,
+            timestamp: 1,
             hash: agenda_hash_value,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
