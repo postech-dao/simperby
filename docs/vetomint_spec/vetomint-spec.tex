@@ -1,0 +1,275 @@
+\documentclass[conference,onecolumn]{IEEEtran}
+
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{amssymb}
+\usepackage{rounddiag}
+\usepackage{float}
+\usepackage{kotex}
+\graphicspath{{../}}
+
+\usepackage{technote}
+\usepackage{homodel}
+\usepackage{enumerate}
+%%\usepackage{ulem}\normalem
+
+% to center caption
+\usepackage{caption}
+
+\newcommand{\textstretch}{1.4}
+\newcommand{\algostretch}{1}
+\newcommand{\eqnstretch}{0.5}
+
+\newconstruct{\FOREACH}{\textbf{for each}}{\textbf{do}}{\ENDFOREACH}{}
+\newcommand{\LINECOMMENT}[1]{
+    \STATE // \textit{#1}
+}
+
+%\newconstruct{\ON}{\textbf{on}}{\textbf{do}}{\ENDON}{\textbf{end on}}
+\newcommand\With{\textbf{while}}
+\newcommand\From{\textbf{from}}
+\newcommand\Broadcast{\textbf{broadcast}}
+\newcommand\PBroadcast{send}
+\newcommand\UpCall{\textbf{UpCall}}
+\newcommand\DownCall{\textbf{DownCall}}
+\newcommand \Call{\textbf{Call}}
+\newident{noop}
+\newconstruct{\UPON}{\textbf{upon}}{\textbf{do}}{\ENDUPON}{}
+
+
+
+\newcommand{\abcast}{\mathsf{to\mbox{\sf-}broadcast}}
+\newcommand{\adeliver}{\mathsf{to\mbox{\sf-}deliver}}
+
+\newcommand{\ABCAgreement}{\emph{TO-Agreement}}
+\newcommand{\ABCIntegrity}{\emph{TO-Integrity}}
+\newcommand{\ABCValidity}{\emph{TO-Validity}}
+\newcommand{\ABCTotalOrder}{\emph{TO-Order}}
+\newcommand{\ABCBoundedDelivery}{\emph{TO-Bounded Delivery}}
+
+
+\newcommand{\tabc}{\mathit{atab\mbox{\sf-}cast}}
+\newcommand{\anno}{\mathit{atab\mbox{\sf-}announce}}
+\newcommand{\abort}{\mathit{atab\mbox{\sf-}abort}}
+\newcommand{\tadel}{\mathit{atab\mbox{\sf-}deliver}}
+
+\newcommand{\ATABAgreement}{\emph{ATAB-Agreement}}
+\newcommand{\ATABAbort}{\emph{ATAB-Abort}}
+\newcommand{\ATABIntegrity}{\emph{ATAB-Integrity}}
+\newcommand{\ATABValidity}{\emph{ATAB-Validity}}
+\newcommand{\ATABAnnounce}{\emph{ATAB-Announcement}}
+\newcommand{\ATABTermination}{\emph{ATAB-Termination}}
+%\newcommand{\ATABFastAnnounce}{\emph{ATAB-Fast-Announcement}}
+
+%% Command for observations.
+\newtheorem{observation}{Observation}
+
+
+%% HO ALGORITHM DEFINITIONS
+\newconstruct{\FUNCTION}{\textbf{Function}}{\textbf{:}}{\ENDFUNCTION}{}
+
+%% Uncomment the following four lines to remove remarks and visible traces of
+%%    modifications in the document
+%%\renewcommand{\sout}[1]{\relaxx}
+%%\renewcommand{\uline}[1]{#1}
+%% \renewcommand{\uwave}[1]{#1}
+ \renewcommand{\note}[2][default]{\relax}
+
+
+%% The following commands can be used to generate TR or Conference version of the paper
+\newcommand{\tr}[1]{}
+\renewcommand{\tr}[1]{#1}
+\newcommand{\onlypaper}[1]{#1}
+%\renewcommand{\onlypaper}[1]{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\pagestyle{plain}
+%\pagestyle{empty}
+
+%% IEEE tweaks
+%\setlength{\IEEEilabelindent}{.5\parindent}
+%\setlength{\IEEEiednormlabelsep}{.5\parindent}
+
+\begin{document}
+
+\section{Tendermint consensus algorithm} \label{sec:tendermint}
+
+\newcommand\Disseminate{\textbf{Disseminate}}
+
+\newcommand\Proposal{\mathsf{PROPOSAL}}
+\newcommand\ProposalPart{\mathsf{PROPOSAL\mbox{-}PART}}
+\newcommand\PrePrepare{\mathsf{INIT}} \newcommand\Prevote{\mathsf{PREVOTE}}
+\newcommand\Precommit{\mathsf{PRECOMMIT}}
+\newcommand\Decision{\mathsf{DECISION}}
+
+\newcommand\ViewChange{\mathsf{VC}}
+\newcommand\ViewChangeAck{\mathsf{VC\mbox{-}ACK}}
+\newcommand\NewPrePrepare{\mathsf{VC\mbox{-}INIT}}
+\newcommand\coord{\mathsf{proposer}}
+
+\newcommand\newHeight{newHeight} \newcommand\newRound{newRound}
+\newcommand\nil{nil} \newcommand\id{id} \newcommand{\propose}{propose}
+\newcommand\prevote{prevote} \newcommand\prevoteWait{prevoteWait}
+\newcommand\precommit{precommit} \newcommand\precommitWait{precommitWait}
+\newcommand\commit{commit}
+
+\newcommand\timeoutPropose{timeoutPropose}
+\newcommand\timeoutPrevote{timeoutPrevote}
+\newcommand\timeoutPrecommit{timeoutPrecommit}
+\newcommand\proofOfLocking{proof\mbox{-}of\mbox{-}locking}
+
+\begin{algorithm}[H] \def\baselinestretch{1} \scriptsize\raggedright
+	\begin{algorithmic}[1] 
+		\SHORTSPACE 
+		\INIT{} 
+		\STATE $round_p := 0$   \COMMENT{current round number}
+		\STATE $step_p  \in \set{\propose, \prevote, \precommit}$
+		\STATE $decision_p := nil$ 
+		\STATE $lockedValue_p := nil$ 
+		\STATE $lockedRound_p := -1$ 
+		\STATE $validValue_p := nil$ 
+		\STATE $validRound_p := -1$ 
+		\ENDINIT 
+		\SHORTSPACE 
+		\STATE \textbf{upon} start \textbf{do} $StartRound(0)$ 
+		\SHORTSPACE 
+		\FUNCTION{$StartRound(round)$} \label{line:tab:startRound} 
+		\STATE $round_p \assign round$ 
+		\STATE $step_p \assign \propose$ 
+		\IF{$\coord(round_p) = p$}
+		\IF{$validValue_p \neq \nil$} \label{line:tab:isThereLockedValue}
+		\STATE $proposal \assign validValue_p$ \ELSE \STATE $proposal \assign
+		getValue()$ 
+		\label{line:tab:getValidValue} 
+		\ENDIF 	  
+		\STATE \Broadcast\ $\li{\Proposal,round_p, proposal, validRound_p}$
+		\label{line:tab:send-proposal} 
+		\ELSE 
+		\STATE \textbf{schedule} $OnTimeoutPropose(round_p)$ to be executed \textbf{after} $\timeoutPropose(round_p)$ 
+		\ENDIF
+		\ENDFUNCTION
+		
+		\SPACE 
+		\LINECOMMENT{on-proposal}
+		\UPON{$\li{\Proposal,round_p, v, -1}$ \From\ $\coord(round_p)$
+			\With\ $step_p = \propose$} \label{line:tab:recvProposal}
+			\IF{$valid(v) \wedge (lockedValue_p = v \vee (favor(v) \wedge lockedRound_p = -1))$}
+			\label{line:tab:accept-proposal-2} 
+				\STATE \Broadcast \ $\li{\Prevote,round_p,id(v)}$  
+				\label{line:tab:prevote-proposal}	
+			\ELSE
+			\label{line:tab:acceptProposal1}		
+				\STATE \Broadcast \ $\li{\Prevote,round_p,\nil}$  
+				\label{line:tab:prevote-nil}	
+			\ENDIF
+				\STATE $step_p \assign \prevote$ \label{line:tab:setStateToPrevote1} 
+		\ENDUPON
+		
+		\SPACE 
+		\LINECOMMENT{on-4f-favor-prevote-propose-step}
+		\UPON{$\li{\Proposal,round_p, v, vr}$ \From\ $\coord(round_p)$
+			\textbf{AND} $4f+1$ $\li{\Prevote,vr,id(v)}$  \With\ $step_p = \propose \wedge (vr \ge 0 \wedge vr < round_p)$}
+		\label{line:tab:acceptProposal} 
+		\IF{$valid(v) \wedge ((favor(v) \wedge lockedRound_p < vr) \vee lockedValue_p = v)$} 
+			\label{line:tab:cond-prevote-higher-proposal}	
+			\STATE \Broadcast \ $\li{\Prevote,round_p,id(v)}$
+			\label{line:tab:prevote-higher-proposal}		 
+		\ELSE
+			\label{line:tab:acceptProposal2}		
+			\STATE \Broadcast \ $\li{\Prevote,round_p,\nil}$  
+			\label{line:tab:prevote-nil2}	
+		\ENDIF
+		\STATE $step_p \assign \prevote$ \label{line:tab:setStateToPrevote3} 	 
+		\ENDUPON
+		
+		
+		\SPACE 
+		\LINECOMMENT{on-4f-favor-prevote-prevote-step}
+		\UPON{$\li{\Proposal,round_p, v, *}$ \From\ $\coord(round_p)$
+			\textbf{AND} $4f+1$ $\li{\Prevote, round_p,id(v)}$  \With\ $valid(v) \wedge step_p \ge \prevote$ for the first time}
+		\label{line:tab:recvPrevote} 
+		\IF{$step_p = \prevote$}	
+			\STATE $lockedValue_p \assign v$                \label{line:tab:setLockedValue} 
+			\STATE $lockedRound_p \assign round_p$   \label{line:tab:setLockedRound} 
+			\STATE \Broadcast \ $\li{\Precommit,round_p,id(v))}$  
+			\label{line:tab:precommit-v}	
+			\STATE $step_p \assign \precommit$ \label{line:tab:setStateToCommit} 
+		\ENDIF 
+		\STATE $validValue_p \assign v$ \label{line:tab:setValidRound} 
+		\STATE $validRound_p \assign round_p$ \label{line:tab:setValidValue} 
+		\ENDUPON
+		
+		\SHORTSPACE 
+		\LINECOMMENT{on-4f-nil-prevote}
+		\UPON{$4f+1$ $\li{\Prevote,round_p, \nil}$ 
+			\With\ $step_p = \prevote$} 
+			\STATE \Broadcast \ $\li{\Precommit,round_p, \nil}$
+			\label{line:tab:precommit-v-1} 
+			\STATE $step_p \assign \precommit$ 
+		\ENDUPON
+
+		\SPACE 
+		\LINECOMMENT{on-5f-prevote}
+		\COMMENT{Early termination of prevote phase}
+		\UPON{$5f+1$ $\li{\Prevote, round_p,*}$ \With\ $step_p = \prevote$}
+		\label{line:tab:prevoteEarlyTermination} 
+		\IF{$4f+1$ $\li{\Prevote,round_p,id(v)}$ is received}	
+			\STATE \Broadcast \ $\li{\Precommit,round_p,id(v)}$
+		\ELSE
+			\STATE \Broadcast \ $\li{\Precommit,round_p,\nil}$
+		\ENDIF
+		\STATE $step_p \assign \precommit$
+
+		\ENDUPON
+		
+		\SPACE 
+		\LINECOMMENT{on-5f-precommit}
+		\UPON{$5f+1$ $\li{\Precommit,round_p,*}$ for the first time}
+		\label{line:tab:startTimeoutPrecommit} 
+			\STATE \textbf{schedule} $OnTimeoutPrecommit(round_p)$ to be executed \textbf{after} $\timeoutPrecommit(round_p)$ 
+			 
+		\ENDUPON 
+		
+		\SPACE 
+		\LINECOMMENT{on-4f-favor-precommit}
+		\UPON{$\li{\Proposal,r, v, *}$ \From\ $\coord(r)$ \textbf{AND}
+			$4f+1$ $\li{\Precommit,r,id(v)}$ \With\ $decision_p = \nil$}
+		\label{line:tab:onDecideRule} 
+			\IF{$valid(v)$} \label{line:tab:validDecisionValue} 
+				\STATE{update height, reset all, and call $StartRound(0)$}
+			\ENDIF 
+		\ENDUPON
+		
+		\SHORTSPACE 
+		\FUNCTION{$OnTimeoutPropose(round)$} \label{line:tab:onTimeoutPropose} 
+		\IF{$round = round_p \wedge step_p = \propose$} 
+			\STATE \Broadcast \ $\li{\Prevote,round_p, \nil}$ 
+		 	\label{line:tab:prevote-nil-on-timeout}	
+		 	\STATE $step_p \assign \prevote$ 
+		 \ENDIF	
+		 \ENDFUNCTION
+		
+		
+		\SHORTSPACE 
+		\FUNCTION{$OnTimeoutPrecommit(round)$} \label{line:tab:onTimeoutPrecommit} 
+		\IF{$round = round_p$}
+			\STATE $StartRound(round_p + 1)$ \label{line:tab:nextRound} 
+		\ENDIF
+		\ENDFUNCTION	
+	\end{algorithmic} \caption{Tendermint consensus algorithm}
+	\label{alg:tendermint} 
+\end{algorithm}
+
+We assume $6f+1$ voting power where at most $f$ of it is byzantine.
+
+\section{수정사항}
+
+
+\begin{enumerate}
+	\item prevote timeout 없앰
+	\item height 개념 없앰
+	\item precommit timeout 조건 $4f+1$에서 $5f+1$로 변경 
+\end{enumerate}
+
+
+\end{document}
