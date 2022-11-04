@@ -423,22 +423,29 @@ mod test {
         validator_keypair
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn generate_block_header(
         validator_keypair: &[(PublicKey, PrivateKey)],
+        author_index: usize,
+        finalization_proof: FinalizationProof,
+        previous_hash_value: Hash256,
+        block_height: BlockHeight,
         time: Timestamp,
+        commit_hash_value: Hash256,
+        tx_merkle_root_value: Hash256,
     ) -> BlockHeader {
         let validator_set: Vec<(PublicKey, u64)> = validator_keypair
             .iter()
             .map(|(public_key, _)| (public_key.clone(), 1))
             .collect();
         BlockHeader {
-            author: validator_set[0].0.clone(),
-            prev_block_finalization_proof: vec![],
-            previous_hash: Hash256::zero(),
-            height: 0,
+            author: validator_set[author_index].0.clone(),
+            prev_block_finalization_proof: finalization_proof,
+            previous_hash: previous_hash_value,
+            height: block_height,
             timestamp: time,
-            commit_hash: Hash256::zero(),
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
+            commit_hash: commit_hash_value,
+            tx_merkle_root: tx_merkle_root_value,
             chat_merkle_root: Hash256::zero(),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_set.to_vec(),
@@ -461,15 +468,38 @@ mod test {
         members
     }
 
-    fn generate_reserved_state(start_header: &BlockHeader) -> ReservedState {
+    fn generate_reserved_state(
+        validator_keypair: &[(PublicKey, PrivateKey)],
+        author_index: usize,
+        time: Timestamp,
+    ) -> ReservedState {
+        let genesis_header: BlockHeader = BlockHeader {
+            author: validator_keypair[author_index].0.clone(),
+            prev_block_finalization_proof: vec![],
+            previous_hash: Hash256::zero(),
+            height: 0,
+            timestamp: time,
+            commit_hash: Hash256::zero(),
+            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
+            chat_merkle_root: Hash256::zero(),
+            repository_merkle_root: Hash256::zero(),
+            validator_set: validator_keypair
+                .iter()
+                .map(|(public_key, _)| (public_key.clone(), 1))
+                .collect(),
+            version: "0.0.0".to_string(),
+        };
         ReservedState {
             genesis_info: GenesisInfo {
-                header: start_header.clone(),
-                genesis_proof: vec![],
+                header: genesis_header.clone(),
+                genesis_proof: generate_unanimous_finalization_proof(
+                    validator_keypair,
+                    &genesis_header,
+                ),
                 chain_name: "PDAO Chain".to_string(),
             },
-            members: get_members(&start_header.validator_set),
-            consensus_leader_order: vec![0, 1, 2],
+            members: get_members(&genesis_header.validator_set), // TODO: fix to not use genesis header
+            consensus_leader_order: (0..validator_keypair.len()).collect(),
             version: "0.0.0".to_string(),
         }
     }
@@ -611,8 +641,17 @@ mod test {
     ) {
         let validator_keypair: Vec<(PublicKey, PrivateKey)> =
             generate_validator_keypair(validator_set_size);
-        let start_header: BlockHeader = generate_block_header(&validator_keypair, 0);
-        let reserved_state: ReservedState = generate_reserved_state(&start_header);
+        let start_header: BlockHeader = generate_block_header(
+            &validator_keypair,
+            0,
+            vec![],
+            Hash256::zero(),
+            0,
+            0,
+            Hash256::zero(),
+            Hash256::zero(),
+        );
+        let reserved_state: ReservedState = generate_reserved_state(&validator_keypair, 0, 0);
         let csv: CommitSequenceVerifier =
             CommitSequenceVerifier::new(start_header, reserved_state.clone()).unwrap();
         (validator_keypair, reserved_state, csv)
@@ -893,25 +932,28 @@ mod test {
         ))
         .unwrap();
         // Apply block commit with invalid finalization proof for invalid signature
-        csv.apply_commit(&Commit::Block(BlockHeader {
-            author: validator_keypair[0].0.clone(),
-            prev_block_finalization_proof: generate_unanimous_finalization_proof(
+        csv.apply_commit(&Commit::Block(generate_block_header(
+            &validator_keypair,
+            0,
+            generate_unanimous_finalization_proof(
                 &validator_keypair,
-                &generate_block_header(&validator_keypair[1..], 0),
+                &generate_block_header(
+                    &validator_keypair[1..],
+                    0,
+                    vec![],
+                    csv.header.to_hash256(),
+                    csv.header.height + 1,
+                    2,
+                    csv.commit_hash,
+                    Hash256::zero(),
+                ),
             ),
-            previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
-            height: csv.header.height + 1,
-            timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
-            repository_merkle_root: Hash256::zero(),
-            validator_set: validator_keypair
-                .iter()
-                .map(|(public_key, _)| (public_key.clone(), 1))
-                .collect(),
-            version: "0.0.0".to_string(),
-        }))
+            csv.header.to_hash256(),
+            csv.header.height + 1,
+            2,
+            csv.commit_hash,
+            Hash256::zero(),
+        )))
         .unwrap_err();
     }
 
