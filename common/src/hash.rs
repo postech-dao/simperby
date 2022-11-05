@@ -70,7 +70,7 @@ impl ToHash256 for Commit {
 impl Transaction {
     /// Returns the alternative hash of the transaction, which is for the Merkle tree.
     pub fn merkle_hash(&self) -> Hash256 {
-        Hash256::hash(&self.body.as_bytes())
+        Hash256::hash(self.body.as_bytes())
     }
 }
 
