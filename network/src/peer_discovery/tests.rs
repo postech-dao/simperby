@@ -16,8 +16,8 @@ const AVAILABLE_PORT_RANGE: Range<u16> = 55000..56000;
 const MAX_INITIALLY_KNOWN_PEERS: u64 = 2;
 /// A prime number used in RNG.
 const LCG_MULTIPLIER: u64 = 16536801242360453141;
-/// An allowed amount of difference between real timestamp and discovered timestamp, in seconds.
-const PERMITTED_ERROR_FOR_PEER_DISCOVERY: u64 = 10;
+/// An allowed amount of difference between real timestamp and discovered timestamp, in milliseconds.
+const PERMITTED_ERROR_FOR_PEER_DISCOVERY: u64 = 30_000;
 
 type Keypair = (PublicKey, PrivateKey);
 
@@ -189,7 +189,7 @@ impl TestNet {
             .map(|i| {
                 DeterministicRng::new(i)
                     .get_u64()
-                    .div_euclid(self.nodes.len() as u64)
+                    .rem_euclid(self.nodes.len() as u64)
             })
             .map(|peer_index| self.nodes[peer_index as usize].network_config.to_owned())
             .map(|network_config| {
@@ -222,7 +222,7 @@ impl TestNet {
 
     fn is_peer_recently_seen(&self, peer: &Peer) -> bool {
         let recent = Utc::now()
-            .timestamp()
+            .timestamp_millis()
             .checked_sub(PERMITTED_ERROR_FOR_PEER_DISCOVERY as i64)
             .unwrap();
         recent <= peer.recently_seen_timestamp as i64
@@ -230,11 +230,11 @@ impl TestNet {
 
     fn panic_if_recently_seen_peers_incorrect(&self, recently_seen_peers: Vec<&Peer>) {
         let online_peers = &self.nodes;
-        let mut pubkeys_of_oneline_peers = online_peers
+        let pubkeys_of_oneline_peers = online_peers
             .iter()
             .map(|node| node.network_config.public_key.to_owned());
         for peer in &recently_seen_peers {
-            assert!(pubkeys_of_oneline_peers.any(|pubkey| pubkey == peer.public_key));
+            assert!(pubkeys_of_oneline_peers.clone().any(|pubkey| pubkey == peer.public_key));
         }
         // A node will not count itself, so the difference should be 1.
         assert!(online_peers.len() - recently_seen_peers.len() == 1);
