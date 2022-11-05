@@ -2,6 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use libp2p::{
     identity::{self, ed25519},
+    multiaddr::{Multiaddr, Protocol},
     PeerId,
 };
 
@@ -32,6 +33,29 @@ pub(crate) fn get_peer_id(peer: &Peer) -> Result<PeerId, Error> {
     } else {
         Err(anyhow!("not an ed25519 public key"))
     }
+}
+
+/// Converts libp2p Multiaddr into SocketAddrV4.
+pub(crate) fn convert_multiaddr_into_sockv4(
+    mut multiaddr: Multiaddr,
+) -> Result<SocketAddrV4, Error> {
+    let port = loop {
+        if let Protocol::Tcp(port) = multiaddr
+            .pop()
+            .ok_or_else(|| anyhow!("multiaddr does not contain a port"))?
+        {
+            break port;
+        }
+    };
+    let ip = loop {
+        if let Protocol::Ip4(ipv4_addr) = multiaddr
+            .pop()
+            .ok_or_else(|| anyhow!("multiaddr does not contain an ipv4 address"))?
+        {
+            break ipv4_addr;
+        }
+    };
+    Ok(SocketAddrV4::new(ip, port))
 }
 
 #[cfg(test)]

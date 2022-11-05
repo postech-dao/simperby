@@ -51,6 +51,17 @@ impl SharedKnownPeers {
     pub async fn read(&self) -> Vec<Peer> {
         self.lock.read().await.clone()
     }
+
+    pub async fn add_or_replace(&self, peer: Peer) {
+        let mut known_peers = self.lock.write().await;
+        let index = known_peers
+            .iter()
+            .position(|known_peer| known_peer.public_key == peer.public_key);
+        match index {
+            Some(index) => known_peers[index] = peer,
+            None => known_peers.push(peer),
+        }
+    }
 }
 
 /// The peer discovery protocol backed by the local file system.

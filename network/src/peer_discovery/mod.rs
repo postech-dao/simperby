@@ -3,9 +3,9 @@ mod behaviour;
 #[cfg(feature = "full")]
 mod primitive;
 #[cfg(test)]
+#[cfg(feature = "full")]
 mod tests;
 #[cfg(feature = "full")]
-#[allow(dead_code)]
 mod utils;
 
 use super::*;

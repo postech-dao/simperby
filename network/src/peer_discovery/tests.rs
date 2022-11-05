@@ -234,14 +234,15 @@ impl TestNet {
             .iter()
             .map(|node| node.network_config.public_key.to_owned());
         for peer in &recently_seen_peers {
-            assert!(pubkeys_of_oneline_peers.clone().any(|pubkey| pubkey == peer.public_key));
+            assert!(pubkeys_of_oneline_peers
+                .clone()
+                .any(|pubkey| pubkey == peer.public_key));
         }
         // A node will not count itself, so the difference should be 1.
         assert!(online_peers.len() - recently_seen_peers.len() == 1);
     }
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_1() {
     let mut testnet = TestNet::new();
@@ -253,7 +254,6 @@ async fn sequential_join_1() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_2() {
     let mut testnet = TestNet::new();
@@ -265,7 +265,6 @@ async fn sequential_join_2() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_3() {
     let mut testnet = TestNet::new();
@@ -277,7 +276,6 @@ async fn sequential_join_3() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn concurrent_join_1() {
     let mut testnet = TestNet::new();
@@ -286,7 +284,6 @@ async fn concurrent_join_1() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn concurrent_join_2() {
     let mut testnet = TestNet::new();
@@ -295,7 +292,6 @@ async fn concurrent_join_2() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn arbitrary_join_1() {
     // 20 nodes
@@ -315,7 +311,6 @@ async fn arbitrary_join_1() {
     testnet.panic_if_discovery_failed().await;
 }
 
-#[ignore = "unimplemented"]
 #[tokio::test(flavor = "multi_thread")]
 async fn arbitrary_join_2() {
     // 15 nodes
