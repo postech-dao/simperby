@@ -130,7 +130,7 @@ pub(super) fn progress(
                 let vote_information = state.prevote_history[&round].get(&signer);
                 match vote_information {
                     Some(past_vote) => {
-                        if *past_vote != None {
+                        if past_vote.is_none() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
                                 description: String::from("Duplicate Prevote"),
@@ -240,7 +240,7 @@ pub(super) fn progress(
                             .unwrap_or(&0);
                         if state.votes[&round].precommits_total * 6 > total_voting_power * 5
                             && ConsensusStep::Precommit == state.step
-                            && state.timeout_precommit == None
+                            && state.timeout_precommit.is_none()
                         {
                             //check if 5f+1 th precommit msg triggers 4f favor precommit
                             let check_4f_favor = on_4f_favor_precommit(state, round);
@@ -274,7 +274,7 @@ pub(super) fn progress(
                 let vote_information = state.precommit_history[&round].get(&signer);
                 match vote_information {
                     Some(past_commit) => {
-                        if *past_commit != None {
+                        if past_commit.is_some() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
                                 description: String::from("Duplicate Precommit"),
@@ -307,7 +307,7 @@ pub(super) fn progress(
                         });
                         if state.votes[&round].precommits_total * 6 > total_voting_power * 5
                             && ConsensusStep::Precommit == state.step
-                            && state.timeout_precommit == None
+                            && state.timeout_precommit.is_none()
                         {
                             on_5f_precommit(state, time)
                         } else {
@@ -356,7 +356,7 @@ fn start_round(
     state.timeout_precommit = None;
     let proposer = decide_proposer(round, &state.height_info);
     if Some(proposer) == state.height_info.this_node_index {
-        let proposal = if state.valid_value != None {
+        let proposal = if state.valid_value.is_some() {
             state.valid_value.unwrap()
         } else {
             state.waiting_for_proposal_creation = true;
@@ -375,7 +375,7 @@ fn on_proposal(
     state: &mut ConsensusState,
     round: Round,
 ) -> Vec<ConsensusResponse> {
-    let this_node_voting_power = if state.height_info.this_node_index == None {
+    let this_node_voting_power = if state.height_info.this_node_index.is_none() {
         0
     } else {
         state.height_info.validators[state.height_info.this_node_index.unwrap()]
@@ -404,7 +404,7 @@ fn on_proposal(
         votes
     });
 
-    if Some(proposal) == state.locked_value || (favor && state.locked_round == None) {
+    if Some(proposal) == state.locked_value || (favor && state.locked_round.is_none()) {
         response.append(&mut vec![ConsensusResponse::BroadcastPrevote {
             proposal,
             round,
