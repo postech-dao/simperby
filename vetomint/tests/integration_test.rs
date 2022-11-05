@@ -24,7 +24,7 @@ fn early_termination_by_polka_1() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -110,7 +110,7 @@ fn duplicate_prevotes_and_precommits() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -199,7 +199,7 @@ fn early_termination_by_polka_2() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -292,7 +292,7 @@ fn early_termination_by_nilpolka() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -394,7 +394,7 @@ fn precommit_timeout_and_broadcast_proposal() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -506,7 +506,7 @@ fn double_vote_violation() {
 
     let event = ConsensusEvent::BlockProposalReceived {
         proposal: 0,
-        proposal_round: None,
+        valid_round: None,
         proposer: 0,
         round: 0,
         time: 1,
@@ -543,7 +543,7 @@ fn double_vote_violation() {
         response,
         vec![ConsensusResponse::ViolationReport {
             violator: 2,
-            description: String::from("Duplicate Prevote")
+            description: String::from("Double Prevote")
         }]
     );
 }

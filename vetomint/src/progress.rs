@@ -25,7 +25,7 @@ pub(super) fn progress(
             }
             ConsensusEvent::BlockProposalReceived {
                 proposal,
-                proposal_round,
+                valid_round,
                 proposer,
                 round,
                 favor,
@@ -34,7 +34,7 @@ pub(super) fn progress(
                 let mut expected_response = Vec::new();
                 let current_proposer = decide_proposer(round, &state.height_info);
                 if proposer == current_proposer && state.step == ConsensusStep::Propose {
-                    match proposal_round {
+                    match valid_round {
                         Some(vr) => {
                             if vr < round {
                                 expected_response.append(&mut on_4f_favor_prevote_propose(
@@ -239,14 +239,13 @@ pub(super) fn progress(
                             .get(&proposal)
                             .unwrap_or(&0);
 
-
                         if this_proposal_precommit * 3 > total_voting_power * 2
                             && ConsensusStep::Precommit == state.step
                         {
                             on_4f_favor_precommit(proposal)
                         } else if state.votes[&round].precommits_total * 6 > total_voting_power * 5
-                        && ConsensusStep::Precommit == state.step
-                        && state.timeout_precommit.is_none()
+                            && ConsensusStep::Precommit == state.step
+                            && state.timeout_precommit.is_none()
                         {
                             on_5f_precommit(state, time)
                         } else {
@@ -490,9 +489,7 @@ fn on_5f_precommit(state: &mut ConsensusState, time: Timestamp) -> Vec<Consensus
 }
 
 fn on_4f_favor_precommit(proposal: BlockIdentifier) -> Vec<ConsensusResponse> {
-    return vec![ConsensusResponse::FinalizeBlock {
-        proposal: proposal,
-    }];
+    vec![ConsensusResponse::FinalizeBlock { proposal }]
 }
 
 fn on_timeout_propose(state: &mut ConsensusState) -> Vec<ConsensusResponse> {

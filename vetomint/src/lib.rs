@@ -34,14 +34,14 @@ pub enum ConsensusEvent {
     BlockProposalReceived {
         proposal: BlockIdentifier,
         /// Whether this proposal was valid or locked in this round.
-        proposal_round: Option<Round>,
+        valid_round: Option<Round>,
         proposer: ValidatorIndex,
         round: Round,
         time: Timestamp,
         /// Whether this node is in favor of the proposal.
         favor: bool,
     },
-    /// Updates the block candidate which this node wants to propose in its turn.
+    /// Updates the block candidate in which this nodes wants to propose
     BlockCandidateUpdated {
         proposal: BlockIdentifier,
         time: Timestamp,
@@ -77,7 +77,7 @@ pub enum ConsensusEvent {
 }
 
 impl ConsensusEvent {
-    /// Return the time of the event
+    /// Returns the time of the event
     fn time(&self) -> Timestamp {
         match self {
             ConsensusEvent::Start { time, .. } => *time,
@@ -135,6 +135,7 @@ pub struct HeightInfo {
     pub validators: Vec<VotingPower>,
 
     /// The index of this node
+    /// validator index can be none for supporting non-validator client
     pub this_node_index: Option<ValidatorIndex>,
 
     /// The timestamp of the beginning of the round 0.
@@ -155,8 +156,8 @@ enum ConsensusStep {
     Precommit,
 }
 
-/// All vote information in a single round
-/// prevote/precommit_total is sum of all casted voting power
+/// prevote_total and precommit_total are the sum of casted voting power
+/// for prevote and precommit step, respectively
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct Votes {
     prevotes_total: VotingPower,
