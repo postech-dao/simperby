@@ -20,6 +20,7 @@ serde-tc = "0.4.0"
 reqwest = "0.11"
 fs2 = { version = "0.4.3"}
 tokio-stream = { version = "0.1.11", features = ["fs"] }
+ip_rfc = "0.1.0"
 
 [dev-dependencies]
 rand = "0.8.5"
