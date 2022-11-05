@@ -64,7 +64,7 @@ mod tests {
 
     #[tokio::test]
     async fn peer_id_conversion() {
-        let (public_key, private_key) = generate_keypair(&[1, 2, 3, 123]);
+        let (public_key, private_key) = generate_keypair([1, 2, 3, 123]);
         let libp2p_keypair = convert_keypair(&public_key, &private_key).unwrap();
         let peer = Peer {
             public_key,
