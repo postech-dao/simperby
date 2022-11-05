@@ -242,7 +242,7 @@ impl TestNet {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_1() {
     let mut testnet = TestNet::new();
     for _ in 0..5 {
@@ -254,7 +254,7 @@ async fn sequential_join_1() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_2() {
     let mut testnet = TestNet::new();
     for _ in 0..10 {
@@ -266,7 +266,7 @@ async fn sequential_join_2() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn sequential_join_3() {
     let mut testnet = TestNet::new();
     for _ in 0..30 {
@@ -278,7 +278,7 @@ async fn sequential_join_3() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn concurrent_join_1() {
     let mut testnet = TestNet::new();
     testnet.add_members(10).await;
@@ -287,7 +287,7 @@ async fn concurrent_join_1() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn concurrent_join_2() {
     let mut testnet = TestNet::new();
     testnet.add_members(30).await;
@@ -296,7 +296,7 @@ async fn concurrent_join_2() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn arbitrary_join_1() {
     // 20 nodes
     let mut testnet = TestNet::new();
@@ -316,7 +316,7 @@ async fn arbitrary_join_1() {
 }
 
 #[ignore = "unimplemented"]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn arbitrary_join_2() {
     // 15 nodes
     let mut testnet = TestNet::new();
