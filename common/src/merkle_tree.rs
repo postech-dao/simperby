@@ -52,7 +52,7 @@ impl OneshotMerkleTree {
                         target_hash = Hash256::aggregate(&pair[0], &pair[1]);
                     } else {
                         merkle_proof.proof.push(MerkleProofEntry::OnlyChild);
-                        target_hash = Hash256::hash(&pair[0]);
+                        target_hash = Hash256::hash(pair[0]);
                     };
                 }
             }
@@ -84,7 +84,7 @@ impl OneshotMerkleTree {
                 if pair.len() == 2 {
                     upper_level_hash_list.push(Hash256::aggregate(&pair[0], &pair[1]));
                 } else {
-                    upper_level_hash_list.push(Hash256::hash(&pair[0]));
+                    upper_level_hash_list.push(Hash256::hash(pair[0]));
                 }
             }
             merkle_tree.push(upper_level_hash_list);
