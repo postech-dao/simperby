@@ -62,13 +62,13 @@ pub(super) fn progress(
                 if state.prevote_history.get(&round).is_none() {
                     state.prevote_history.insert(round, BTreeMap::new());
                 }
-                let vote_information = state.prevote_history[&round].get(&signer);
-                match vote_information {
+                let vote_history = state.prevote_history[&round].get(&signer);
+                match vote_history {
                     Some(past_vote) => {
                         if *past_vote != Some(proposal) {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Duplicate Prevote"),
+                                description: String::from("Double Prevote"),
                             }]
                         } else {
                             Vec::new()
@@ -76,13 +76,13 @@ pub(super) fn progress(
                     }
                     None => {
                         state.prevote_history.insert(round, {
-                            let mut former_prevote_history = state
+                            let mut new_prevote_history = state
                                 .prevote_history
                                 .get(&round)
                                 .unwrap_or(&Default::default())
                                 .clone();
-                            former_prevote_history.insert(signer, Some(proposal));
-                            former_prevote_history
+                            new_prevote_history.insert(signer, Some(proposal));
+                            new_prevote_history
                         });
                         let total_voting_power =
                             state.height_info.validators.iter().sum::<VotingPower>();
@@ -112,7 +112,7 @@ pub(super) fn progress(
                             && (state.step == ConsensusStep::Prevote
                                 || state.step == ConsensusStep::Precommit)
                         {
-                            on_4f_prevote(state, round)
+                            on_4f_favor_prevote_prevote(state, round)
                         } else {
                             Vec::new()
                         }
@@ -127,13 +127,13 @@ pub(super) fn progress(
                 if state.prevote_history.get(&round).is_none() {
                     state.prevote_history.insert(round, BTreeMap::new());
                 }
-                let vote_information = state.prevote_history[&round].get(&signer);
-                match vote_information {
+                let vote_history = state.prevote_history[&round].get(&signer);
+                match vote_history {
                     Some(past_vote) => {
                         if past_vote.is_none() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Duplicate Prevote"),
+                                description: String::from("Double Prevote"),
                             }]
                         } else {
                             Vec::new()
@@ -141,13 +141,13 @@ pub(super) fn progress(
                     }
                     None => {
                         state.prevote_history.insert(round, {
-                            let mut former_prevote_history = state
+                            let mut new_prevote_history = state
                                 .prevote_history
                                 .get(&round)
                                 .unwrap_or(&Default::default())
                                 .clone();
-                            former_prevote_history.insert(signer, None);
-                            former_prevote_history
+                            new_prevote_history.insert(signer, None);
+                            new_prevote_history
                         });
                         let total_voting_power =
                             &state.height_info.validators.iter().sum::<VotingPower>();
@@ -176,7 +176,7 @@ pub(super) fn progress(
                         } else if current_nil_votes * 3 > total_voting_power * 2
                             && state.step == ConsensusStep::Prevote
                         {
-                            on_4f_nilprevote(state, round)
+                            on_4f_nil_prevote(state, round)
                         } else {
                             Vec::new()
                         }
@@ -196,13 +196,13 @@ pub(super) fn progress(
                 if state.precommit_history.get(&round).is_none() {
                     state.precommit_history.insert(round, BTreeMap::new());
                 }
-                let vote_information = state.precommit_history[&round].get(&signer);
-                match vote_information {
+                let vote_history = state.precommit_history[&round].get(&signer);
+                match vote_history {
                     Some(past_commit) => {
                         if *past_commit != Some(proposal) {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Duplicate Precommit"),
+                                description: String::from("Double Precommit"),
                             }]
                         } else {
                             Vec::new()
@@ -210,13 +210,13 @@ pub(super) fn progress(
                     }
                     None => {
                         state.precommit_history.insert(round, {
-                            let mut former_precommit_history = state
+                            let mut new_precommit_history = state
                                 .precommit_history
                                 .get(&round)
                                 .unwrap_or(&Default::default())
                                 .clone();
-                            former_precommit_history.insert(signer, Some(proposal));
-                            former_precommit_history
+                            new_precommit_history.insert(signer, Some(proposal));
+                            new_precommit_history
                         });
                         let total_voting_power =
                             state.height_info.validators.iter().sum::<VotingPower>();
@@ -238,21 +238,17 @@ pub(super) fn progress(
                             .precommits_favor
                             .get(&proposal)
                             .unwrap_or(&0);
-                        if state.votes[&round].precommits_total * 6 > total_voting_power * 5
-                            && ConsensusStep::Precommit == state.step
-                            && state.timeout_precommit.is_none()
-                        {
-                            //check if 5f+1 th precommit msg triggers 4f favor precommit
-                            let check_4f_favor = on_4f_favor_precommit(state, round);
-                            if check_4f_favor.is_empty() {
-                                on_5f_precommit(state, time)
-                            } else {
-                                check_4f_favor
-                            }
-                        } else if this_proposal_precommit * 3 > total_voting_power * 2
+
+
+                        if this_proposal_precommit * 3 > total_voting_power * 2
                             && ConsensusStep::Precommit == state.step
                         {
-                            on_4f_favor_precommit(state, round)
+                            on_4f_favor_precommit(proposal)
+                        } else if state.votes[&round].precommits_total * 6 > total_voting_power * 5
+                        && ConsensusStep::Precommit == state.step
+                        && state.timeout_precommit.is_none()
+                        {
+                            on_5f_precommit(state, time)
                         } else {
                             Vec::new()
                         }
@@ -271,13 +267,13 @@ pub(super) fn progress(
                 if state.precommit_history.get(&round).is_none() {
                     state.precommit_history.insert(round, BTreeMap::new());
                 }
-                let vote_information = state.precommit_history[&round].get(&signer);
-                match vote_information {
+                let vote_history = state.precommit_history[&round].get(&signer);
+                match vote_history {
                     Some(past_commit) => {
                         if past_commit.is_some() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Duplicate Precommit"),
+                                description: String::from("Double Precommit"),
                             }]
                         } else {
                             Vec::new()
@@ -285,13 +281,13 @@ pub(super) fn progress(
                     }
                     None => {
                         state.precommit_history.insert(round, {
-                            let mut former_precommit_history = state
+                            let mut new_precommit_history = state
                                 .precommit_history
                                 .get(&round)
                                 .unwrap_or(&Default::default())
                                 .clone();
-                            former_precommit_history.insert(signer, None);
-                            former_precommit_history
+                            new_precommit_history.insert(signer, None);
+                            new_precommit_history
                         });
                         let total_voting_power =
                             state.height_info.validators.iter().sum::<VotingPower>();
@@ -446,7 +442,7 @@ fn on_4f_favor_prevote_propose(
     response
 }
 
-fn on_4f_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
+fn on_4f_favor_prevote_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
     let mut responses = Vec::new();
     let total_voting_power = state.height_info.validators.iter().sum::<VotingPower>();
     for (proposal, prevotes_favor) in &state.votes[&round].prevotes_favor {
@@ -467,7 +463,7 @@ fn on_4f_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusRespo
     responses
 }
 
-fn on_4f_nilprevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
+fn on_4f_nil_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
     state.step = ConsensusStep::Precommit;
     vec![ConsensusResponse::BroadcastNilPrecommit { round }]
 }
@@ -493,17 +489,10 @@ fn on_5f_precommit(state: &mut ConsensusState, time: Timestamp) -> Vec<Consensus
     Vec::new()
 }
 
-fn on_4f_favor_precommit(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
-    let total_voting_power = state.height_info.validators.iter().sum::<VotingPower>();
-    for (proposal, precommits_favor) in &state.votes[&round].precommits_favor {
-        if precommits_favor * 3 > total_voting_power * 2 {
-            //update validator and state will be performed out of progress
-            return vec![ConsensusResponse::FinalizeBlock {
-                proposal: *proposal,
-            }];
-        }
-    }
-    Vec::new()
+fn on_4f_favor_precommit(proposal: BlockIdentifier) -> Vec<ConsensusResponse> {
+    return vec![ConsensusResponse::FinalizeBlock {
+        proposal: proposal,
+    }];
 }
 
 fn on_timeout_propose(state: &mut ConsensusState) -> Vec<ConsensusResponse> {
