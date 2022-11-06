@@ -205,7 +205,6 @@ impl CommitSequenceVerifier {
                 self.commit_hash = Hash256::hash(format!("{}", b.height + 1));
             }
             (Commit::Transaction(t), Phase::Block) => {
-                verify_validator(&self.header.validator_set, &t.author)?;
                 // Update reserved state for reserved-diff transactions.
                 match &t.diff {
                     Diff::None => {}
@@ -219,7 +218,6 @@ impl CommitSequenceVerifier {
                 };
             }
             (Commit::Transaction(t), Phase::Transaction { transactions }) => {
-                verify_validator(&self.header.validator_set, &t.author)?;
                 // Check if transactions are in chronological order
                 if t.timestamp < transactions.last().unwrap().timestamp {
                     return Err(Error::InvalidArgument(format!(
@@ -239,7 +237,6 @@ impl CommitSequenceVerifier {
                 transactions.push(t.clone());
             }
             (Commit::Agenda(a), Phase::Block) => {
-                verify_validator(&self.header.validator_set, &a.author)?;
                 // Verify agenda without transactions
                 if a.hash != Agenda::calculate_hash(self.header.height, &[]) {
                     return Err(Error::InvalidArgument(format!(
@@ -254,7 +251,6 @@ impl CommitSequenceVerifier {
                 };
             }
             (Commit::Agenda(a), Phase::Transaction { transactions }) => {
-                verify_validator(&self.header.validator_set, &a.author)?;
                 // Check if agenda is in chronological order
                 if !transactions.is_empty() && a.timestamp < transactions.last().unwrap().timestamp
                 {
@@ -309,7 +305,6 @@ impl CommitSequenceVerifier {
             ) => {
                 match t {
                     ExtraAgendaTransaction::Delegate(tx) => {
-                        verify_validator(&self.header.validator_set, &tx.delegator)?;
                         // Update reserved state by applying delegation
                         self.state.apply_delegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid delegation: {}", e))
@@ -320,7 +315,6 @@ impl CommitSequenceVerifier {
                         };
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
-                        verify_validator(&self.header.validator_set, &tx.delegator)?;
                         // Update reserved state by applying undelegation
                         self.state.apply_undelegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid undelegation: {}", e))
@@ -342,7 +336,6 @@ impl CommitSequenceVerifier {
             ) => {
                 match t {
                     ExtraAgendaTransaction::Delegate(tx) => {
-                        verify_validator(&self.header.validator_set, &tx.delegator)?;
                         // Update reserved state by applying delegation
                         self.state.apply_delegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid delegation: {}", e))
@@ -356,7 +349,6 @@ impl CommitSequenceVerifier {
                         *last_extra_agenda_timestamp = tx.timestamp;
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
-                        verify_validator(&self.header.validator_set, &tx.delegator)?;
                         // Update reserved state by applying undelegation
                         self.state.apply_undelegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid undelegation: {}", e))
