@@ -204,11 +204,6 @@ impl CommitSequenceVerifier {
                 self.phase = Phase::Block;
                 self.commit_hash = Hash256::hash(format!("{}", b.height + 1));
             }
-            (Commit::Block(_), Phase::Block) => {
-                return Err(Error::InvalidArgument(
-                    "invalid block commit: block commit already exists".to_string(),
-                ))
-            }
             (Commit::Transaction(t), Phase::Block) => {
                 verify_validator(&self.header.validator_set, &t.author)?;
                 // Update reserved state for reserved-diff transactions.
@@ -281,17 +276,6 @@ impl CommitSequenceVerifier {
                 };
             }
             (
-                Commit::Agenda(_),
-                Phase::Agenda {
-                    agenda: _,
-                    transaction_merkle_root: _,
-                },
-            ) => {
-                return Err(Error::InvalidArgument(
-                    "invalid agenda commit: agenda commit already exists".to_string(),
-                ));
-            }
-            (
                 Commit::AgendaProof(p),
                 Phase::Agenda {
                     agenda,
@@ -315,17 +299,6 @@ impl CommitSequenceVerifier {
                     agenda_proof: p.clone(),
                     transaction_merkle_root: *transaction_merkle_root,
                 };
-            }
-            (
-                Commit::AgendaProof(_),
-                Phase::AgendaProof {
-                    agenda_proof: _,
-                    transaction_merkle_root: _,
-                },
-            ) => {
-                return Err(Error::InvalidArgument(
-                    "invalid agenda proof commit : agenda proof commit already exists".to_string(),
-                ));
             }
             (
                 Commit::ExtraAgendaTransaction(t),
