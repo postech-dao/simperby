@@ -36,7 +36,16 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
             h2.previous_hash
         )));
     }
-    verify_validator(&h1.validator_set, &h2.author)?;
+    if !h1
+        .validator_set
+        .iter()
+        .any(|(public_key, _)| public_key == &h2.author)
+    {
+        return Err(Error::InvalidArgument(format!(
+            "invalid author: {} is not in the validator set",
+            h2.author
+        )));
+    }
     if h2.timestamp <= h1.timestamp {
         return Err(Error::InvalidArgument(format!(
             "invalid timestamp: expected larger than {}, got {}",
@@ -44,20 +53,6 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
         )));
     }
     verify_finalization_proof(h1, &h2.prev_block_finalization_proof)?;
-    Ok(())
-}
-
-/// Verifies whether the given participant is agenda validator.
-pub fn verify_validator(
-    validator_set: &[(PublicKey, VotingPower)],
-    participant: &PublicKey,
-) -> Result<(), Error> {
-    if !validator_set.iter().any(|(pk, _)| pk == participant) {
-        return Err(Error::InvalidArgument(format!(
-            "invalid validator: {} is not in the validator set",
-            participant
-        )));
-    }
     Ok(())
 }
 
