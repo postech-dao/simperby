@@ -107,7 +107,7 @@ pub trait RawRepository: Send + Sync + 'static {
         &mut self,
         commit_message: &str,
         diff: Option<&str>,
-        branch: &Branch, //TODO: will be removed
+        branch: &Branch, // TODO: will be removed
     ) -> Result<CommitHash, Error>;
 
     /// Creates a semantic commit from the currently checked out branch.
@@ -180,9 +180,9 @@ pub trait RawRepository: Send + Sync + 'static {
         commit_hash2: &CommitHash,
     ) -> Result<CommitHash, Error>;
 
-    // ----------------------------
+    // ----------------------
     // Remote-related methods
-    // ----------------------------
+    // ----------------------
 
     /// Adds a remote repository.
     async fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error>;
@@ -210,11 +210,8 @@ pub struct CurRepository {
     repo: Repository,
 }
 
-//TODO: Error handling and its messages
+/// TODO: Error handling and its messages
 impl CurRepository {
-    /// Initialize the genesis repository from the genesis working tree.
-    ///
-    /// Fails if there is already a repository.
     fn init(
         directory: &str,
         init_commit_message: &str,
@@ -232,10 +229,10 @@ impl CurRepository {
                 opts.initial_head(init_commit_branch.as_str());
                 let repo = Repository::init_opts(directory, &opts).map_err(Error::from)?;
                 {
-                    //create initial empty commit
+                    // Create initial empty commit
                     let mut config = repo.config().map_err(Error::from)?;
-                    config.set_str("user.name", "name").map_err(Error::from)?; //TODO: user.name value
-                    config.set_str("user.email", "email").map_err(Error::from)?; //TODO: user.email value
+                    config.set_str("user.name", "name").map_err(Error::from)?; // TODO: user.name value
+                    config.set_str("user.email", "email").map_err(Error::from)?; // TODO: user.email value
                     let mut index = repo.index().map_err(Error::from)?;
                     let id = index.write_tree().map_err(Error::from)?;
                     let sig = repo.signature().map_err(Error::from)?;
@@ -251,7 +248,6 @@ impl CurRepository {
         }
     }
 
-    /// Loads an exisitng repository.
     fn open(directory: &str) -> Result<Self, Error>
     where
         Self: Sized,
@@ -261,11 +257,6 @@ impl CurRepository {
         Ok(Self { repo })
     }
 
-    // ----------------------
-    // Branch-related methods
-    // ----------------------
-
-    /// Returns the list of branches.
     fn list_branches(&self) -> Result<Vec<Branch>, Error> {
         let branches = self
             .repo
@@ -287,12 +278,11 @@ impl CurRepository {
             .collect::<Result<Vec<Branch>, Error>>()
     }
 
-    /// Creates a branch on the commit.
     fn create_branch(&self, branch_name: &Branch, commit_hash: CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
         let commit = self.repo.find_commit(oid).map_err(Error::from)?;
 
-        //if force true and branch already exists, it replaces with new one
+        // TODO: Test if force true and verify new branch is created
         let _branch = self
             .repo
             .branch(branch_name.as_str(), &commit, false)
@@ -301,7 +291,6 @@ impl CurRepository {
         Ok(())
     }
 
-    /// Gets the commit that the branch points to.
     fn locate_branch(&self, branch: &Branch) -> Result<CommitHash, Error> {
         let branch = self
             .repo
@@ -317,19 +306,17 @@ impl CurRepository {
         Ok(CommitHash { hash })
     }
 
-    /// Gets the list of branches from the commit.
     fn get_branches(&self, _commit_hash: &CommitHash) -> Result<Vec<Branch>, Error> {
         unimplemented!()
     }
 
-    /// Moves the branch.
     fn move_branch(&mut self, branch: &Branch, commit_hash: &CommitHash) -> Result<(), Error> {
         let mut git2_branch = self
             .repo
             .find_branch(branch, BranchType::Local)
             .map_err(Error::from)?;
         let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
-        let reflog_msg = ""; //TODO: reflog_msg
+        let reflog_msg = ""; // TODO: reflog_msg
         let reference = git2_branch.get_mut();
         let _set_branch =
             git2::Reference::set_target(reference, oid, reflog_msg).map_err(Error::from)?;
@@ -337,7 +324,6 @@ impl CurRepository {
         Ok(())
     }
 
-    /// Deletes the branch.
     fn delete_branch(&mut self, branch: &Branch) -> Result<(), Error> {
         let mut git2_branch = self
             .repo
@@ -361,13 +347,7 @@ impl CurRepository {
         }
     }
 
-    // -------------------
-    // Tag-related methods
-    // -------------------
-
-    /// Returns the list of tags.
     fn list_tags(&self) -> Result<Vec<Tag>, Error> {
-        //pattern defines what tags you want to get
         let tag_array = self.repo.tag_names(None).map_err(Error::from)?;
 
         let tag_list = tag_array
@@ -384,7 +364,6 @@ impl CurRepository {
         tag_list
     }
 
-    /// Creates a tag on the given commit.
     fn create_tag(&mut self, tag: &Tag, commit_hash: &CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
 
@@ -393,7 +372,6 @@ impl CurRepository {
             .find_object(oid, Some(ObjectType::Commit))
             .map_err(Error::from)?;
 
-        //if force true and tag already exists, it replaces with new one
         let _lightweight_tag = self
             .repo
             .tag_lightweight(tag.as_str(), &object, true)
@@ -402,7 +380,6 @@ impl CurRepository {
         Ok(())
     }
 
-    /// Gets the commit that the tag points to.
     fn locate_tag(&self, tag: &Tag) -> Result<CommitHash, Error> {
         let reference = self
             .repo
@@ -418,25 +395,19 @@ impl CurRepository {
         Ok(commit_hash)
     }
 
-    /// Gets the tags on the given commit.
     fn get_tag(&self, _commit_hash: &CommitHash) -> Result<Vec<Tag>, Error> {
         unimplemented!()
     }
 
-    /// Removes the tag.
     fn remove_tag(&mut self, tag: &Tag) -> Result<(), Error> {
         self.repo.tag_delete(tag.as_str()).map_err(Error::from)
     }
-    // ----------------------
-    // Commit-related methods
-    // ----------------------
 
-    /// Create a commit from the currently checked out branch.
     fn create_commit(
         &mut self,
         commit_message: &str,
         _diff: Option<&str>,
-        branch: &Branch, //TODO: will be removed
+        branch: &Branch, // TODO: This will be removed
     ) -> Result<CommitHash, Error> {
         let mut index = self.repo.index().unwrap();
         let id = index.write_tree().unwrap();
@@ -465,35 +436,25 @@ impl CurRepository {
 
         Ok(CommitHash { hash })
 
-        //TODO: change all to make commit using "diff"
+        // TODO: Change all to make commit using "diff"
     }
 
-    /// Creates a semantic commit from the currently checked out branch.
     fn create_semantic_commit(&mut self, _commit: SemanticCommit) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    /// Reads the reserved state from the current working tree.
     fn read_semantic_commit(&self, _commit_hash: &CommitHash) -> Result<SemanticCommit, Error> {
         unimplemented!()
     }
 
-    /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     fn run_garbage_collection(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    // ----------------------------
-    // Working-tree-related methods
-    // ----------------------------
-
-    /// Checkouts and cleans the current working tree.
-    /// This is same as `git checkout . && git clean -fd`.
     fn checkout_clean(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Checkouts to the branch.
     fn checkout(&mut self, branch: &Branch) -> Result<(), Error> {
         let obj = self
             .repo
@@ -509,7 +470,6 @@ impl CurRepository {
         Ok(())
     }
 
-    /// Checkouts to the commit and make `HEAD` in a detached mode.
     fn checkout_detach(&mut self, commit_hash: &CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
 
@@ -518,11 +478,6 @@ impl CurRepository {
         Ok(())
     }
 
-    // ---------------
-    // Various queries
-    // ---------------
-
-    /// Returns the commit hash of the current HEAD.
     fn get_head(&self) -> Result<CommitHash, Error> {
         let ref_head = self.repo.head().map_err(Error::from)?;
         let oid = ref_head
@@ -534,20 +489,17 @@ impl CurRepository {
         Ok(CommitHash { hash })
     }
 
-    /// Returns the commit hash of the initial commit.
-    ///
-    /// Fails if the repository is empty.
     fn get_initial_commit(&self) -> Result<CommitHash, Error> {
-        //check if the repository is empty
+        // Check if the repository is empty
+        // TODO: Replace this with repo.empty()
         let _head = self
             .repo
             .head()
-            .map_err(|_| Error::InvalidRepository("Repository is empty".to_string()))?;
+            .map_err(|_| Error::InvalidRepository("repository is empty".to_string()))?;
 
-        //TODO: A revwalk allows traversal of the commit graph defined by including one or
-        //      more leaves and excluding one or more roots.
-        //      --> revwalk can make error if there exists one or more roots...
-        //if not
+        // TODO: A revwalk allows traversal of the commit graph defined by including one or
+        //       more leaves and excluding one or more roots.
+        //       --> revwalk can make error if there exists one or more roots...
         let mut revwalk = self.repo.revwalk()?;
 
         revwalk.push_head().map_err(Error::from)?;
@@ -560,22 +512,17 @@ impl CurRepository {
             .collect::<Result<Vec<Oid>, git2::Error>>()
             .map_err(Error::from)?;
         println!("{:?}", oids.len());
-        //TODO: what if oids[0] not exist?
+        // TODO: What if oids[0] not exist?
         let hash = <[u8; 20]>::try_from(oids[0].as_bytes())
             .map_err(|_| Error::Unknown("err".to_string()))?;
 
         Ok(CommitHash { hash })
     }
 
-    /// Returns the diff of the given commit.
     fn show_commit(&self, _commit_hash: &CommitHash) -> Result<String, Error> {
         unimplemented!()
     }
 
-    /// Lists the ancestor commits of the given commit (The first element is the direct parent).
-    ///
-    /// It fails if there is a merge commit.
-    /// * `max`: the maximum number of entries to be returned.
     fn list_ancestors(
         &self,
         commit_hash: &CommitHash,
@@ -587,9 +534,9 @@ impl CurRepository {
         revwalk.push(oid).map_err(Error::from)?;
         revwalk
             .set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)
-            .map_err(Error::from)?; //TODO: should be tested
+            .map_err(Error::from)?; // TODO: revwalk should be tested
 
-        //compare max and ancestor's size
+        // Compare max and ancestor's size
         let oids: Vec<Oid> = revwalk
             .by_ref()
             .collect::<Result<Vec<Oid>, git2::Error>>()
@@ -599,7 +546,7 @@ impl CurRepository {
 
         let oids_ancestor = if let Some(num_max) = max {
             for &oid in oids.iter().take(num_max) {
-                //TODO: Check first one should be commit_hash
+                // TODO: Check first one should be commit_hash
                 let commit = self.repo.find_commit(oid).map_err(Error::from)?;
                 let num_parents = commit.parents().len();
 
@@ -608,15 +555,15 @@ impl CurRepository {
                         "There exists a merge commit".to_string(),
                     ));
                 }
-                //TODO: should check current commit's parent == oids[next]
+                // TODO: Should check current commit's parent == oids[next]
             }
             oids[0..num_max].to_vec()
         } else {
-            //if max==None
+            // If max is None
             let mut i = 0;
 
             loop {
-                //TODO: Check first one should be commit_hash
+                // TODO: Check first one should be commit_hash
                 let commit = self.repo.find_commit(oids[i]).map_err(Error::from)?;
                 let num_parents = commit.parents().len();
 
@@ -625,7 +572,7 @@ impl CurRepository {
                         "There exists a merge commit".to_string(),
                     ));
                 }
-                //TODO: should check current commit's parent == oids[next]
+                // TODO: Should check current commit's parent == oids[next]
                 if num_parents == 0 {
                     break;
                 }
@@ -648,10 +595,6 @@ impl CurRepository {
         ancestors
     }
 
-    /// Lists the descendant commits of the given commit (The first element is the direct child).
-    ///
-    /// It fails if there are diverged commits (i.e., having multiple children commit)
-    /// * `max`: the maximum number of entries to be returned.
     fn list_descendants(
         &self,
         _commit_hash: &CommitHash,
@@ -660,12 +603,10 @@ impl CurRepository {
         unimplemented!()
     }
 
-    /// Returns the children commits of the given commit.
     fn list_children(&self, _commit_hash: &CommitHash) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
-    /// Returns the merge base of the two commits.
     fn find_merge_base(
         &self,
         commit_hash1: &CommitHash,
@@ -685,11 +626,6 @@ impl CurRepository {
         })
     }
 
-    // ----------------------------
-    // Remote-related methods
-    // ----------------------------
-
-    /// Adds a remote repository.
     fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error> {
         let _remote = self
             .repo
@@ -699,21 +635,16 @@ impl CurRepository {
         Ok(())
     }
 
-    /// Removes a remote repository.
     fn remove_remote(&mut self, remote_name: &str) -> Result<(), Error> {
         self.repo.remote_delete(remote_name).map_err(Error::from)?;
 
         Ok(())
     }
 
-    /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
     fn fetch_all(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Lists all the remote repositories.
-    ///
-    /// Returns `(remote_name, remote_url)`.
     fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
         let remote_array = self.repo.remotes().map_err(Error::from)?;
 
@@ -747,9 +678,6 @@ impl CurRepository {
         res
     }
 
-    /// Lists all the remote tracking branches.
-    ///
-    /// Returns `(remote_name, remote_url, commit_hash)`
     fn list_remote_tracking_branches(&self) -> Result<Vec<(String, String, CommitHash)>, Error> {
         unimplemented!()
     }
@@ -761,9 +689,6 @@ pub struct RawRepositoryImpl {
 
 #[async_trait]
 impl RawRepository for RawRepositoryImpl {
-    /// Initialize the genesis repository from the genesis working tree.
-    ///
-    /// Fails if there is already a repository.
     async fn init(
         directory: &str,
         init_commit_message: &str,
@@ -779,7 +704,6 @@ impl RawRepository for RawRepositoryImpl {
         Ok(Self { inner })
     }
 
-    // Loads an exisitng repository.
     async fn open(directory: &str) -> Result<Self, Error>
     where
         Self: Sized,
@@ -790,11 +714,6 @@ impl RawRepository for RawRepositoryImpl {
         Ok(Self { inner })
     }
 
-    // ----------------------
-    // Branch-related methods
-    // ----------------------
-
-    /// Returns the list of branches.
     async fn list_branches(&self) -> Result<Vec<Branch>, Error> {
         let mut lock = self.inner.lock().await;
         let inner = lock.take().expect("RawRepoImpl invariant violated");
@@ -805,7 +724,6 @@ impl RawRepository for RawRepositoryImpl {
         result
     }
 
-    /// Creates a branch on the commit.
     async fn create_branch(
         &self,
         _branch_name: &Branch,
@@ -814,17 +732,14 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Gets the commit that the branch points to.
     async fn locate_branch(&self, _branch: &Branch) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    /// Gets the list of branches from the commit.
     async fn get_branches(&self, _commit_hash: &CommitHash) -> Result<Vec<Branch>, Error> {
         unimplemented!()
     }
 
-    /// Moves the branch.
     async fn move_branch(
         &mut self,
         _branch: &Branch,
@@ -833,45 +748,30 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Deletes the branch.
     async fn delete_branch(&mut self, _branch: &Branch) -> Result<(), Error> {
         unimplemented!()
     }
 
-    // -------------------
-    // Tag-related methods
-    // -------------------
-
-    /// Returns the list of tags.
     async fn list_tags(&self) -> Result<Vec<Tag>, Error> {
         unimplemented!()
     }
 
-    /// Creates a tag on the given commit.
     async fn create_tag(&mut self, _tag: &Tag, _commit_hash: &CommitHash) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Gets the commit that the tag points to.
     async fn locate_tag(&self, _tag: &Tag) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    /// Gets the tags on the given commit.
     async fn get_tag(&self, _commit_hash: &CommitHash) -> Result<Vec<Tag>, Error> {
         unimplemented!()
     }
 
-    /// Removes the tag.
     async fn remove_tag(&mut self, _tag: &Tag) -> Result<(), Error> {
         unimplemented!()
     }
 
-    // ----------------------
-    // Commit-related methods
-    // ----------------------
-
-    /// Creates a commit from the currently checked out branch.
     async fn create_commit(
         &mut self,
         _commit_message: &str,
@@ -881,7 +781,6 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Creates a semantic commit from the currently checked out branch.
     async fn create_semantic_commit(
         &mut self,
         _commit: SemanticCommit,
@@ -889,7 +788,6 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Reads the reserved state from the current working tree.
     async fn read_semantic_commit(
         &self,
         _commit_hash: &CommitHash,
@@ -897,56 +795,34 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     async fn run_garbage_collection(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    // ----------------------------
-    // Working-tree-related methods
-    // ----------------------------
-
-    /// Checkouts and cleans the current working tree.
-    /// This is same as `git checkout . && git clean -fd`.
     async fn checkout_clean(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Checkouts to the branch.
     async fn checkout(&mut self, _branch: &Branch) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Checkouts to the commit and make `HEAD` in a detached mode.
     async fn checkout_detach(&mut self, _commit_hash: &CommitHash) -> Result<(), Error> {
         unimplemented!()
     }
 
-    // ---------------
-    // Various queries
-    // ---------------
-
-    /// Returns the commit hash of the current HEAD.
     async fn get_head(&self) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    /// Returns the commit hash of the initial commit.
-    ///
-    /// Fails if the repository is empty.
     async fn get_initial_commit(&self) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    /// Returns the diff of the given commit.
     async fn show_commit(&self, _commit_hash: &CommitHash) -> Result<String, Error> {
         unimplemented!()
     }
 
-    /// Lists the ancestor commits of the given commit (The first element is the direct parent).
-    ///
-    /// It fails if there is a merge commit.
-    /// * `max`: the maximum number of entries to be returned.
     async fn list_ancestors(
         &self,
         _commit_hash: &CommitHash,
@@ -955,10 +831,6 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Lists the descendant commits of the given commit (The first element is the direct child).
-    ///
-    /// It fails if there are diverged commits (i.e., having multiple children commit)
-    /// * `max`: the maximum number of entries to be returned.
     async fn list_descendants(
         &self,
         _commit_hash: &CommitHash,
@@ -967,12 +839,10 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    /// Returns the children commits of the given commit.
     async fn list_children(&self, _commit_hash: &CommitHash) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
-    /// Returns the merge base of the two commits.
     async fn find_merge_base(
         &self,
         _commit_hash1: &CommitHash,
@@ -981,35 +851,22 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    // ----------------------------
-    // Remote-related methods
-    // ----------------------------
-
-    /// Adds a remote repository.
     async fn add_remote(&mut self, _remote_name: &str, _remote_url: &str) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Removes a remote repository.
     async fn remove_remote(&mut self, _remote_name: &str) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
     async fn fetch_all(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
 
-    /// Lists all the remote repositories.
-    ///
-    /// Returns `(remote_name, remote_url)`.
     async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
         unimplemented!()
     }
 
-    /// Lists all the remote tracking branches.
-    ///
-    /// Returns `(remote_name, remote_url, commit_hash)`
     async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error> {
@@ -1018,15 +875,14 @@ impl RawRepository for RawRepositoryImpl {
 }
 
 #[cfg(test)]
-
 mod tests {
     use crate::raw::Error;
     use crate::raw::{RawRepository, RawRepositoryImpl};
     use std::path::Path;
     use tempfile::TempDir;
 
-    //make a repository which includes one initial commit at "main" branch
-    //this returns CurRepository containing the repository
+    /// Make a repository which includes one initial commit at "main" branch.
+    /// This returns CurRepository containing the repository.
     async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepositoryImpl, Error> {
         let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &("main".to_owned()))
             .await
@@ -1035,7 +891,7 @@ mod tests {
         Ok(repo)
     }
 
-    //initialize repository with empty commit and empty branch
+    /// Initialize repository with empty commit and empty branch.
     #[ignore]
     #[tokio::test]
     async fn init() {
@@ -1060,7 +916,7 @@ mod tests {
         );
     }
 
-    //open existed repository and verifies whether it opens well
+    /// Open existed repository and verifies whether it opens well.
     #[ignore]
     #[tokio::test]
     async fn open() {
@@ -1084,8 +940,8 @@ mod tests {
         |
        c1 (branch_1)
     */
-    //create "branch_1" at c1, create c2 at "main" branch, move "branch_1" head from c1 to c2
-    //finally, "branch_1" is removed
+    /// Create "branch_1" at c1, create c2 at "main" branch and move "branch_1" head from c1 to c2.
+    /// Finally, "branch_1" is removed.
     #[ignore]
     #[tokio::test]
     async fn branch() {
@@ -1093,18 +949,18 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //there is one branch "main" at initial state
+        // There is one branch "main" at initial state
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list.len(), 1);
         assert_eq!(branch_list[0], "main".to_owned());
 
-        //git branch branch_1
+        // git branch branch_1
         let head = repo.get_head().await.unwrap();
         repo.create_branch(&("branch_1".to_owned()), head)
             .await
             .unwrap();
 
-        //branch_list is sorted by branch names' alphabetic order
+        // "branch_list" is sorted by branch names' alphabetic order
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list.len(), 2);
         assert_eq!(branch_list[0], "branch_1".to_owned());
@@ -1113,13 +969,13 @@ mod tests {
         let branch_1_commit_hash = repo.locate_branch(&("branch_1".to_owned())).await.unwrap();
         assert_eq!(branch_1_commit_hash, head);
 
-        //make second commit with "main" branch
+        // Make second commit with "main" branch
         let _commit = repo
             .create_commit("second", Some(""), &("main".to_owned()))
             .await
             .unwrap();
 
-        //move "branch_1" head to "main" head
+        // Move "branch_1" head to "main" head
         let main_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         repo.move_branch(&("branch_1".to_owned()), &main_commit_hash)
             .await
@@ -1127,13 +983,13 @@ mod tests {
         let branch_1_commit_hash = repo.locate_branch(&("branch_1".to_owned())).await.unwrap();
         assert_eq!(main_commit_hash, branch_1_commit_hash);
 
-        //remove "branch_1" and the remaining branch should be only "main"
+        // Remove "branch_1" and the remaining branch should be only "main"
         repo.delete_branch(&("branch_1".to_owned())).await.unwrap();
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list.len(), 1);
         assert_eq!(branch_list[0], "main".to_owned());
 
-        //TODO: match
+        // TODO: Change match if possible
         let remove_main = repo.delete_branch(&("main".to_owned())).await;
         let res = match remove_main {
             Ok(_) => "success".to_owned(),
@@ -1142,7 +998,7 @@ mod tests {
         assert_eq!(res, "failure".to_owned());
     }
 
-    //create a tag and remove it
+    /// Create a tag and remove it.
     #[ignore]
     #[tokio::test]
     async fn tag() {
@@ -1150,11 +1006,11 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //there is no tags at initial state
+        // There is no tags at initial state
         let tag_list = repo.list_tags().await.unwrap();
         assert_eq!(tag_list.len(), 0);
 
-        //create "tag_1" at first commit
+        // Create "tag_1" at first commit
         let first_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         repo.create_tag(&("tag_1".to_owned()), &first_commit_hash)
             .await
@@ -1166,7 +1022,7 @@ mod tests {
         let tag_1_commit_hash = repo.locate_tag(&("tag_1".to_owned())).await.unwrap();
         assert_eq!(first_commit_hash, tag_1_commit_hash);
 
-        //remove "tag_1"
+        // Remove "tag_1"
         repo.remove_tag(&("tag_1".to_owned())).await.unwrap();
         let tag_list = repo.list_tags().await.unwrap();
         assert_eq!(tag_list.len(), 0);
@@ -1179,7 +1035,7 @@ mod tests {
         |
         c1 (branch_1)       c1 (HEAD -> branch_1) c1 (branch_1)               c1 (branch_1)
     */
-    //checkout to each commits with different branches
+    /// Checkout to each commits with different branches.
     #[ignore]
     #[tokio::test]
     async fn checkout() {
@@ -1187,8 +1043,8 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //TODO: should change after "create_commit" is changed
-        //create branch_1 at c1 and commit c2
+        // TODO: Should change after "create_commit" is changed
+        // Create branch_1 at c1 and commit c2
         let first_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         repo.create_branch(&("branch_1".to_owned()), first_commit_hash)
             .await
@@ -1197,7 +1053,7 @@ mod tests {
             .create_commit("second", Some(""), &("branch_1".to_owned()))
             .await
             .unwrap();
-        //create branch_2 at c2 and commit c3
+        // Create branch_2 at c2 and commit c3
         let second_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         repo.create_branch(&("branch_2".to_owned()), second_commit_hash)
             .await
@@ -1211,8 +1067,8 @@ mod tests {
         let second_commit_hash = repo.locate_branch(&("branch_2".to_owned())).await.unwrap();
         let third_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
 
-        //checkout to branch_1, branch_2, main sequentially
-        //compare the head's commit hash after checkout with each branch's commit hash
+        // Checkout to branch_1, branch_2, main sequentially
+        // Compare the head's commit hash after checkout with each branch's commit hash
         repo.checkout(&("branch_1".to_owned())).await.unwrap();
         let head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(head_commit_hash, first_commit_hash);
@@ -1229,7 +1085,7 @@ mod tests {
          |                 -->   |
         c1                      c1 (HEAD)
     */
-    //checkout to commit and set "HEAD" to the detached mode
+    /// Checkout to commit and set "HEAD" to the detached mode.
     #[ignore]
     #[tokio::test]
     async fn checkout_detach() {
@@ -1237,29 +1093,30 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //there is one branch "main" at initial state
+        // There is one branch "main" at initial state
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list.len(), 1);
         assert_eq!(branch_list[0], "main".to_owned());
 
         let commit1 = repo.get_head().await.unwrap();
-        //make second commit with "main" branch
+        // Make second commit with "main" branch
         let _commit = repo
             .create_commit("second", Some(""), &("main".to_owned()))
             .await
             .unwrap();
 
-        //checkout to commit1 and set HEAD detached mode
+        // Checkout to commit1 and set HEAD detached mode
         repo.checkout_detach(&commit1).await.unwrap();
 
         let cur_head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(cur_head_commit_hash, commit1);
 
-        //TODO: create a function of getting head name(see below)
-        //this means the current head is at a detached mode,
-        //otherwise this should be "refs/heads/main"
-        //let cur_head_name = repo.head().unwrap().name().unwrap().to_string();
-        //assert_eq!(cur_head_name, "HEAD");
+        // TODO: Create a function of getting head name(see below).
+        // This means the current head is at a detached mode,
+        // otherwise this should be "refs/heads/main".
+        //
+        // let cur_head_name = repo.head().unwrap().name().unwrap().to_string();
+        // assert_eq!(cur_head_name, "HEAD");
     }
 
     /*
@@ -1269,8 +1126,8 @@ mod tests {
         |
         c1
     */
-    //get initial commit
-    //TODO: currently fails due to revparse
+    /// Get initial commit.
+    /// TODO: Currently fails due to revparse
     #[ignore]
     #[tokio::test]
     async fn initial_commit() {
@@ -1278,7 +1135,7 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //create branch_1, branch_2 and commits
+        // Create branch_1, branch_2 and commits
         let first_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         println!("{:?}", first_commit_hash);
         let _commit = repo
@@ -1295,6 +1152,7 @@ mod tests {
         let initial_commit_hash = repo.get_initial_commit().await.unwrap();
         assert_eq!(initial_commit_hash, first_commit_hash);
     }
+
     /*
         c3 (HEAD -> main)
         |
@@ -1302,8 +1160,8 @@ mod tests {
         |
         c1
     */
-    //get ancestors of c3 which are [c2, c1] in the linear commit above
-    //TODO: currently fails due to revparse
+    /// Get ancestors of c3 which are [c2, c1] in the linear commit above.
+    /// TODO: Currently fails due to revparse
     #[ignore]
     #[tokio::test]
     async fn ancestor() {
@@ -1317,10 +1175,10 @@ mod tests {
             .await
             .unwrap();
         let second_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
-        //make second commit at "main" branch
+        // Make second commit at "main" branch
         let third_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
 
-        //get only one ancestor(direct parent)
+        // Get only one ancestor(direct parent)
         let ancestors = repo
             .list_ancestors(&third_commit_hash, Some(1))
             .await
@@ -1328,7 +1186,7 @@ mod tests {
         assert_eq!(ancestors.len(), 1);
         assert_eq!(ancestors[0], second_commit_hash);
 
-        //get two ancestors with max 2
+        // Get two ancestors with max 2
         let ancestors = repo
             .list_ancestors(&third_commit_hash, Some(2))
             .await
@@ -1337,13 +1195,13 @@ mod tests {
         assert_eq!(ancestors[0], second_commit_hash);
         assert_eq!(ancestors[1], first_commit_hash);
 
-        //get all ancestors
+        // Get all ancestors
         let ancestors = repo.list_ancestors(&third_commit_hash, None).await.unwrap();
         assert_eq!(ancestors.len(), 2);
         assert_eq!(ancestors[0], second_commit_hash);
         assert_eq!(ancestors[1], first_commit_hash);
 
-        //TODO: if max num > the number of ancestors
+        // TODO: If max num > the number of ancestors
     }
 
     /*
@@ -1352,7 +1210,7 @@ mod tests {
          | /
         c1 (main)
     */
-    //make three commits at different branches and the merge base of (c2,c3) would be c1
+    /// Make three commits at different branches and the merge base of (c2,c3) would be c1.
     #[ignore]
     #[tokio::test]
     async fn merge_base() {
@@ -1360,7 +1218,7 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //create "branch_a" and "branch_b" branches at c1
+        // Create "branch_a" and "branch_b" branches at c1
         {
             let commit_hash1 = repo.locate_branch(&("main".to_owned())).await.unwrap();
             repo.create_branch(&("branch_a".to_owned()), commit_hash1)
@@ -1370,20 +1228,20 @@ mod tests {
                 .await
                 .unwrap();
         }
-        //make a commit at "branch_a" branch
+        // Make a commit at "branch_a" branch
         repo.checkout(&("branch_a".to_owned())).await.unwrap();
         let _commit = repo
             .create_commit("branch_a", Some(""), &("branch_a".to_owned()))
             .await
             .unwrap();
-        //make a commit at "branch_b" branch
+        // Make a commit at "branch_b" branch
         repo.checkout(&("branch_b".to_owned())).await.unwrap();
         let _commit = repo
             .create_commit("branch_b", Some(""), &("branch_b".to_owned()))
             .await
             .unwrap();
 
-        //make merge base of (c2,c3)
+        // Make merge base of (c2,c3)
         let commit_hash1 = repo.locate_branch(&("main".to_owned())).await.unwrap();
         let commit_hash_a = repo.locate_branch(&("branch_a".to_owned())).await.unwrap();
         let commit_hash_b = repo.locate_branch(&("branch_b".to_owned())).await.unwrap();
@@ -1392,11 +1250,11 @@ mod tests {
             .await
             .unwrap();
 
-        //the merge base of (c2,c3) should be c1
+        // The merge base of (c2,c3) should be c1
         assert_eq!(merge_base, commit_hash1);
     }
 
-    //add remote repository and remove it
+    /// add remote repository and remove it.
     #[ignore]
     #[tokio::test]
     async fn remote() {
@@ -1404,7 +1262,7 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        //add dummy remote
+        // Add dummy remote
         repo.add_remote("origin", "/path/to/nowhere").await.unwrap();
 
         let remote_list = repo.list_remotes().await.unwrap();
@@ -1412,7 +1270,7 @@ mod tests {
         assert_eq!(remote_list[0].0, "origin".to_owned());
         assert_eq!(remote_list[0].1, "/path/to/nowhere".to_owned());
 
-        //remove dummy remote
+        // Remove dummy remote
         repo.remove_remote("origin").await.unwrap();
         let remote_list = repo.list_remotes().await.unwrap();
         assert_eq!(remote_list.len(), 0);
