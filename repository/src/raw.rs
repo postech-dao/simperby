@@ -107,7 +107,6 @@ pub trait RawRepository: Send + Sync + 'static {
         &mut self,
         commit_message: &str,
         diff: Option<&str>,
-        branch: &Branch, // TODO: will be removed
     ) -> Result<CommitHash, Error>;
 
     /// Creates a semantic commit from the currently checked out branch.
@@ -206,12 +205,12 @@ pub trait RawRepository: Send + Sync + 'static {
     ) -> Result<Vec<(String, String, CommitHash)>, Error>;
 }
 
-pub struct CurRepository {
+pub struct RawRepositoryImplInner {
     repo: Repository,
 }
 
 /// TODO: Error handling and its messages
-impl CurRepository {
+impl RawRepositoryImplInner {
     fn init(
         directory: &str,
         init_commit_message: &str,
@@ -407,7 +406,6 @@ impl CurRepository {
         &mut self,
         commit_message: &str,
         _diff: Option<&str>,
-        branch: &Branch, // TODO: This will be removed
     ) -> Result<CommitHash, Error> {
         let mut index = self.repo.index().unwrap();
         let id = index.write_tree().unwrap();
@@ -415,8 +413,8 @@ impl CurRepository {
         let sig = self.repo.signature().unwrap();
         let tree = self.repo.find_tree(id).unwrap();
 
-        let parent_commit_hash = self.locate_branch(branch).map_err(Error::from)?;
-        let parent_oid = git2::Oid::from_bytes(&parent_commit_hash.hash).map_err(Error::from)?;
+        let head = self.get_head()?;
+        let parent_oid = git2::Oid::from_bytes(&head.hash).map_err(Error::from)?;
         let parent_commit = self.repo.find_commit(parent_oid).map_err(Error::from)?;
 
         let oid = self
@@ -684,7 +682,7 @@ impl CurRepository {
 }
 
 pub struct RawRepositoryImpl {
-    inner: tokio::sync::Mutex<Option<CurRepository>>,
+    inner: tokio::sync::Mutex<Option<RawRepositoryImplInner>>,
 }
 
 #[async_trait]
@@ -697,7 +695,7 @@ impl RawRepository for RawRepositoryImpl {
     where
         Self: Sized,
     {
-        let repo = CurRepository::init(directory, init_commit_message, init_commit_branch)
+        let repo = RawRepositoryImplInner::init(directory, init_commit_message, init_commit_branch)
             .map_err(Error::from)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
@@ -708,7 +706,7 @@ impl RawRepository for RawRepositoryImpl {
     where
         Self: Sized,
     {
-        let repo = CurRepository::open(directory).map_err(Error::from)?;
+        let repo = RawRepositoryImplInner::open(directory).map_err(Error::from)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
@@ -776,7 +774,6 @@ impl RawRepository for RawRepositoryImpl {
         &mut self,
         _commit_message: &str,
         _diff: Option<&str>,
-        _branch: &Branch, //TODO: will be removed
     ) -> Result<CommitHash, Error> {
         unimplemented!()
     }
@@ -882,7 +879,7 @@ mod tests {
     use tempfile::TempDir;
 
     /// Make a repository which includes one initial commit at "main" branch.
-    /// This returns CurRepository containing the repository.
+    /// This returns RawRepositoryImpl containing the repository.
     async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepositoryImpl, Error> {
         let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &("main".to_owned()))
             .await
@@ -936,9 +933,9 @@ mod tests {
     }
 
     /*
-       c2 (HEAD -> main)
-        |
-       c1 (branch_1)
+       c2 (HEAD -> main)      c2 (HEAD -> main, branch_1)     c2 (HEAD -> main)
+       |                -->   |                          -->  |
+       c1 (branch_1)          c1                              c1
     */
     /// Create "branch_1" at c1, create c2 at "main" branch and move "branch_1" head from c1 to c2.
     /// Finally, "branch_1" is removed.
@@ -970,10 +967,7 @@ mod tests {
         assert_eq!(branch_1_commit_hash, head);
 
         // Make second commit with "main" branch
-        let _commit = repo
-            .create_commit("second", Some(""), &("main".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("second", Some("")).await.unwrap();
 
         // Move "branch_1" head to "main" head
         let main_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
@@ -990,6 +984,7 @@ mod tests {
         assert_eq!(branch_list[0], "main".to_owned());
 
         // TODO: Change match if possible
+        // This fails since current HEAD points at "main" branch
         let remove_main = repo.delete_branch(&("main".to_owned())).await;
         let res = match remove_main {
             Ok(_) => "success".to_owned(),
@@ -1030,9 +1025,9 @@ mod tests {
 
     /*
         c3 (HEAD -> main)   c3 (HEAD -> main)     c3 (main)                   c3 (HEAD -> main)
-        |
+        |                   |                     |                           |
         c2 (branch_2)  -->  c2 (branch_2)  -->    c2 (HEAD -> branch_2)  -->  c2 (branch_2)
-        |
+        |                   |                     |                           |
         c1 (branch_1)       c1 (HEAD -> branch_1) c1 (branch_1)               c1 (branch_1)
     */
     /// Checkout to each commits with different branches.
@@ -1049,19 +1044,13 @@ mod tests {
         repo.create_branch(&("branch_1".to_owned()), first_commit_hash)
             .await
             .unwrap();
-        let _commit = repo
-            .create_commit("second", Some(""), &("branch_1".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("second", Some("")).await.unwrap();
         // Create branch_2 at c2 and commit c3
         let second_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         repo.create_branch(&("branch_2".to_owned()), second_commit_hash)
             .await
             .unwrap();
-        let _commit = repo
-            .create_commit("third", Some(""), &("branch_2".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("third", Some("")).await.unwrap();
 
         let first_commit_hash = repo.locate_branch(&("branch_1".to_owned())).await.unwrap();
         let second_commit_hash = repo.locate_branch(&("branch_2".to_owned())).await.unwrap();
@@ -1100,10 +1089,7 @@ mod tests {
 
         let commit1 = repo.get_head().await.unwrap();
         // Make second commit with "main" branch
-        let _commit = repo
-            .create_commit("second", Some(""), &("main".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("second", Some("")).await.unwrap();
 
         // Checkout to commit1 and set HEAD detached mode
         repo.checkout_detach(&commit1).await.unwrap();
@@ -1138,15 +1124,9 @@ mod tests {
         // Create branch_1, branch_2 and commits
         let first_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         println!("{:?}", first_commit_hash);
-        let _commit = repo
-            .create_commit("second", Some(""), &("main".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("second", Some("")).await.unwrap();
         println!("{:?}", _commit);
-        let _commit = repo
-            .create_commit("third", Some(""), &("main".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("third", Some("")).await.unwrap();
         println!("{:?}", _commit);
 
         let initial_commit_hash = repo.get_initial_commit().await.unwrap();
@@ -1170,10 +1150,7 @@ mod tests {
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
         let first_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
-        let _commit = repo
-            .create_commit("second", Some(""), &("main".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("second", Some("")).await.unwrap();
         let second_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
         // Make second commit at "main" branch
         let third_commit_hash = repo.locate_branch(&("main".to_owned())).await.unwrap();
@@ -1230,16 +1207,10 @@ mod tests {
         }
         // Make a commit at "branch_a" branch
         repo.checkout(&("branch_a".to_owned())).await.unwrap();
-        let _commit = repo
-            .create_commit("branch_a", Some(""), &("branch_a".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("branch_a", Some("")).await.unwrap();
         // Make a commit at "branch_b" branch
         repo.checkout(&("branch_b".to_owned())).await.unwrap();
-        let _commit = repo
-            .create_commit("branch_b", Some(""), &("branch_b".to_owned()))
-            .await
-            .unwrap();
+        let _commit = repo.create_commit("branch_b", Some("")).await.unwrap();
 
         // Make merge base of (c2,c3)
         let commit_hash1 = repo.locate_branch(&("main".to_owned())).await.unwrap();
