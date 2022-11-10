@@ -127,7 +127,7 @@ pub enum ConsensusResponse {
 }
 
 /// An immutable set of information that is used to perform the consensus for a single height.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct HeightInfo {
     /// The list of voting powers sorted by the leader order.
     ///
@@ -148,7 +148,7 @@ pub struct HeightInfo {
     pub initial_block_candidate: BlockIdentifier,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 enum ConsensusStep {
     Initial,
     Propose,
@@ -158,7 +158,7 @@ enum ConsensusStep {
 
 /// prevote_total and precommit_total are the sum of casted voting power
 /// for prevote and precommit step, respectively
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
 struct Votes {
     prevotes_total: VotingPower,
     prevotes_favor: BTreeMap<BlockIdentifier, VotingPower>,
@@ -170,7 +170,7 @@ struct Votes {
 /// prevote/precommit history stores locked vote for veryfing did it really lock the value at that round
 /// Some(BlockIdentifier) means validator already broadcasted BlockIdentifier
 /// None means validator broadcasted NilPrevote/NilPrecommit
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ConsensusState {
     step: ConsensusStep,
     round: Round,
