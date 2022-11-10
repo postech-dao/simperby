@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use simperby_common::*;
 use simperby_network::{
-    dms::{DistributedMessageSet as DMS, Message},
+    dms::{DistributedMessageSet as DMS, Message, MessageFilter},
     primitives::{GossipNetwork, Storage},
     NetworkConfig, Peer, SharedKnownPeers,
 };
@@ -21,6 +21,14 @@ struct Vote {
     pub agenda_hash: Hash256,
     pub voter: PublicKey,
     pub signature: Signature,
+}
+
+pub struct GovernanceMessageFilter;
+
+impl MessageFilter for GovernanceMessageFilter {
+    fn filter(&self, _message: &Message) -> Result<(), String> {
+        unimplemented!()
+    }
 }
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
