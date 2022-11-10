@@ -42,6 +42,11 @@ impl ToHash256 for Message {
     }
 }
 
+/// Decides whether a message should be accepted or not.
+pub trait MessageFilter: Send + Sync + 'static {
+    fn filter(&self, message: &Message) -> Result<(), String>;
+}
+
 /// A message before verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RawMessage {
@@ -162,6 +167,7 @@ async fn fetch<S: Storage>(
     storage: Arc<RwLock<S>>,
     _network_config: &NetworkConfig,
     known_peers: &[Peer],
+    filter: &dyn MessageFilter,
 ) -> Result<(), Error> {
     let mut tasks = Vec::new();
     let messages = read_messages(&*storage.read().await).await?;
@@ -194,6 +200,7 @@ async fn fetch<S: Storage>(
             let mut storage = storage.write().await;
             for message in messages {
                 let message = message.into_message()?;
+                filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
                 add_message_but_not_broadcast(&mut *storage, message).await?;
             }
             Result::<(), Error>::Ok(())
@@ -207,6 +214,14 @@ async fn fetch<S: Storage>(
         }
     }
     Ok(())
+}
+
+struct DummyFilter;
+
+impl MessageFilter for DummyFilter {
+    fn filter(&self, _message: &Message) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// A **cumulative** set that is shared in the p2p network, backed by the local file system.
@@ -224,6 +239,7 @@ async fn fetch<S: Storage>(
 pub struct DistributedMessageSet<N, S> {
     storage: Arc<RwLock<S>>,
     config: Config,
+    filter: Arc<dyn MessageFilter>,
     _marker: std::marker::PhantomData<N>,
 }
 
@@ -264,8 +280,21 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(Self {
             storage: Arc::new(RwLock::new(storage)),
             config,
+            filter: Arc::new(DummyFilter),
             _marker: std::marker::PhantomData,
         })
+    }
+
+    /// Returns the underlying storage.
+    ///
+    /// This is useful when you want to store extra messages under the same file lock
+    /// while not broadcasting them.
+    pub fn get_storage(&self) -> Arc<RwLock<S>> {
+        Arc::clone(&self.storage)
+    }
+
+    pub fn set_filter(&mut self, filter: Arc<dyn MessageFilter>) {
+        self.filter = filter;
     }
 
     /// Fetches the unknown messages from the peers and updates the storage.
@@ -274,7 +303,13 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         _network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error> {
-        fetch(Arc::clone(&self.storage), _network_config, known_peers).await
+        fetch(
+            Arc::clone(&self.storage),
+            _network_config,
+            known_peers,
+            self.filter.as_ref(),
+        )
+        .await
     }
 
     /// Adds the given message to the storage, immediately broadcasting it to the network.
@@ -336,15 +371,26 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         let storage_ = Arc::clone(&self.storage);
         let peers_ = peers.clone();
         let network_config_ = network_config.clone();
+        let filter = Arc::clone(&self.filter);
         let fetch_task = async move {
             let interval = if let Some(x) = self.config.fetch_interval {
                 x
             } else {
+                // No fetch task!
                 return Result::<(), Error>::Ok(());
             };
             loop {
                 let peers = peers_.read().await;
-                fetch(Arc::clone(&storage_), &network_config_, &peers).await?;
+                if let Err(e) = fetch(
+                    Arc::clone(&storage_),
+                    &network_config_,
+                    &peers,
+                    filter.as_ref(),
+                )
+                .await
+                {
+                    log::warn!("failed to parse message from the gossip network: {}", e);
+                }
                 tokio::time::sleep(interval).await;
             }
         };
@@ -377,17 +423,19 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             }
         };
         let storage_ = Arc::clone(&self.storage);
+        let filter = Arc::clone(&self.filter);
         let gossip_serve_task = async move {
             while let Some(m) = recv.0.recv().await {
-                match serde_json::from_slice::<RawMessage>(&m) {
-                    Ok(raw_message) => {
-                        let message = raw_message.into_message()?;
-                        add_message_but_not_broadcast(&mut *storage_.write().await, message)
-                            .await?;
-                    }
-                    Err(e) => {
-                        log::warn!("failed to parse message from the gossip network: {}", e);
-                    }
+                let result = async {
+                    let message: RawMessage = serde_json::from_slice(&m)?;
+                    let message = message.into_message()?;
+                    filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
+                    add_message_but_not_broadcast(&mut *storage_.write().await, message).await?;
+                    Result::<(), anyhow::Error>::Ok(())
+                }
+                .await;
+                if let Err(e) = result {
+                    log::warn!("failed receive a message from the gossip network: {}", e);
                 }
             }
             Result::<(), Error>::Ok(())
