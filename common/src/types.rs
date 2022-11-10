@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub type VotingPower = u64;
 /// A UNIX timestamp measured in milliseconds.
-pub type Timestamp = u64;
+pub type Timestamp = i64;
 /// A block height. The genesis block is at height 0.
 pub type BlockHeight = u64;
 pub type ConsensusRound = u64;
