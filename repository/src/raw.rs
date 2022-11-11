@@ -345,7 +345,7 @@ impl RawRepositoryImplInner {
 
         if &current_branch == branch {
             Err(Error::InvalidRepository(
-                ("Given branch is currently checkout branch").to_string(),
+                ("given branch is currently checkout branch").to_string(),
             ))
         } else {
             git2_branch.delete().map_err(Error::from)
@@ -957,9 +957,11 @@ mod tests {
 
         // git branch branch_a
         let head = repo.get_head().await.unwrap();
-        repo.create_branch(&BRANCH_A.into(), head).await.unwrap();
+        repo.create_branch(&BRANCH_A.into(), head)
+            .await
+            .unwrap();
 
-        // "branch_list" is sorted by branch names' alphabetic order
+        // "branch_list" is sorted by the name of the branches in an alphabetic order
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list, vec![BRANCH_A.to_owned(), MAIN.to_owned()]);
 
@@ -1033,15 +1035,11 @@ mod tests {
         // TODO: Should change after "create_commit" is changed
         // Create branch_a at c1 and commit c2
         let first_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_branch(&BRANCH_A.into(), first_commit_hash)
-            .await
-            .unwrap();
+        repo.create_branch(&BRANCH_A.into(), first_commit_hash).await.unwrap();
         let _commit = repo.create_commit("second", Some("")).await.unwrap();
         // Create branch_b at c2 and commit c3
         let second_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_branch(&BRANCH_B.into(), second_commit_hash)
-            .await
-            .unwrap();
+        repo.create_branch(&BRANCH_B.into(), second_commit_hash).await.unwrap();
         let _commit = repo.create_commit("third", Some("")).await.unwrap();
 
         let first_commit_hash = repo.locate_branch(&BRANCH_A.into()).await.unwrap();
@@ -1181,12 +1179,8 @@ mod tests {
         // Create "branch_a" and "branch_b" branches at c1
         {
             let commit_hash1 = repo.locate_branch(&MAIN.into()).await.unwrap();
-            repo.create_branch(&BRANCH_A.into(), commit_hash1)
-                .await
-                .unwrap();
-            repo.create_branch(&BRANCH_B.into(), commit_hash1)
-                .await
-                .unwrap();
+            repo.create_branch(&BRANCH_A.into(), commit_hash1).await.unwrap();
+            repo.create_branch(&BRANCH_B.into(), commit_hash1).await.unwrap();
         }
         // Make a commit at "branch_a" branch
         repo.checkout(&BRANCH_A.into()).await.unwrap();
@@ -1220,10 +1214,7 @@ mod tests {
         repo.add_remote("origin", "/path/to/nowhere").await.unwrap();
 
         let remote_list = repo.list_remotes().await.unwrap();
-        assert_eq!(
-            remote_list,
-            vec![("origin".to_owned(), "/path/to/nowhere".to_owned())]
-        );
+        assert_eq!(remote_list, vec![("origin".to_owned(), "/path/to/nowhere".to_owned())]);
 
         // Remove dummy remote
         repo.remove_remote("origin").await.unwrap();
