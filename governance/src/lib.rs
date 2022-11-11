@@ -8,6 +8,7 @@ use simperby_network::{
 use std::collections::{HashMap, HashSet};
 
 pub type Error = anyhow::Error;
+const STATE_FILE_NAME: &str = "state.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceState {
@@ -25,19 +26,38 @@ struct Vote {
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
+    pub state: GovernanceState,
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
-    pub async fn create(_dms: DMS<N, S>, _height: BlockHeight) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn create(dms: DMS<N, S>, height: BlockHeight) -> Result<(), Error> {
+        dms.get_storage()
+            .write()
+            .await
+            .add_or_overwrite_file(
+                STATE_FILE_NAME,
+                serde_json::to_string(&GovernanceState {
+                    votes: HashMap::new(),
+                    height,
+                })?,
+            )
+            .await?;
+        Ok(())
     }
 
-    pub async fn open(_dms: DMS<N, S>) -> Result<Self, Error> {
-        unimplemented!()
+    pub async fn open(dms: DMS<N, S>) -> Result<Self, Error> {
+        let state = serde_json::from_str(
+            &dms.get_storage()
+                .read()
+                .await
+                .read_file(STATE_FILE_NAME)
+                .await?,
+        )?;
+        Ok(Self { dms, state })
     }
 
     pub async fn read(&self) -> Result<GovernanceState, Error> {
-        unimplemented!()
+        Ok(self.state.clone())
     }
 
     pub async fn vote(
@@ -65,16 +85,26 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     /// Advances the block height, discarding all the votes.
-    pub async fn advance(&mut self, _height_to_assert: BlockHeight) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn advance(&mut self, height_to_assert: BlockHeight) -> Result<(), Error> {
+        let height: BlockHeight = self.dms.read_height().await?;
+        if height != height_to_assert {
+            return Err(anyhow::anyhow!(
+                "the height of the governance state is not the expected one: {} != {}",
+                height,
+                height_to_assert
+            ));
+        }
+        self.dms.advance().await?;
+        Ok(())
     }
 
     pub async fn fetch(
         &mut self,
-        _network_config: &NetworkConfig,
-        _known_peers: &[Peer],
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
     ) -> Result<(), Error> {
-        unimplemented!()
+        self.dms.fetch(network_config, known_peers).await?;
+        Ok(())
     }
 
     /// Serves the governance protocol indefinitely.
