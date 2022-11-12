@@ -124,7 +124,7 @@ enum Phase {
 pub struct CommitSequenceVerifier {
     header: BlockHeader,
     phase: Phase,
-    state: ReservedState,
+    reserved_state: ReservedState,
     commit_hash: Hash256,
 }
 
@@ -134,11 +134,11 @@ impl CommitSequenceVerifier {
         Ok(Self {
             header: start_header.clone(),
             phase: Phase::Block,
-            state: reserved_state,
+            reserved_state,
             commit_hash: Hash256::hash(format!("{}", start_header.height + 1)),
         })
     }
-    /// Verifies the given commit and updates the internal state of CommitSequenceVerifier.
+    /// Verifies the given commit and updates the internal reserved_state of CommitSequenceVerifier.
     pub fn apply_commit(&mut self, commit: &Commit) -> Result<(), Error> {
         match (commit, &mut self.phase) {
             (
@@ -201,12 +201,12 @@ impl CommitSequenceVerifier {
                 self.commit_hash = Hash256::hash(format!("{}", block_header.height + 1));
             }
             (Commit::Transaction(tx), Phase::Block) => {
-                // Update reserved state for reserved-diff transactions.
+                // Update reserved reserved_state for reserved-diff transactions.
                 match &tx.diff {
                     Diff::None => {}
                     Diff::General(_) => {}
                     Diff::Reserved(rs, _) => {
-                        self.state = *rs.clone();
+                        self.reserved_state = *rs.clone();
                     }
                 }
                 self.phase = Phase::Transaction {
@@ -228,12 +228,12 @@ impl CommitSequenceVerifier {
                         last_transaction.timestamp, tx.timestamp
                     )));
                 }
-                // Update reserved state for reserved-diff transactions.
+                // Update reserved reserved_state for reserved-diff transactions.
                 match &tx.diff {
                     Diff::None => {}
                     Diff::General(_) => {}
                     Diff::Reserved(rs, _) => {
-                        self.state = *rs.clone();
+                        self.reserved_state = *rs.clone();
                     }
                 }
                 preceding_transactions.push(last_transaction.clone());
@@ -318,8 +318,8 @@ impl CommitSequenceVerifier {
             ) => {
                 match tx {
                     ExtraAgendaTransaction::Delegate(tx) => {
-                        // Update reserved state by applying delegation
-                        self.state.apply_delegate(tx).map_err(|e| {
+                        // Update reserved reserved_state by applying delegation
+                        self.reserved_state.apply_delegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid delegation: {}", e))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
@@ -328,8 +328,8 @@ impl CommitSequenceVerifier {
                         };
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
-                        // Update reserved state by applying undelegation
-                        self.state.apply_undelegate(tx).map_err(|e| {
+                        // Update reserved reserved_state by applying undelegation
+                        self.reserved_state.apply_undelegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid undelegation: {}", e))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
@@ -349,8 +349,8 @@ impl CommitSequenceVerifier {
             ) => {
                 match tx {
                     ExtraAgendaTransaction::Delegate(tx) => {
-                        // Update reserved state by applying delegation
-                        self.state.apply_delegate(tx).map_err(|e| {
+                        // Update reserved reserved_state by applying delegation
+                        self.reserved_state.apply_delegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid delegation: {}", e))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
@@ -362,8 +362,8 @@ impl CommitSequenceVerifier {
                         *last_extra_agenda_timestamp = tx.timestamp;
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
-                        // Update reserved state by applying undelegation
-                        self.state.apply_undelegate(tx).map_err(|e| {
+                        // Update reserved reserved_state by applying undelegation
+                        self.reserved_state.apply_undelegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid undelegation: {}", e))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
@@ -521,7 +521,7 @@ mod test {
         reserved_state: &mut ReservedState,
         time: Timestamp,
     ) -> Commit {
-        // Update reserved state
+        // Update reserved reserved_state
         validator_keypair.push(generate_keypair([3]));
         reserved_state.members.push(Member {
             public_key: validator_keypair.last().unwrap().0.clone(),
