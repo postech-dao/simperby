@@ -435,7 +435,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                 }
                 .await;
                 if let Err(e) = result {
-                    log::warn!("failed receive a message from the gossip network: {}", e);
+                    log::warn!("failed to receive a message from the gossip network: {}", e);
                 }
             }
             Result::<(), Error>::Ok(())
