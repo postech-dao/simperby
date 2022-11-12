@@ -89,7 +89,7 @@ pub fn verify_finalization_proof(
 //
 // Note that `Phase::X` is agenda phase where `Commit::X` is the last commit.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Phase {
+enum Phase {
     // The transaction phase.
     // Note that there can be agendas without transactions.
     Transaction {
