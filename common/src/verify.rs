@@ -201,7 +201,7 @@ impl CommitSequenceVerifier {
                 self.commit_hash = Hash256::hash(format!("{}", block_header.height + 1));
             }
             (Commit::Transaction(tx), Phase::Block) => {
-                // Update reserved reserved_state for reserved-diff transactions.
+                // Update reserved_state for reserved-diff transactions.
                 if let Diff::Reserved(rs, _) = &tx.diff {
                     self.reserved_state = *rs.clone();
                 }
@@ -224,7 +224,7 @@ impl CommitSequenceVerifier {
                         last_transaction.timestamp, tx.timestamp
                     )));
                 }
-                // Update reserved reserved_state for reserved-diff transactions.
+                // Update reserved_state for reserved-diff transactions.
                 if let Diff::Reserved(rs, _) = &tx.diff {
                     self.reserved_state = *rs.clone();
                 }
