@@ -11,8 +11,8 @@ pub enum Error {
     InvalidProof(String),
     #[error("crypto error: {0}")]
     CryptoError(String, CryptoError),
-    #[error("invalid commit: applied commit type does not match current commit sequence phase")]
-    PhaseMismatch(),
+    #[error("invalid commit: applied {0} commit cannot be applied at {1} phase")]
+    PhaseMismatch(String, String),
 }
 
 /// Verifies whether `h2` can be the direct child of `h1`.
@@ -370,8 +370,11 @@ impl CommitSequenceVerifier {
                 }
             }
             (Commit::ChatLog(_chat_log), _) => todo!(),
-            _ => {
-                return Err(Error::PhaseMismatch());
+            (commit, phase) => {
+                return Err(Error::PhaseMismatch(
+                    format!("{:?}", commit),
+                    format!("{:?}", phase),
+                ));
             }
         }
         self.commit_hash = self.commit_hash.aggregate(&commit.to_hash256());
