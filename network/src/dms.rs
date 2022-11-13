@@ -193,13 +193,13 @@ async fn fetch<S: Storage>(
                 ),
                 reqwest::Client::new(),
             )));
-            let messages = stub
+            let raw_messages = stub
                 .get_message(height, known_messages_)
                 .await?
                 .map_err(|e| anyhow!(e))?;
             let mut storage = storage.write().await;
-            for message in messages {
-                let message = message.into_message()?;
+            for raw_message in raw_messages {
+                let message = raw_message.into_message()?;
                 filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
                 add_message_but_not_broadcast(&mut *storage, message).await?;
             }
