@@ -21,14 +21,14 @@ const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
 pub struct State {
     pub consensus_state: ConsensusState,
     /// The set of messages that have been already updated to the Vetomint state machine.
-    pub updated_message: BTreeSet<Hash256>,
+    pub updated_messages: BTreeSet<Hash256>,
     /// The set of the block hashes that have been verified.
-    pub verified_block_hash: Vec<Hash256>,
+    pub verified_block_hashes: Vec<Hash256>,
     /// The validator set eligible for this block
     pub validator_set: Vec<(PublicKey, VotingPower)>,
-    /// If this node is a particiapnt, the index of this node.
+    /// If this node is a participant, the index of this node.
     pub this_node_index: Option<usize>,
-    /// If true, this every operation on this instance will fail; the user must
+    /// If true, any operation on this instance will fail; the user must
     /// run `create()` to create a new instance.
     pub finalized: bool,
 }
@@ -56,7 +56,7 @@ pub enum ProgressResult {
 }
 
 pub struct ConsensusMessageFilter {
-    /// Note that it is even DESIRABLE to use a synchronous lock in the async context,
+    /// Note that it is even DESIRABLE to use a synchronous lock in the async context
     /// if it is guaranteed that the lock is not held for a long time.
     verified_block_hash: Arc<parking_lot::RwLock<BTreeSet<Hash256>>>,
     validator_set: BTreeSet<PublicKey>,
@@ -66,7 +66,7 @@ impl MessageFilter for ConsensusMessageFilter {
     fn filter(&self, message: &Message) -> Result<(), String> {
         serde_json::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
         if !self.validator_set.contains(message.signature().signer()) {
-            return Err("The signer is not in the validator set".to_string());
+            return Err("the signer is not in the validator set".to_string());
         }
         if self
             .verified_block_hash
@@ -75,7 +75,7 @@ impl MessageFilter for ConsensusMessageFilter {
         {
             Ok(())
         } else {
-            Err("The block hash is not validated yet.".to_string())
+            Err("the block hash is not validated yet.".to_string())
         }
     }
 }
@@ -105,7 +105,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 validator_set
                     .iter()
                     .position(|(pk, _)| *pk == validator_set[key].0)
-                    .ok_or_else(|| anyhow::anyhow!("The validator set does not contain this node."))
+                    .ok_or_else(|| anyhow::anyhow!("the validator set does not contain this node."))
             })
             .transpose()?;
         let height_info = HeightInfo {
@@ -117,8 +117,8 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         };
         let state = State {
             consensus_state: ConsensusState::new(height_info),
-            updated_message: BTreeSet::new(),
-            verified_block_hash: vec![],
+            updated_messages: BTreeSet::new(),
+            verified_block_hashes: vec![],
             validator_set: validator_set.to_vec(),
             finalized: false,
             this_node_index,
@@ -147,7 +147,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     .ok_or_else(|| anyhow::anyhow!("private key is required"))?
                     .public_key()
             {
-                anyhow::bail!("the private key does not match");
+                anyhow::bail!("private key does not match");
             }
         }
         dms.set_filter(Arc::new(ConsensusMessageFilter {
@@ -158,7 +158,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 .map(|(pk, _)| pk.clone())
                 .collect(),
         }));
-
         Ok(Self {
             dms,
             state,
@@ -168,7 +167,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 
     pub async fn register_verified_block_hash(&mut self, hash: Hash256) -> Result<(), Error> {
-        self.state.verified_block_hash.push(hash);
+        self.state.verified_block_hashes.push(hash);
         self.verified_block_hash.write().insert(hash);
         self.dms
             .get_storage()
@@ -224,7 +223,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let messages = self.dms.read_messages().await?;
         let messages = messages
             .into_iter()
-            .filter(|m| !self.state.updated_message.contains(&m.to_hash256()))
+            .filter(|m| !self.state.updated_messages.contains(&m.to_hash256()))
             .collect::<Vec<_>>();
         let mut final_result = Vec::new();
         for message in messages {
@@ -240,7 +239,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 ConsensusMessage::NonNilPreVoted(round, block_hash) => {
                     let index = self
                         .state
-                        .verified_block_hash
+                        .verified_block_hashes
                         .iter()
                         .position(|h| h == &block_hash)
                         .expect("this must be already verified by the message filter");
