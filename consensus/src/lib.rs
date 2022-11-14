@@ -75,7 +75,7 @@ impl MessageFilter for ConsensusMessageFilter {
         {
             Ok(())
         } else {
-            Err("the block hash is not validated yet.".to_string())
+            Err("the block hash is not verified yet.".to_string())
         }
     }
 }
