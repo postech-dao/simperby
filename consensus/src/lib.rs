@@ -58,7 +58,7 @@ pub enum ProgressResult {
 pub struct ConsensusMessageFilter {
     /// Note that it is even DESIRABLE to use a synchronous lock in the async context
     /// if it is guaranteed that the lock is not held for a long time.
-    verified_block_hash: Arc<parking_lot::RwLock<BTreeSet<Hash256>>>,
+    verified_block_hashes: Arc<parking_lot::RwLock<BTreeSet<Hash256>>>,
     validator_set: BTreeSet<PublicKey>,
 }
 
@@ -69,7 +69,7 @@ impl MessageFilter for ConsensusMessageFilter {
             return Err("the signer is not in the validator set".to_string());
         }
         if self
-            .verified_block_hash
+            .verified_block_hashes
             .read()
             .contains(&message.to_hash256())
         {
@@ -87,7 +87,7 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
     /// The set of the block hashes that have been verified, shared by the message filter.
     ///
     /// Note that there is the exactly same copy in the `state`.
-    verified_block_hash: Arc<parking_lot::RwLock<BTreeSet<Hash256>>>,
+    verified_block_hashes: Arc<parking_lot::RwLock<BTreeSet<Hash256>>>,
     /// (If participated) the private key of this node
     this_node_key: Option<PrivateKey>,
 }
@@ -96,18 +96,10 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn create(
         dms: DMS<N, S>,
         validator_set: &[(PublicKey, VotingPower)],
-        this_node_key: Option<usize>,
+        this_node_index: Option<usize>,
         timestamp: Timestamp,
         consensus_params: ConsensusParams,
     ) -> Result<(), Error> {
-        let this_node_index = this_node_key
-            .map(|key| {
-                validator_set
-                    .iter()
-                    .position(|(pk, _)| *pk == validator_set[key].0)
-                    .ok_or_else(|| anyhow::anyhow!("the validator set does not contain this node."))
-            })
-            .transpose()?;
         let height_info = HeightInfo {
             validators: validator_set.iter().map(|(_, v)| *v).collect(),
             this_node_index,
@@ -132,7 +124,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 
     pub async fn new(mut dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
-        let verified_block_hash = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
+        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
         let state = dms
             .get_storage()
             .read()
@@ -151,7 +143,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             }
         }
         dms.set_filter(Arc::new(ConsensusMessageFilter {
-            verified_block_hash: Arc::clone(&verified_block_hash),
+            verified_block_hashes: Arc::clone(&verified_block_hashes),
             validator_set: state
                 .validator_set
                 .iter()
@@ -161,14 +153,14 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(Self {
             dms,
             state,
-            verified_block_hash,
+            verified_block_hashes,
             this_node_key,
         })
     }
 
     pub async fn register_verified_block_hash(&mut self, hash: Hash256) -> Result<(), Error> {
         self.state.verified_block_hashes.push(hash);
-        self.verified_block_hash.write().insert(hash);
+        self.verified_block_hashes.write().insert(hash);
         self.dms
             .get_storage()
             .write()
