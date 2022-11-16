@@ -91,13 +91,12 @@ impl Agenda {
 }
 
 impl BlockHeader {
-    /// Calculates `commit_hash`. Note that it doesn't verify the commits.
-    pub fn calculate_commit_hash(&self, commits: &[Commit]) -> Hash256 {
-        let mut hash = Hash256::hash(format!("{}", self.height));
-        for commit in commits {
-            hash = hash.aggregate(&commit.to_hash256());
-        }
-        hash
+    /// Calculates `commit_merkle_root`. Note that it doesn't verify the commits.
+    pub fn calculate_commit_merkle_root(commits: &[Commit]) -> Hash256 {
+        let merkle_tree = crate::merkle_tree::OneshotMerkleTree::create(
+            commits.iter().map(|x| x.to_hash256()).collect(),
+        );
+        merkle_tree.root()
     }
 
     // note that `repository_merkle_root` is calculated from `simperby-repository`.
