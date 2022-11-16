@@ -129,7 +129,7 @@ impl CommitSequenceVerifier {
     /// Creates agenda new `CommitSequenceVerifier` with the given block header.
     pub fn new(start_header: BlockHeader, reserved_state: ReservedState) -> Result<Self, Error> {
         Ok(Self {
-            header: start_header.clone(),
+            header: start_header,
             phase: Phase::Block,
             reserved_state,
             commits: vec![],
