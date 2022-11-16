@@ -39,12 +39,8 @@ pub struct BlockHeader {
     pub height: BlockHeight,
     /// The timestamp of this block.
     pub timestamp: Timestamp,
-    /// The hash of aggregation of all the commits for this block.
-    pub commit_hash: Hash256,
-    /// The Merkle root of transactions.
-    pub tx_merkle_root: Hash256,
-    /// The Merkle root of the chat log.
-    pub chat_merkle_root: Hash256,
+    /// The Merkle root of all the commits for this block.
+    pub commit_merkle_root: Hash256,
     /// The Merkle root of the non-essential state.
     pub repository_merkle_root: Hash256,
     /// The effective validator set (delegation-applied) for the next block.
