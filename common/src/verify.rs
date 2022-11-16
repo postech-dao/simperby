@@ -356,7 +356,6 @@ mod test {
         validator_keypair
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn generate_block_header(
         validator_keypair: &[(PublicKey, PrivateKey)],
         author_index: usize,
@@ -364,8 +363,7 @@ mod test {
         previous_hash_value: Hash256,
         block_height: BlockHeight,
         time: Timestamp,
-        commit_hash_value: Hash256,
-        tx_merkle_root_value: Hash256,
+        commit_merkle_root_value: Hash256,
     ) -> BlockHeader {
         let validator_set: Vec<(PublicKey, u64)> = validator_keypair
             .iter()
@@ -377,9 +375,7 @@ mod test {
             previous_hash: previous_hash_value,
             height: block_height,
             timestamp: time,
-            commit_hash: commit_hash_value,
-            tx_merkle_root: tx_merkle_root_value,
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: commit_merkle_root_value,
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_set.to_vec(),
             version: "0.0.0".to_string(),
@@ -412,9 +408,7 @@ mod test {
             previous_hash: Hash256::zero(),
             height: 0,
             timestamp: time,
-            commit_hash: Hash256::zero(),
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -533,15 +527,12 @@ mod test {
         finalization_proof
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn generate_block_commit(
         validator_keypair: &[(PublicKey, PrivateKey)],
         author_index: usize,
         previous_header: BlockHeader,
         time: Timestamp,
-        commit_hash_value: Hash256,
-        tx_merkle_root_value: Hash256,
-        chat_merkle_root_value: Hash256,
+        commit_merkle_root_value: Hash256,
         repository_merkle_root_value: Hash256,
     ) -> Commit {
         Commit::Block(BlockHeader {
@@ -553,9 +544,7 @@ mod test {
             previous_hash: Commit::Block(previous_header.clone()).to_hash256(),
             height: previous_header.height + 1,
             timestamp: time,
-            commit_hash: commit_hash_value,
-            tx_merkle_root: tx_merkle_root_value,
-            chat_merkle_root: chat_merkle_root_value,
+            commit_merkle_root: commit_merkle_root_value,
             repository_merkle_root: repository_merkle_root_value,
             validator_set: validator_keypair
                 .iter()
@@ -581,8 +570,7 @@ mod test {
             Hash256::zero(),
             0,
             0,
-            Hash256::zero(),
-            Hash256::zero(),
+            OneshotMerkleTree::create(vec![]).root(),
         );
         let reserved_state: ReservedState = generate_reserved_state(&validator_keypair, 0, 0);
         let csv: CommitSequenceVerifier =
@@ -697,9 +685,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 2,
             timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -739,9 +725,7 @@ mod test {
             previous_hash: Hash256::zero(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -781,9 +765,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -823,9 +805,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 0,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -868,15 +848,13 @@ mod test {
                     csv.header.to_hash256(),
                     csv.header.height + 1,
                     2,
-                    csv.commit_hash,
-                    Hash256::zero(),
+                    OneshotMerkleTree::create(vec![]).root(),
                 ),
             ),
             csv.header.to_hash256(),
             csv.header.height + 1,
             2,
-            csv.commit_hash,
-            Hash256::zero(),
+            OneshotMerkleTree::create(vec![]).root(),
         )))
         .unwrap_err();
     }
@@ -913,9 +891,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -927,8 +903,8 @@ mod test {
     }
 
     #[test]
-    /// Test the case where the block commit is invalid because the transaction merkle root is invalid.
-    fn invalid_block_commit_with_invalid_transaction_merkle_root() {
+    /// Test the case where the block commit is invalid because the commit merkle root is invalid.
+    fn invalid_block_commit_with_invalid_commit_merkle_root() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
         let agenda_hash_value = calculate_agenda_hash(csv.phase.clone(), csv.header.height);
@@ -945,7 +921,7 @@ mod test {
             agenda_hash_value,
         ))
         .unwrap();
-        // Apply block commit with invalid transaction merkle root
+        // Apply block commit with invalid commit merkle root
         csv.apply_commit(&Commit::Block(BlockHeader {
             author: validator_keypair[0].0.clone(),
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
@@ -955,57 +931,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_hash: csv.commit_hash,
-            tx_merkle_root: OneshotMerkleTree::create(vec![generate_empty_transaction_commit(
-                &validator_keypair,
-                0,
-                0,
-            )
-            .to_hash256()])
-            .root(),
-            chat_merkle_root: Hash256::zero(),
-            repository_merkle_root: Hash256::zero(),
-            validator_set: validator_keypair
-                .iter()
-                .map(|(public_key, _)| (public_key.clone(), 1))
-                .collect(),
-            version: "0.0.0".to_string(),
-        }))
-        .unwrap_err();
-    }
-
-    #[test]
-    /// Test the case where the block commit is invalid because the commit hash is invalid.
-    fn invalid_block_commit_with_invalid_commit_hash() {
-        let (validator_keypair, _, mut csv) = setup_test(3);
-        // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone(), csv.header.height);
-        let agenda: Agenda = Agenda {
-            author: validator_keypair[0].0.clone(),
-            timestamp: 1,
-            hash: agenda_hash_value,
-        };
-        csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
-        // Apply agenda-proof commit
-        csv.apply_commit(&generate_agenda_proof_commit(
-            &validator_keypair,
-            &agenda,
-            agenda_hash_value,
-        ))
-        .unwrap();
-        // Apply block commit with invalid commit hash
-        csv.apply_commit(&Commit::Block(BlockHeader {
-            author: validator_keypair[0].0.clone(),
-            prev_block_finalization_proof: generate_unanimous_finalization_proof(
-                &validator_keypair,
-                &csv.header,
-            ),
-            previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
-            height: csv.header.height + 1,
-            timestamp: 2,
-            commit_hash: Hash256::zero(),
-            tx_merkle_root: OneshotMerkleTree::create(vec![]).root(),
-            chat_merkle_root: Hash256::zero(),
+            commit_merkle_root: OneshotMerkleTree::create(vec![]).root(),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -1026,9 +952,7 @@ mod test {
             0,
             csv.header.clone(),
             1,
-            Hash256::zero(),
-            Hash256::zero(),
-            Hash256::zero(),
+            OneshotMerkleTree::create(vec![]).root(),
             Hash256::zero(),
         ))
         .unwrap_err();
@@ -1047,9 +971,7 @@ mod test {
             0,
             csv.header.clone(),
             2,
-            Hash256::zero(),
-            Hash256::zero(),
-            Hash256::zero(),
+            OneshotMerkleTree::create(vec![]).root(),
             Hash256::zero(),
         ))
         .unwrap_err();
@@ -1090,9 +1012,7 @@ mod test {
             0,
             csv.header.clone(),
             5,
-            Hash256::zero(),
-            Hash256::zero(),
-            Hash256::zero(),
+            OneshotMerkleTree::create(vec![]).root(),
             Hash256::zero(),
         ))
         .unwrap_err();
