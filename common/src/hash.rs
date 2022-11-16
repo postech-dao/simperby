@@ -100,17 +100,5 @@ impl BlockHeader {
         hash
     }
 
-    pub fn calculate_tx_merkle_root(transactions: &[Transaction]) -> Hash256 {
-        let merkle_tree = crate::merkle_tree::OneshotMerkleTree::create(
-            transactions.iter().map(|x| x.to_hash256()).collect(),
-        );
-        merkle_tree.root()
-    }
-
-    pub fn calculate_chat_merkle_root(&self, _chat_logs: &[ChatLog]) -> Hash256 {
-        // TODO
-        Hash256::zero()
-    }
-
     // note that `repository_merkle_root` is calculated from `simperby-repository`.
 }
