@@ -61,7 +61,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         unimplemented!()
     }
 
-    /// Returns the reserved state from the `main` branch.
+    /// Returns the reserved state from the `finalized` branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
         unimplemented!()
     }
