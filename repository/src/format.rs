@@ -9,7 +9,7 @@ pub fn to_semantic_commit(commit: &Commit, last_header: &BlockHeader) -> Semanti
             SemanticCommit {
                 title,
                 body,
-                reserved_state: None,
+                diff: Diff::None,
             }
         }
         _ => todo!(),
