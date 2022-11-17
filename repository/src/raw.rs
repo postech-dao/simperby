@@ -30,13 +30,12 @@ impl From<git2::Error> for Error {
     }
 }
 
-/// A commit without any diff on non-reserved area.
+/// A commit without information of diff on non-reserved area.
 #[derive(Debug, Clone)]
 pub struct SemanticCommit {
     pub title: String,
     pub body: String,
-    /// (If this commit made any change) the new reserved state.
-    pub reserved_state: Option<ReservedState>,
+    pub diff: Diff,
 }
 
 #[async_trait]
