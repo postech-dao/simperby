@@ -353,8 +353,8 @@ fn start_round(
     state.timeout_precommit = None;
     let proposer = decide_proposer(round, &state.height_info);
     if Some(proposer) == state.height_info.this_node_index {
-        let proposal = if state.valid_value.is_some() {
-            state.valid_value.unwrap()
+        let proposal = if let Some(x) = state.valid_value {
+            x
         } else {
             state.waiting_for_proposal_creation = true;
             state.block_candidate
@@ -372,10 +372,10 @@ fn on_proposal(
     state: &mut ConsensusState,
     round: Round,
 ) -> Vec<ConsensusResponse> {
-    let this_node_voting_power = if state.height_info.this_node_index.is_none() {
-        0
+    let this_node_voting_power = if let Some(x) = state.height_info.this_node_index {
+        state.height_info.validators[x]
     } else {
-        state.height_info.validators[state.height_info.this_node_index.unwrap()]
+        0
     };
     let mut response: Vec<ConsensusResponse> = Vec::new();
 
