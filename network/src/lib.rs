@@ -1,4 +1,5 @@
 pub mod dms;
+pub mod gossip;
 mod peer_discovery;
 pub mod primitives;
 pub mod storage;

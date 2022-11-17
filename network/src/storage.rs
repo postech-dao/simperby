@@ -89,6 +89,48 @@ impl Drop for StorageImpl {
     }
 }
 
+/// TODO: implement it
+#[derive(Debug)]
+pub struct InMemoryStorage {}
+
+#[async_trait]
+impl Storage for InMemoryStorage {
+    async fn create(_storage_directory: &str) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    async fn open(_storage_directory: &str) -> Result<Self, StorageError>
+    where
+        Self: Sized,
+    {
+        Ok(Self {})
+    }
+
+    async fn list_files(&self) -> Result<Vec<String>, StorageError> {
+        Ok(vec![])
+    }
+
+    async fn add_or_overwrite_file(
+        &mut self,
+        _name: &str,
+        _content: String,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    async fn read_file(&self, _name: &str) -> Result<String, StorageError> {
+        Ok("".to_owned())
+    }
+
+    async fn remove_file(&mut self, _name: &str) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    async fn remove_all_files(&mut self) -> Result<(), StorageError> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
