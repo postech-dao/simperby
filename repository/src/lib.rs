@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
-use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
+use simperby_network::{
+    primitives::{GossipNetwork, Storage},
+    NetworkConfig, Peer, SharedKnownPeers,
+};
 use std::fmt;
 
 pub type Branch = String;
@@ -37,8 +40,10 @@ pub type Error = anyhow::Error;
 ///
 /// - It **verifies** all the incoming changes and applies them to the local repository
 /// only if they are valid.
-pub struct DistributedRepository<T> {
+pub struct DistributedRepository<N: GossipNetwork, S: Storage, T: RawRepository<N, S>> {
     raw: T,
+    _marker1: std::marker::PhantomData<N>,
+    _marker2: std::marker::PhantomData<S>,
 }
 
 fn get_timestamp() -> Timestamp {
@@ -47,7 +52,7 @@ fn get_timestamp() -> Timestamp {
     since_the_epoch.as_millis() as Timestamp
 }
 
-impl<T: RawRepository> DistributedRepository<T> {
+impl<N: GossipNetwork, S: Storage, T: RawRepository<N, S>> DistributedRepository<N, S, T> {
     pub async fn new(_raw: T) -> Result<Self, Error> {
         unimplemented!()
     }

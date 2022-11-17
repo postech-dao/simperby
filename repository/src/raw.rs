@@ -4,6 +4,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use git2::{BranchType, ObjectType, Oid, Repository, RepositoryInitOptions};
 use simperby_common::reserved::ReservedState;
+use simperby_network::{
+    dms::{DistributedMessageSet as DMS, Message},
+    primitives::{GossipNetwork, Storage},
+    NetworkConfig, Peer, SharedKnownPeers,
+};
 use std::convert::TryFrom;
 use std::str;
 use thiserror::Error;
@@ -35,11 +40,12 @@ pub struct SemanticCommit {
 }
 
 #[async_trait]
-pub trait RawRepository: Send + Sync + 'static {
+pub trait RawRepository<N: GossipNetwork, S: Storage>: Send + Sync + 'static {
     /// Initialize the genesis repository from the genesis working tree.
     ///
     /// Fails if there is already a repository.
     async fn init(
+        dms: DMS<N, S>,
         directory: &str,
         init_commit_message: &str,
         init_commit_branch: &Branch,
@@ -48,7 +54,7 @@ pub trait RawRepository: Send + Sync + 'static {
         Self: Sized;
 
     // Loads an exisitng repository.
-    async fn open(directory: &str) -> Result<Self, Error>
+    async fn open(dms: DMS<N, S>, directory: &str) -> Result<Self, Error>
     where
         Self: Sized;
 
@@ -208,19 +214,22 @@ pub trait RawRepository: Send + Sync + 'static {
     ) -> Result<Vec<(String, String, CommitHash)>, Error>;
 }
 
-impl fmt::Debug for RawRepositoryImplInner {
+impl<N: GossipNetwork, S: Storage> fmt::Debug for RawRepositoryImplInner<N, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "?")
     }
 }
 
-pub struct RawRepositoryImplInner {
+pub struct RawRepositoryImplInner<N: GossipNetwork, S: Storage> {
     repo: Repository,
+    /// Currently only for the file locking.
+    dms: DMS<N, S>,
 }
 
 /// TODO: Error handling and its messages
-impl RawRepositoryImplInner {
+impl<N: GossipNetwork, S: Storage> RawRepositoryImplInner<N, S> {
     fn init(
+        dms: DMS<N, S>,
         directory: &str,
         init_commit_message: &str,
         init_commit_branch: &Branch,
@@ -250,18 +259,18 @@ impl RawRepositoryImplInner {
                         repo.commit(Some("HEAD"), &sig, &sig, init_commit_message, &tree, &[])?;
                 }
 
-                Ok(Self { repo })
+                Ok(Self { repo, dms })
             }
         }
     }
 
-    fn open(directory: &str) -> Result<Self, Error>
+    fn open(dms: DMS<N, S>, directory: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
         let repo = Repository::open(directory)?;
 
-        Ok(Self { repo })
+        Ok(Self { repo, dms })
     }
 
     fn list_branches(&self) -> Result<Vec<Branch>, Error> {
@@ -639,14 +648,16 @@ impl RawRepositoryImplInner {
     }
 }
 
+/// Note that `S` is only for the DMS storage, not the Git file system.
 #[derive(Debug)]
-pub struct RawRepositoryImpl {
-    inner: tokio::sync::Mutex<Option<RawRepositoryImplInner>>,
+pub struct RawRepositoryImpl<N: GossipNetwork, S: Storage> {
+    inner: tokio::sync::Mutex<Option<RawRepositoryImplInner<N, S>>>,
 }
 
 #[async_trait]
-impl RawRepository for RawRepositoryImpl {
+impl<N: GossipNetwork, S: Storage> RawRepository<N, S> for RawRepositoryImpl<N, S> {
     async fn init(
+        dms: DMS<N, S>,
         directory: &str,
         init_commit_message: &str,
         init_commit_branch: &Branch,
@@ -655,17 +666,17 @@ impl RawRepository for RawRepositoryImpl {
         Self: Sized,
     {
         let repo =
-            RawRepositoryImplInner::init(directory, init_commit_message, init_commit_branch)?;
+            RawRepositoryImplInner::init(dms, directory, init_commit_message, init_commit_branch)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
     }
 
-    async fn open(directory: &str) -> Result<Self, Error>
+    async fn open(dms: DMS<N, S>, directory: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        let repo = RawRepositoryImplInner::open(directory)?;
+        let repo = RawRepositoryImplInner::open(dms, directory)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
@@ -836,8 +847,9 @@ impl RawRepository for RawRepositoryImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::raw::Error;
-    use crate::raw::{RawRepository, RawRepositoryImpl};
+    use super::*;
+    use simperby_network::gossip::DummyGossipNetwork;
+    use simperby_network::storage::InMemoryStorage;
     use std::path::Path;
     use tempfile::TempDir;
 
@@ -847,10 +859,33 @@ mod tests {
     const TAG_A: &str = "tag_a";
     const TAG_B: &str = "tag_b";
 
+    async fn create_dms(path: &Path) -> Result<DMS<DummyGossipNetwork, InMemoryStorage>, Error> {
+        let dms_path = format!("{}_dms", path.to_str().unwrap());
+        InMemoryStorage::create(&dms_path).await?;
+        DMS::<DummyGossipNetwork, _>::create(
+            InMemoryStorage::open(&dms_path).await?,
+            0,
+            dms_path.clone(),
+        )
+        .await?;
+        let dms = DMS::open(
+            InMemoryStorage::open(&dms_path).await?,
+            simperby_network::dms::Config {
+                broadcast_interval: None,
+                fetch_interval: None,
+            },
+        )
+        .await?;
+        Ok(dms)
+    }
+
     /// Make a repository which includes one initial commit at "main" branch.
     /// This returns RawRepositoryImpl containing the repository.
-    async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepositoryImpl, Error> {
-        let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+    async fn init_repository_with_initial_commit(
+        path: &Path,
+    ) -> Result<RawRepositoryImpl<DummyGossipNetwork, InMemoryStorage>, Error> {
+        let dms = create_dms(path).await?;
+        let repo = RawRepositoryImpl::init(dms, path.to_str().unwrap(), "initial", &MAIN.into())
             .await
             .unwrap();
 
@@ -863,14 +898,15 @@ mod tests {
     async fn init() {
         let td = TempDir::new().unwrap();
         let path = td.path();
-
-        let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+        let dms = create_dms(path).await.unwrap();
+        let repo = RawRepositoryImpl::init(dms, path.to_str().unwrap(), "initial", &MAIN.into())
             .await
             .unwrap();
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
-        let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+        let dms = create_dms(path).await.unwrap();
+        let repo = RawRepositoryImpl::init(dms, path.to_str().unwrap(), "initial", &MAIN.into())
             .await
             .unwrap_err();
     }
@@ -881,9 +917,10 @@ mod tests {
     async fn open() {
         let td = TempDir::new().unwrap();
         let path = td.path();
+        let dms = create_dms(path).await.unwrap();
 
         let init_repo = init_repository_with_initial_commit(path).await.unwrap();
-        let open_repo = RawRepositoryImpl::open(path.to_str().unwrap())
+        let open_repo = RawRepositoryImpl::open(dms, path.to_str().unwrap())
             .await
             .unwrap();
 

@@ -8,7 +8,9 @@ use simperby_network::NetworkConfig;
 use simperby_repository::raw::RawRepository;
 use simperby_repository::DistributedRepository;
 
-pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
+const DMS_DIRECTORY_PREFIX: &str = "_dms";
+
+pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository<N, S>> {
     config: Config,
     _marker1: std::marker::PhantomData<N>,
     _marker2: std::marker::PhantomData<S>,
@@ -20,7 +22,7 @@ async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
 }
 
 #[async_trait]
-impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
+impl<N: GossipNetwork, S: Storage, R: RawRepository<N, S>> SimperbyApi for Node<N, S, R> {
     async fn genesis(&self) -> Result<()> {
         unimplemented!()
     }
@@ -50,8 +52,22 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     }
 
     async fn vote(&self, agenda_commit: CommitHash) -> Result<()> {
+        let storage = S::open(&format!(
+            "{}{}",
+            self.config.repository_directory, DMS_DIRECTORY_PREFIX
+        ))
+        .await?;
+        let dms = DistributedMessageSet::open(
+            storage,
+            DmsConfig {
+                broadcast_interval: self.config.broadcast_interval_ms.map(Duration::from_millis),
+                fetch_interval: self.config.fetch_interval_ms.map(Duration::from_millis),
+            },
+        )
+        .await?;
         let repo =
-            DistributedRepository::new(R::open(&self.config.repository_directory).await?).await?;
+            DistributedRepository::new(R::open(dms, &self.config.repository_directory).await?)
+                .await?;
         let valid_agendas = repo.get_agendas().await?;
         let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
             x.1
