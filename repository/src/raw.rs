@@ -211,6 +211,11 @@ pub trait RawRepository<N: GossipNetwork, S: Storage>: Send + Sync + 'static {
     async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error>;
+
+    /// Serves a read-only Git server using `git daemon`.
+    async fn serve(self, port: u16) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>
+    where
+        Self: Sized;
 }
 
 impl<N: GossipNetwork, S: Storage> fmt::Debug for RawRepositoryImplInner<N, S> {
@@ -840,6 +845,13 @@ impl<N: GossipNetwork, S: Storage> RawRepository<N, S> for RawRepositoryImpl<N, 
     async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error> {
+        unimplemented!()
+    }
+
+    async fn serve(self, port: u16) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error>
+    where
+        Self: Sized,
+    {
         unimplemented!()
     }
 }
