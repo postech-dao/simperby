@@ -179,6 +179,9 @@ pub trait RawRepository: Send + Sync + 'static {
         commit_hash2: &CommitHash,
     ) -> Result<CommitHash, Error>;
 
+    /// Reads the reserved state from the currently checked out branch.
+    async fn read_reserved_state(&self) -> Result<ReservedState, Error>;
+
     // ----------------------
     // Remote-related methods
     // ----------------------
@@ -801,6 +804,10 @@ impl RawRepository for RawRepositoryImpl {
         _commit_hash1: &CommitHash,
         _commit_hash2: &CommitHash,
     ) -> Result<CommitHash, Error> {
+        unimplemented!()
+    }
+
+    async fn read_reserved_state(&self) -> Result<ReservedState, Error> {
         unimplemented!()
     }
 
