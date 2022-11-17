@@ -48,8 +48,8 @@ fn get_timestamp() -> Timestamp {
 }
 
 impl<T: RawRepository> DistributedRepository<T> {
-    pub async fn new(_raw: T) -> Result<Self, Error> {
-        unimplemented!()
+    pub async fn new(raw: T) -> Result<Self, Error> {
+        Ok(Self { raw })
     }
 
     /// Initializes the genesis repository from the genesis working tree.
