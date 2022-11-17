@@ -82,6 +82,7 @@ impl MessageFilter for ConsensusMessageFilter {
 
 pub struct Consensus<N: GossipNetwork, S: Storage> {
     dms: DMS<N, S>,
+    storage: S,
     /// A cache of the consensus state.
     state: State,
     /// The set of the block hashes that have been verified, shared by the message filter.
@@ -94,7 +95,7 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
 
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn create(
-        dms: DMS<N, S>,
+        mut storage: S,
         validator_set: &[(PublicKey, VotingPower)],
         this_node_index: Option<usize>,
         timestamp: Timestamp,
@@ -115,22 +116,19 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             finalized: false,
             this_node_index,
         };
-        dms.get_storage()
-            .write()
-            .await
+        storage
             .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&state).unwrap())
             .await?;
         Ok(())
     }
 
-    pub async fn new(mut dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
+    pub async fn new(
+        mut dms: DMS<N, S>,
+        storage: S,
+        this_node_key: Option<PrivateKey>,
+    ) -> Result<Self, Error> {
         let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
-        let state = dms
-            .get_storage()
-            .read()
-            .await
-            .read_file(STATE_FILE_NAME)
-            .await?;
+        let state = storage.read_file(STATE_FILE_NAME).await?;
         let state: State = serde_json::from_str(&state)?;
         if let Some(index) = state.this_node_index {
             if state.validator_set[index].0
@@ -152,6 +150,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         }));
         Ok(Self {
             dms,
+            storage,
             state,
             verified_block_hashes,
             this_node_key,
@@ -161,10 +160,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn register_verified_block_hash(&mut self, hash: Hash256) -> Result<(), Error> {
         self.state.verified_block_hashes.push(hash);
         self.verified_block_hashes.write().insert(hash);
-        self.dms
-            .get_storage()
-            .write()
-            .await
+        self.storage
             .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
             .await?;
         Ok(())
@@ -273,6 +269,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             }
             self.state.consensus_state = consensus_state_copy;
         }
+        self.storage
+            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
+            .await?;
         Ok(final_result)
     }
 
