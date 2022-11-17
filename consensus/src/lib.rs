@@ -235,7 +235,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                         .iter()
                         .position(|h| h == &block_hash)
                         .expect("this must be already verified by the message filter");
-                        ConsensusEvent::NonNilPrevote {
+                    ConsensusEvent::NonNilPrevote {
                         proposal: index,
                         signer,
                         round: round as usize,
