@@ -47,14 +47,14 @@ pub enum ConsensusEvent {
         time: Timestamp,
     },
     /// Informs that the node has received a block prevote.
-    Prevote {
+    NonNilPrevote {
         proposal: BlockIdentifier,
         signer: ValidatorIndex,
         round: Round,
         time: Timestamp,
     },
     /// Informs that the node has received a block precommit.
-    Precommit {
+    NonNilPrecommit {
         proposal: BlockIdentifier,
         signer: ValidatorIndex,
         round: Round,
@@ -83,8 +83,8 @@ impl ConsensusEvent {
             ConsensusEvent::Start { time, .. } => *time,
             ConsensusEvent::BlockProposalReceived { time, .. } => *time,
             ConsensusEvent::BlockCandidateUpdated { time, .. } => *time,
-            ConsensusEvent::Prevote { time, .. } => *time,
-            ConsensusEvent::Precommit { time, .. } => *time,
+            ConsensusEvent::NonNilPrevote { time, .. } => *time,
+            ConsensusEvent::NonNilPrecommit { time, .. } => *time,
             ConsensusEvent::NilPrevote { time, .. } => *time,
             ConsensusEvent::NilPrecommit { time, .. } => *time,
             ConsensusEvent::Timer { time, .. } => *time,
@@ -103,11 +103,11 @@ pub enum ConsensusResponse {
         proposal: BlockIdentifier,
         round: Round,
     },
-    BroadcastPrevote {
+    BroadcastNonNilPrevote {
         proposal: BlockIdentifier,
         round: Round,
     },
-    BroadcastPrecommit {
+    BroadcastNonNilPrecommit {
         proposal: BlockIdentifier,
         round: Round,
     },
