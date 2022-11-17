@@ -77,6 +77,3 @@ pub trait PeerDiscovery {
     /// Reads the known peers from the storage.
     async fn read_known_peers(storage_directory: &str) -> Result<Vec<Peer>, Error>;
 }
-
-// TODO: remove this
-pub trait AuthorizedNetwork: Send + Sync {}
