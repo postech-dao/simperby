@@ -232,20 +232,19 @@ impl RawRepositoryImplInner {
             Err(_e) => {
                 let mut opts = RepositoryInitOptions::new();
                 opts.initial_head(init_commit_branch.as_str());
-                let repo = Repository::init_opts(directory, &opts).map_err(Error::from)?;
+                let repo = Repository::init_opts(directory, &opts)?;
                 {
                     // Create initial empty commit
-                    let mut config = repo.config().map_err(Error::from)?;
-                    config.set_str("user.name", "name").map_err(Error::from)?; // TODO: user.name value
-                    config.set_str("user.email", "email").map_err(Error::from)?; // TODO: user.email value
-                    let mut index = repo.index().map_err(Error::from)?;
-                    let id = index.write_tree().map_err(Error::from)?;
-                    let sig = repo.signature().map_err(Error::from)?;
-                    let tree = repo.find_tree(id).map_err(Error::from)?;
+                    let mut config = repo.config()?;
+                    config.set_str("user.name", "name")?; // TODO: user.name value
+                    config.set_str("user.email", "email")?; // TODO: user.email value
+                    let mut index = repo.index()?;
+                    let id = index.write_tree()?;
+                    let sig = repo.signature()?;
+                    let tree = repo.find_tree(id)?;
 
-                    let _oid = repo
-                        .commit(Some("HEAD"), &sig, &sig, init_commit_message, &tree, &[])
-                        .map_err(Error::from)?;
+                    let _oid =
+                        repo.commit(Some("HEAD"), &sig, &sig, init_commit_message, &tree, &[])?;
                 }
 
                 Ok(Self { repo })
@@ -257,24 +256,19 @@ impl RawRepositoryImplInner {
     where
         Self: Sized,
     {
-        let repo = Repository::open(directory).map_err(Error::from)?;
+        let repo = Repository::open(directory)?;
 
         Ok(Self { repo })
     }
 
     fn list_branches(&self) -> Result<Vec<Branch>, Error> {
-        let branches = self
-            .repo
-            .branches(Option::Some(BranchType::Local))
-            .map_err(Error::from)?;
+        let branches = self.repo.branches(Option::Some(BranchType::Local))?;
 
         branches
             .map(|branch| {
-                let branch_name = branch
-                    .map_err(Error::from)?
+                let branch_name = branch?
                     .0
-                    .name()
-                    .map_err(Error::from)?
+                    .name()?
                     .map(|name| name.to_string())
                     .ok_or_else(|| Error::Unknown("err".to_string()))?;
 
@@ -284,23 +278,17 @@ impl RawRepositoryImplInner {
     }
 
     fn create_branch(&self, branch_name: &Branch, commit_hash: CommitHash) -> Result<(), Error> {
-        let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
-        let commit = self.repo.find_commit(oid).map_err(Error::from)?;
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        let commit = self.repo.find_commit(oid)?;
 
         // TODO: Test if force true and verify new branch is created
-        let _branch = self
-            .repo
-            .branch(branch_name.as_str(), &commit, false)
-            .map_err(Error::from)?;
+        self.repo.branch(branch_name.as_str(), &commit, false)?;
 
         Ok(())
     }
 
     fn locate_branch(&self, branch: &Branch) -> Result<CommitHash, Error> {
-        let branch = self
-            .repo
-            .find_branch(branch, BranchType::Local)
-            .map_err(Error::from)?;
+        let branch = self.repo.find_branch(branch, BranchType::Local)?;
         let oid = branch
             .get()
             .target()
@@ -316,29 +304,21 @@ impl RawRepositoryImplInner {
     }
 
     fn move_branch(&mut self, branch: &Branch, commit_hash: &CommitHash) -> Result<(), Error> {
-        let mut git2_branch = self
-            .repo
-            .find_branch(branch, BranchType::Local)
-            .map_err(Error::from)?;
-        let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
+        let mut git2_branch = self.repo.find_branch(branch, BranchType::Local)?;
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
         let reflog_msg = ""; // TODO: reflog_msg
         let reference = git2_branch.get_mut();
-        let _set_branch =
-            git2::Reference::set_target(reference, oid, reflog_msg).map_err(Error::from)?;
+        let _set_branch = git2::Reference::set_target(reference, oid, reflog_msg)?;
 
         Ok(())
     }
 
     fn delete_branch(&mut self, branch: &Branch) -> Result<(), Error> {
-        let mut git2_branch = self
-            .repo
-            .find_branch(branch, BranchType::Local)
-            .map_err(Error::from)?;
+        let mut git2_branch = self.repo.find_branch(branch, BranchType::Local)?;
 
         let current_branch = self
             .repo
-            .head()
-            .map_err(Error::from)?
+            .head()?
             .shorthand()
             .ok_or_else(|| Error::Unknown("err".to_string()))?
             .to_string();
@@ -353,7 +333,7 @@ impl RawRepositoryImplInner {
     }
 
     fn list_tags(&self) -> Result<Vec<Tag>, Error> {
-        let tag_array = self.repo.tag_names(None).map_err(Error::from)?;
+        let tag_array = self.repo.tag_names(None)?;
 
         let tag_list = tag_array
             .iter()
@@ -370,29 +350,16 @@ impl RawRepositoryImplInner {
     }
 
     fn create_tag(&mut self, tag: &Tag, commit_hash: &CommitHash) -> Result<(), Error> {
-        let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
-
-        let object = self
-            .repo
-            .find_object(oid, Some(ObjectType::Commit))
-            .map_err(Error::from)?;
-
-        let _lightweight_tag = self
-            .repo
-            .tag_lightweight(tag.as_str(), &object, true)
-            .map_err(Error::from)?;
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        let object = self.repo.find_object(oid, Some(ObjectType::Commit))?;
+        self.repo.tag_lightweight(tag.as_str(), &object, true)?;
 
         Ok(())
     }
 
     fn locate_tag(&self, tag: &Tag) -> Result<CommitHash, Error> {
-        let reference = self
-            .repo
-            .find_reference(&("refs/tags/".to_owned() + tag))
-            .map_err(Error::from)?;
-
-        let object = reference.peel(ObjectType::Commit).map_err(Error::from)?;
-
+        let reference = self.repo.find_reference(&("refs/tags/".to_owned() + tag))?;
+        let object = reference.peel(ObjectType::Commit)?;
         let oid = object.id();
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
@@ -420,20 +387,17 @@ impl RawRepositoryImplInner {
         let tree = self.repo.find_tree(id).unwrap();
 
         let head = self.get_head()?;
-        let parent_oid = git2::Oid::from_bytes(&head.hash).map_err(Error::from)?;
-        let parent_commit = self.repo.find_commit(parent_oid).map_err(Error::from)?;
+        let parent_oid = git2::Oid::from_bytes(&head.hash)?;
+        let parent_commit = self.repo.find_commit(parent_oid)?;
 
-        let oid = self
-            .repo
-            .commit(
-                Some("HEAD"),
-                &sig,
-                &sig,
-                commit_message,
-                &tree,
-                &[&parent_commit],
-            )
-            .map_err(Error::from)?;
+        let oid = self.repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            commit_message,
+            &tree,
+            &[&parent_commit],
+        )?;
 
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
@@ -462,28 +426,22 @@ impl RawRepositoryImplInner {
     fn checkout(&mut self, branch: &Branch) -> Result<(), Error> {
         let obj = self
             .repo
-            .revparse_single(&("refs/heads/".to_owned() + branch))
-            .map_err(Error::from)?;
-
-        self.repo.checkout_tree(&obj, None).map_err(Error::from)?;
-
-        self.repo
-            .set_head(&("refs/heads/".to_owned() + branch))
-            .map_err(Error::from)?;
+            .revparse_single(&("refs/heads/".to_owned() + branch))?;
+        self.repo.checkout_tree(&obj, None)?;
+        self.repo.set_head(&("refs/heads/".to_owned() + branch))?;
 
         Ok(())
     }
 
     fn checkout_detach(&mut self, commit_hash: &CommitHash) -> Result<(), Error> {
-        let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
-
-        self.repo.set_head_detached(oid).map_err(Error::from)?;
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        self.repo.set_head_detached(oid)?;
 
         Ok(())
     }
 
     fn get_head(&self) -> Result<CommitHash, Error> {
-        let ref_head = self.repo.head().map_err(Error::from)?;
+        let ref_head = self.repo.head()?;
         let oid = ref_head
             .target()
             .ok_or_else(|| Error::Unknown("err".to_string()))?;
@@ -506,15 +464,12 @@ impl RawRepositoryImplInner {
         //       --> revwalk can make error if there exists one or more roots...
         let mut revwalk = self.repo.revwalk()?;
 
-        revwalk.push_head().map_err(Error::from)?;
-        revwalk
-            .set_sorting(git2::Sort::TIME | git2::Sort::REVERSE)
-            .map_err(Error::from)?;
+        revwalk.push_head()?;
+        revwalk.set_sorting(git2::Sort::TIME | git2::Sort::REVERSE)?;
 
         let oids: Vec<Oid> = revwalk
             .by_ref()
-            .collect::<Result<Vec<Oid>, git2::Error>>()
-            .map_err(Error::from)?;
+            .collect::<Result<Vec<Oid>, git2::Error>>()?;
         println!("{:?}", oids.len());
         // TODO: What if oids[0] not exist?
         let hash = <[u8; 20]>::try_from(oids[0].as_bytes())
@@ -532,32 +487,31 @@ impl RawRepositoryImplInner {
         commit_hash: &CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
-        let oid = Oid::from_bytes(&commit_hash.hash).map_err(Error::from)?;
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
         let mut revwalk = self.repo.revwalk()?;
 
-        revwalk.push(oid).map_err(Error::from)?;
-        revwalk
-            .set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)
-            .map_err(Error::from)?; // TODO: revwalk should be tested
+        // TODO: revwalk should be tested
+        revwalk.push(oid)?;
+        revwalk.set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)?;
 
         // Compare max and ancestor's size
         let oids: Vec<Oid> = revwalk
             .by_ref()
-            .collect::<Result<Vec<Oid>, git2::Error>>()
-            .map_err(Error::from)?;
+            .collect::<Result<Vec<Oid>, git2::Error>>()?;
 
         let oids = oids[1..oids.len()].to_vec();
 
         let oids_ancestor = if let Some(num_max) = max {
             for &oid in oids.iter().take(num_max) {
                 // TODO: Check first one should be commit_hash
-                let commit = self.repo.find_commit(oid).map_err(Error::from)?;
+                let commit = self.repo.find_commit(oid)?;
                 let num_parents = commit.parents().len();
 
                 if num_parents > 1 {
-                    return Err(Error::InvalidRepository(
-                        "There exists a merge commit".to_string(),
-                    ));
+                    return Err(Error::InvalidRepository(format!(
+                        "There exists a merge commit, {}",
+                        oid
+                    )));
                 }
                 // TODO: Should check current commit's parent == oids[next]
             }
@@ -568,13 +522,14 @@ impl RawRepositoryImplInner {
 
             loop {
                 // TODO: Check first one should be commit_hash
-                let commit = self.repo.find_commit(oids[i]).map_err(Error::from)?;
+                let commit = self.repo.find_commit(oids[i])?;
                 let num_parents = commit.parents().len();
 
                 if num_parents > 1 {
-                    return Err(Error::InvalidRepository(
-                        "There exists a merge commit".to_string(),
-                    ));
+                    return Err(Error::InvalidRepository(format!(
+                        "There exists a merge commit, {}",
+                        oid
+                    )));
                 }
                 // TODO: Should check current commit's parent == oids[next]
                 if num_parents == 0 {
@@ -616,10 +571,10 @@ impl RawRepositoryImplInner {
         commit_hash1: &CommitHash,
         commit_hash2: &CommitHash,
     ) -> Result<CommitHash, Error> {
-        let oid1 = Oid::from_bytes(&commit_hash1.hash).map_err(Error::from)?;
-        let oid2 = Oid::from_bytes(&commit_hash2.hash).map_err(Error::from)?;
+        let oid1 = Oid::from_bytes(&commit_hash1.hash)?;
+        let oid2 = Oid::from_bytes(&commit_hash2.hash)?;
 
-        let oid_merge = self.repo.merge_base(oid1, oid2).map_err(Error::from)?;
+        let oid_merge = self.repo.merge_base(oid1, oid2)?;
         let commit_hash_merge: [u8; 20] = oid_merge
             .as_bytes()
             .try_into()
@@ -631,16 +586,13 @@ impl RawRepositoryImplInner {
     }
 
     fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error> {
-        let _remote = self
-            .repo
-            .remote(remote_name, remote_url)
-            .map_err(Error::from)?;
+        self.repo.remote(remote_name, remote_url)?;
 
         Ok(())
     }
 
     fn remove_remote(&mut self, remote_name: &str) -> Result<(), Error> {
-        self.repo.remote_delete(remote_name).map_err(Error::from)?;
+        self.repo.remote_delete(remote_name)?;
 
         Ok(())
     }
@@ -650,7 +602,7 @@ impl RawRepositoryImplInner {
     }
 
     fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
-        let remote_array = self.repo.remotes().map_err(Error::from)?;
+        let remote_array = self.repo.remotes()?;
 
         let remote_name_list = remote_array
             .iter()
@@ -666,10 +618,7 @@ impl RawRepositoryImplInner {
         let res = remote_name_list
             .iter()
             .map(|name| {
-                let remote = self
-                    .repo
-                    .find_remote(name.clone().as_str())
-                    .map_err(Error::from)?;
+                let remote = self.repo.find_remote(name.clone().as_str())?;
 
                 let url = remote
                     .url()
@@ -702,8 +651,8 @@ impl RawRepository for RawRepositoryImpl {
     where
         Self: Sized,
     {
-        let repo = RawRepositoryImplInner::init(directory, init_commit_message, init_commit_branch)
-            .map_err(Error::from)?;
+        let repo =
+            RawRepositoryImplInner::init(directory, init_commit_message, init_commit_branch)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
@@ -713,7 +662,7 @@ impl RawRepository for RawRepositoryImpl {
     where
         Self: Sized,
     {
-        let repo = RawRepositoryImplInner::open(directory).map_err(Error::from)?;
+        let repo = RawRepositoryImplInner::open(directory)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
