@@ -285,14 +285,6 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         })
     }
 
-    /// Returns the underlying storage.
-    ///
-    /// This is useful when you want to store extra messages under the same file lock
-    /// while not broadcasting them.
-    pub fn get_storage(&self) -> Arc<RwLock<S>> {
-        Arc::clone(&self.storage)
-    }
-
     pub fn set_filter(&mut self, filter: Arc<dyn MessageFilter>) {
         self.filter = filter;
     }
