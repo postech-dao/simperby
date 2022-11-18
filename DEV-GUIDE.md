@@ -18,10 +18,11 @@ or
   - summarize your change
   - use imperative mood.
   - Omit articles (`a/an` and `the`).
-  - should not exceed 75 characters
+  - should not exceed 72 characters
   - must be capitalized
 - `<description>`
   - detailed explanation of your change
+  - should not exceed 72 characters
 
 ### Examples
 
