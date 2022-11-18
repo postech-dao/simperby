@@ -25,7 +25,6 @@ struct Vote {
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
-    pub status: GovernanceStatus,
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
@@ -34,7 +33,11 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     pub async fn open(dms: DMS<N, S>) -> Result<Self, Error> {
-        let messages = dms.read_messages().await?;
+        Ok(Self { dms })
+    }
+
+    pub async fn read(&self) -> Result<GovernanceStatus, Error> {
+        let messages = self.dms.read_messages().await?;
         let votes = messages
             .iter()
             .map(|message| {
@@ -50,13 +53,9 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
                     .insert(voter);
                 votes
             });
-        let height = dms.read_height().await?;
+        let height = self.dms.read_height().await?;
         let status = GovernanceStatus { votes, height };
-        Ok(Self { dms, status })
-    }
-
-    pub async fn read(&self) -> Result<GovernanceStatus, Error> {
-        Ok(self.status.clone())
+        Ok(status)
     }
 
     pub async fn vote(
