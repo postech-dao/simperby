@@ -8,7 +8,7 @@ use simperby_network::{
 use std::collections::{HashMap, HashSet};
 
 pub type Error = anyhow::Error;
-const STATE_FILE_NAME: &str = "state.json";
+const STATE_FILE_NAME: &str = "status.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {
@@ -26,7 +26,7 @@ struct Vote {
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
-    pub state: GovernanceStatus,
+    pub status: GovernanceStatus,
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
@@ -46,18 +46,18 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     pub async fn open(dms: DMS<N, S>) -> Result<Self, Error> {
-        let state = serde_json::from_str(
+        let status = serde_json::from_str(
             &dms.get_storage()
                 .read()
                 .await
                 .read_file(STATE_FILE_NAME)
                 .await?,
         )?;
-        Ok(Self { dms, state })
+        Ok(Self { dms, status })
     }
 
     pub async fn read(&self) -> Result<GovernanceStatus, Error> {
-        Ok(self.state.clone())
+        Ok(self.status.clone())
     }
 
     pub async fn vote(
@@ -89,7 +89,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         let height: BlockHeight = self.dms.read_height().await?;
         if height != height_to_assert {
             return Err(anyhow::anyhow!(
-                "the height of the governance state is not the expected one: {} != {}",
+                "the height of the governance status is not the expected one: {} != {}",
                 height,
                 height_to_assert
             ));
