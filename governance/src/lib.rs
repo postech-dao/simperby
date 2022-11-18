@@ -11,7 +11,7 @@ pub type Error = anyhow::Error;
 const STATE_FILE_NAME: &str = "state.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GovernanceState {
+pub struct GovernanceStatus {
     /// Agenda hashes and their voters.
     pub votes: HashMap<Hash256, HashSet<PublicKey>>,
     pub height: BlockHeight,
@@ -26,7 +26,7 @@ struct Vote {
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
-    pub state: GovernanceState,
+    pub state: GovernanceStatus,
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
@@ -36,7 +36,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
             .await
             .add_or_overwrite_file(
                 STATE_FILE_NAME,
-                serde_json::to_string(&GovernanceState {
+                serde_json::to_string(&GovernanceStatus {
                     votes: HashMap::new(),
                     height,
                 })?,
@@ -56,7 +56,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         Ok(Self { dms, state })
     }
 
-    pub async fn read(&self) -> Result<GovernanceState, Error> {
+    pub async fn read(&self) -> Result<GovernanceStatus, Error> {
         Ok(self.state.clone())
     }
 
