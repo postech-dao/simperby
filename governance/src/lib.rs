@@ -8,7 +8,6 @@ use simperby_network::{
 use std::collections::{HashMap, HashSet};
 
 pub type Error = anyhow::Error;
-const STATE_FILE_NAME: &str = "status.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {
@@ -30,29 +29,29 @@ pub struct Governance<N: GossipNetwork, S: Storage> {
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
-    pub async fn create(dms: DMS<N, S>, height: BlockHeight) -> Result<(), Error> {
-        dms.get_storage()
-            .write()
-            .await
-            .add_or_overwrite_file(
-                STATE_FILE_NAME,
-                serde_json::to_string(&GovernanceStatus {
-                    votes: HashMap::new(),
-                    height,
-                })?,
-            )
-            .await?;
+    pub async fn create(_dms: DMS<N, S>, _height: BlockHeight) -> Result<(), Error> {
         Ok(())
     }
 
     pub async fn open(dms: DMS<N, S>) -> Result<Self, Error> {
-        let status = serde_json::from_str(
-            &dms.get_storage()
-                .read()
-                .await
-                .read_file(STATE_FILE_NAME)
-                .await?,
-        )?;
+        let messages = dms.read_messages().await?;
+        let votes = messages
+            .iter()
+            .map(|message| {
+                (
+                    message.data().to_string().to_hash256(),
+                    message.signature().signer().clone(),
+                )
+            })
+            .fold(HashMap::new(), |mut votes, (data_hash, voter)| {
+                votes
+                    .entry(data_hash)
+                    .or_insert_with(HashSet::new)
+                    .insert(voter);
+                votes
+            });
+        let height = dms.read_height().await?;
+        let status = GovernanceStatus { votes, height };
         Ok(Self { dms, status })
     }
 
