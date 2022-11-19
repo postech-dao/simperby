@@ -69,7 +69,7 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     /// Returns the reserved state from the 'finalized' branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
-        unimplemented!()
+        self.raw.read_reserved_state().await.map_err(|e| anyhow!(e))
     }
 
     /// Fetches new commits from the network.
