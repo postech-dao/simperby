@@ -41,14 +41,12 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         let votes = messages
             .iter()
             .map(|message| {
-                (
-                    message.data().to_string().to_hash256(),
-                    message.signature().signer().clone(),
-                )
+                let vote: Vote = serde_json::from_str(message.data()).unwrap();
+                (vote.agenda_hash, vote.voter)
             })
-            .fold(HashMap::new(), |mut votes, (data_hash, voter)| {
+            .fold(HashMap::new(), |mut votes, (agenda_hash, voter)| {
                 votes
-                    .entry(data_hash)
+                    .entry(agenda_hash)
                     .or_insert_with(HashSet::new)
                     .insert(voter);
                 votes
