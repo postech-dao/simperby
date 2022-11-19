@@ -4,7 +4,7 @@ pub mod raw;
 use anyhow::anyhow;
 use format::*;
 use futures::prelude::*;
-use raw::RawRepository;
+use raw::{RawRepository, SemanticCommit};
 use serde::{Deserialize, Serialize};
 use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
@@ -58,10 +58,16 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
     /// Returns the block header from the `finalized` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
-        unimplemented!()
+        let commit_hash = self
+            .raw
+            .locate_branch(&FINALIZED_BRANCH_NAME.into())
+            .await?;
+        let semantic_commit = self.raw.read_semantic_commit(&commit_hash).await?;
+        let block_header: BlockHeader = serde_json::from_str(&semantic_commit.body)?;
+        Ok(block_header)
     }
 
-    /// Returns the reserved state from the `finalized` branch.
+    /// Returns the reserved state from the 'finalized' branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
         unimplemented!()
     }
