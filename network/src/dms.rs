@@ -458,3 +458,108 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         }))
     }
 }
+
+/// Unit tests for the `DistributedMessageSet` implementation.
+/// Note that the tests are not for the underlying storage nor the network.
+/// Thus, we assume dummy `GossipNetwork` and rely only on the RPC fetches.
+/// Also, for the simplicity, we assume there is only one node known to every node.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::StorageImpl;
+    use rand::prelude::*;
+
+    type Dms = DistributedMessageSet<crate::primitives::DummyGossipNetwork, StorageImpl>;
+
+    fn generate_random_string() -> String {
+        let mut rng = rand::thread_rng();
+        let s1: u128 = rng.gen();
+        let s2: u128 = rng.gen();
+        Hash256::hash(format!("{}{}", s1, s2).as_bytes()).to_string()[0..16].to_owned()
+    }
+
+    fn gerenate_random_storage_directory() -> String {
+        let temp_dir = std::env::temp_dir();
+        format!(
+            "{}/{}",
+            temp_dir.to_str().unwrap(),
+            generate_random_string()
+        )
+    }
+
+    /// Returns the only-serving-node and the others.
+    fn generate_node_configs(
+        serving_node_port: u16,
+        size: usize,
+    ) -> (NetworkConfig, Vec<NetworkConfig>) {
+        let mut configs = Vec::new();
+        let mut keys = Vec::new();
+        for _ in 0..size {
+            keys.push(generate_keypair(generate_random_string().as_bytes()));
+        }
+        let network_id = generate_random_string();
+
+        for i in 0..size - 1 {
+            configs.push(NetworkConfig {
+                network_id: network_id.clone(),
+                port: None,
+                members: keys.iter().map(|(x, _)| x).cloned().collect(),
+                public_key: keys[i + 1].0.clone(),
+                private_key: keys[i + 1].1.clone(),
+            });
+        }
+        (
+            NetworkConfig {
+                network_id: generate_random_string(),
+                port: Some(serving_node_port),
+                members: keys.iter().map(|(x, _)| x).cloned().collect(),
+                public_key: keys[0].0.clone(),
+                private_key: keys[0].1.clone(),
+            },
+            configs,
+        )
+    }
+
+    #[tokio::test]
+    async fn single_1() {
+        let dir = gerenate_random_storage_directory();
+        StorageImpl::create(&dir).await.unwrap();
+        let storage = StorageImpl::open(&dir).await.unwrap();
+        Dms::create(storage, 0, generate_random_string())
+            .await
+            .unwrap();
+        let storage = StorageImpl::open(&dir).await.unwrap();
+        let config = Config {
+            fetch_interval: Some(Duration::from_millis(100)),
+            broadcast_interval: None,
+        };
+        let mut dms = Dms::open(storage, config).await.unwrap();
+        let network_config = generate_node_configs(4200, 1).0;
+
+        for i in 0..10 {
+            let msg = format!("{}", i);
+            dms.add_message(
+                &network_config,
+                &[],
+                Message {
+                    data: msg.clone(),
+                    signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
+                },
+            )
+            .await
+            .unwrap();
+        }
+
+        let messages = dms.read_messages().await.unwrap();
+        assert_eq!(
+            (0..10)
+                .into_iter()
+                .map(|x| format!("{}", x))
+                .collect::<std::collections::BTreeSet<_>>(),
+            messages
+                .into_iter()
+                .map(|x| x.data)
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+    }
+}
