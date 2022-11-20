@@ -122,14 +122,15 @@ async fn read_messages(storage: &impl Storage) -> Result<Vec<Message>, Error> {
     let files = storage.list_files().await?;
     let tasks = files
         .into_iter()
-        .map(|f| async move { storage.read_file(&f).await });
+        .map(|f| async move { storage.read_file(&f).await.map(|r| (f, r)) });
     let data = future::join_all(tasks)
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
     let messages = data
         .into_iter()
-        .map(|d| serde_json::from_str(&d))
+        .filter_map(|(f, r)| if f == STATE_FILE_PATH { None } else { Some(r) })
+        .map(|d| serde_json::from_str::<RawMessage>(&d))
         .collect::<Result<Vec<RawMessage>, _>>()?;
     let messages = messages
         .into_iter()
@@ -145,7 +146,7 @@ async fn add_message_but_not_broadcast(
     storage
         .add_or_overwrite_file(
             &format!("{}.json", message.to_hash256()),
-            message.data().to_owned(),
+            serde_json::to_string(&message).unwrap(),
         )
         .await?;
     Ok(())
