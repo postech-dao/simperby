@@ -61,22 +61,21 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Creates a branch on the commit.
     async fn create_branch(
         &self,
-        branch_name: &Branch,
+        branch_name: Branch,
         commit_hash: CommitHash,
     ) -> Result<(), Error>;
 
     /// Gets the commit that the branch points to.
-    async fn locate_branch(&self, branch: &Branch) -> Result<CommitHash, Error>;
+    async fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error>;
 
     /// Gets the list of branches from the commit.
-    async fn get_branches(&self, commit_hash: &CommitHash) -> Result<Vec<Branch>, Error>;
+    async fn get_branches(&self, commit_hash: CommitHash) -> Result<Vec<Branch>, Error>;
 
     /// Moves the branch.
-    async fn move_branch(&mut self, branch: &Branch, commit_hash: &CommitHash)
-        -> Result<(), Error>;
+    async fn move_branch(&mut self, branch: Branch, commit_hash: CommitHash) -> Result<(), Error>;
 
     /// Deletes the branch.
-    async fn delete_branch(&mut self, branch: &Branch) -> Result<(), Error>;
+    async fn delete_branch(&mut self, branch: Branch) -> Result<(), Error>;
 
     // -------------------
     // Tag-related methods
@@ -86,16 +85,16 @@ pub trait RawRepository: Send + Sync + 'static {
     async fn list_tags(&self) -> Result<Vec<Tag>, Error>;
 
     /// Creates a tag on the given commit.
-    async fn create_tag(&mut self, tag: &Tag, commit_hash: &CommitHash) -> Result<(), Error>;
+    async fn create_tag(&mut self, tag: Tag, commit_hash: CommitHash) -> Result<(), Error>;
 
     /// Gets the commit that the tag points to.
-    async fn locate_tag(&self, tag: &Tag) -> Result<CommitHash, Error>;
+    async fn locate_tag(&self, tag: Tag) -> Result<CommitHash, Error>;
 
     /// Gets the tags on the given commit.
-    async fn get_tag(&self, commit_hash: &CommitHash) -> Result<Vec<Tag>, Error>;
+    async fn get_tag(&self, commit_hash: CommitHash) -> Result<Vec<Tag>, Error>;
 
     /// Removes the tag.
-    async fn remove_tag(&mut self, tag: &Tag) -> Result<(), Error>;
+    async fn remove_tag(&mut self, tag: Tag) -> Result<(), Error>;
 
     // ----------------------
     // Commit-related methods
@@ -104,8 +103,8 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Creates a commit from the currently checked out branch.
     async fn create_commit(
         &mut self,
-        commit_message: &str,
-        diff: Option<&str>,
+        commit_message: String,
+        diff: Option<String>,
     ) -> Result<CommitHash, Error>;
 
     /// Creates a semantic commit from the currently checked out branch.
@@ -113,8 +112,7 @@ pub trait RawRepository: Send + Sync + 'static {
         -> Result<CommitHash, Error>;
 
     /// Reads the reserved state from the current working tree.
-    async fn read_semantic_commit(&self, commit_hash: &CommitHash)
-        -> Result<SemanticCommit, Error>;
+    async fn read_semantic_commit(&self, commit_hash: CommitHash) -> Result<SemanticCommit, Error>;
 
     /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     async fn run_garbage_collection(&mut self) -> Result<(), Error>;
@@ -128,10 +126,10 @@ pub trait RawRepository: Send + Sync + 'static {
     async fn checkout_clean(&mut self) -> Result<(), Error>;
 
     /// Checkouts to the branch.
-    async fn checkout(&mut self, branch: &Branch) -> Result<(), Error>;
+    async fn checkout(&mut self, branch: Branch) -> Result<(), Error>;
 
     /// Checkouts to the commit and make `HEAD` in a detached mode.
-    async fn checkout_detach(&mut self, commit_hash: &CommitHash) -> Result<(), Error>;
+    async fn checkout_detach(&mut self, commit_hash: CommitHash) -> Result<(), Error>;
 
     // ---------------
     // Various queries
@@ -146,7 +144,7 @@ pub trait RawRepository: Send + Sync + 'static {
     async fn get_initial_commit(&self) -> Result<CommitHash, Error>;
 
     /// Returns the diff of the given commit.
-    async fn show_commit(&self, commit_hash: &CommitHash) -> Result<String, Error>;
+    async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error>;
 
     /// Lists the ancestor commits of the given commit (The first element is the direct parent).
     ///
@@ -154,7 +152,7 @@ pub trait RawRepository: Send + Sync + 'static {
     /// * `max`: the maximum number of entries to be returned.
     async fn list_ancestors(
         &self,
-        commit_hash: &CommitHash,
+        commit_hash: CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error>;
 
@@ -164,18 +162,18 @@ pub trait RawRepository: Send + Sync + 'static {
     /// * `max`: the maximum number of entries to be returned.
     async fn list_descendants(
         &self,
-        commit_hash: &CommitHash,
+        commit_hash: CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error>;
 
     /// Returns the children commits of the given commit.
-    async fn list_children(&self, commit_hash: &CommitHash) -> Result<Vec<CommitHash>, Error>;
+    async fn list_children(&self, commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error>;
 
     /// Returns the merge base of the two commits.
     async fn find_merge_base(
         &self,
-        commit_hash1: &CommitHash,
-        commit_hash2: &CommitHash,
+        commit_hash1: CommitHash,
+        commit_hash2: CommitHash,
     ) -> Result<CommitHash, Error>;
 
     /// Reads the reserved state from the currently checked out branch.
@@ -186,10 +184,10 @@ pub trait RawRepository: Send + Sync + 'static {
     // ----------------------
 
     /// Adds a remote repository.
-    async fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error>;
+    async fn add_remote(&mut self, remote_name: String, remote_url: String) -> Result<(), Error>;
 
     /// Removes a remote repository.
-    async fn remove_remote(&mut self, remote_name: &str) -> Result<(), Error>;
+    async fn remove_remote(&mut self, remote_name: String) -> Result<(), Error>;
 
     /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
     async fn fetch_all(&mut self) -> Result<(), Error>;
@@ -279,7 +277,7 @@ impl RawRepositoryImplInner {
             .collect::<Result<Vec<Branch>, Error>>()
     }
 
-    fn create_branch(&self, branch_name: &Branch, commit_hash: CommitHash) -> Result<(), Error> {
+    fn create_branch(&self, branch_name: Branch, commit_hash: CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let commit = self.repo.find_commit(oid)?;
 
@@ -289,8 +287,8 @@ impl RawRepositoryImplInner {
         Ok(())
     }
 
-    fn locate_branch(&self, branch: &Branch) -> Result<CommitHash, Error> {
-        let branch = self.repo.find_branch(branch, BranchType::Local)?;
+    fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error> {
+        let branch = self.repo.find_branch(&branch, BranchType::Local)?;
         let oid = branch
             .get()
             .target()
@@ -301,12 +299,12 @@ impl RawRepositoryImplInner {
         Ok(CommitHash { hash })
     }
 
-    fn get_branches(&self, _commit_hash: &CommitHash) -> Result<Vec<Branch>, Error> {
+    fn get_branches(&self, _commit_hash: CommitHash) -> Result<Vec<Branch>, Error> {
         unimplemented!()
     }
 
-    fn move_branch(&mut self, branch: &Branch, commit_hash: &CommitHash) -> Result<(), Error> {
-        let mut git2_branch = self.repo.find_branch(branch, BranchType::Local)?;
+    fn move_branch(&mut self, branch: Branch, commit_hash: CommitHash) -> Result<(), Error> {
+        let mut git2_branch = self.repo.find_branch(&branch, BranchType::Local)?;
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let reflog_msg = ""; // TODO: reflog_msg
         let reference = git2_branch.get_mut();
@@ -315,8 +313,8 @@ impl RawRepositoryImplInner {
         Ok(())
     }
 
-    fn delete_branch(&mut self, branch: &Branch) -> Result<(), Error> {
-        let mut git2_branch = self.repo.find_branch(branch, BranchType::Local)?;
+    fn delete_branch(&mut self, branch: Branch) -> Result<(), Error> {
+        let mut git2_branch = self.repo.find_branch(&branch, BranchType::Local)?;
 
         let current_branch = self
             .repo
@@ -325,7 +323,7 @@ impl RawRepositoryImplInner {
             .ok_or_else(|| Error::Unknown("err".to_string()))?
             .to_string();
 
-        if &current_branch == branch {
+        if current_branch == branch {
             Err(Error::InvalidRepository(
                 ("given branch is currently checkout branch").to_string(),
             ))
@@ -351,7 +349,7 @@ impl RawRepositoryImplInner {
         tag_list
     }
 
-    fn create_tag(&mut self, tag: &Tag, commit_hash: &CommitHash) -> Result<(), Error> {
+    fn create_tag(&mut self, tag: Tag, commit_hash: CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let object = self.repo.find_object(oid, Some(ObjectType::Commit))?;
         self.repo.tag_lightweight(tag.as_str(), &object, true)?;
@@ -359,8 +357,10 @@ impl RawRepositoryImplInner {
         Ok(())
     }
 
-    fn locate_tag(&self, tag: &Tag) -> Result<CommitHash, Error> {
-        let reference = self.repo.find_reference(&("refs/tags/".to_owned() + tag))?;
+    fn locate_tag(&self, tag: Tag) -> Result<CommitHash, Error> {
+        let reference = self
+            .repo
+            .find_reference(&("refs/tags/".to_owned() + &tag))?;
         let object = reference.peel(ObjectType::Commit)?;
         let oid = object.id();
         let hash =
@@ -369,18 +369,18 @@ impl RawRepositoryImplInner {
         Ok(commit_hash)
     }
 
-    fn get_tag(&self, _commit_hash: &CommitHash) -> Result<Vec<Tag>, Error> {
+    fn get_tag(&self, _commit_hash: CommitHash) -> Result<Vec<Tag>, Error> {
         unimplemented!()
     }
 
-    fn remove_tag(&mut self, tag: &Tag) -> Result<(), Error> {
+    fn remove_tag(&mut self, tag: Tag) -> Result<(), Error> {
         self.repo.tag_delete(tag.as_str()).map_err(Error::from)
     }
 
     fn create_commit(
         &mut self,
-        commit_message: &str,
-        _diff: Option<&str>,
+        commit_message: String,
+        _diff: Option<String>,
     ) -> Result<CommitHash, Error> {
         let mut index = self.repo.index().unwrap();
         let id = index.write_tree().unwrap();
@@ -396,7 +396,7 @@ impl RawRepositoryImplInner {
             Some("HEAD"),
             &sig,
             &sig,
-            commit_message,
+            commit_message.as_str(),
             &tree,
             &[&parent_commit],
         )?;
@@ -413,7 +413,7 @@ impl RawRepositoryImplInner {
         unimplemented!()
     }
 
-    fn read_semantic_commit(&self, _commit_hash: &CommitHash) -> Result<SemanticCommit, Error> {
+    fn read_semantic_commit(&self, _commit_hash: CommitHash) -> Result<SemanticCommit, Error> {
         unimplemented!()
     }
 
@@ -425,17 +425,17 @@ impl RawRepositoryImplInner {
         unimplemented!()
     }
 
-    fn checkout(&mut self, branch: &Branch) -> Result<(), Error> {
+    fn checkout(&mut self, branch: Branch) -> Result<(), Error> {
         let obj = self
             .repo
-            .revparse_single(&("refs/heads/".to_owned() + branch))?;
+            .revparse_single(&("refs/heads/".to_owned() + &branch))?;
         self.repo.checkout_tree(&obj, None)?;
-        self.repo.set_head(&("refs/heads/".to_owned() + branch))?;
+        self.repo.set_head(&("refs/heads/".to_owned() + &branch))?;
 
         Ok(())
     }
 
-    fn checkout_detach(&mut self, commit_hash: &CommitHash) -> Result<(), Error> {
+    fn checkout_detach(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         self.repo.set_head_detached(oid)?;
 
@@ -480,13 +480,13 @@ impl RawRepositoryImplInner {
         Ok(CommitHash { hash })
     }
 
-    fn show_commit(&self, _commit_hash: &CommitHash) -> Result<String, Error> {
+    fn show_commit(&self, _commit_hash: CommitHash) -> Result<String, Error> {
         unimplemented!()
     }
 
     fn list_ancestors(
         &self,
-        commit_hash: &CommitHash,
+        commit_hash: CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
@@ -558,20 +558,20 @@ impl RawRepositoryImplInner {
 
     fn list_descendants(
         &self,
-        _commit_hash: &CommitHash,
+        _commit_hash: CommitHash,
         _max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
-    fn list_children(&self, _commit_hash: &CommitHash) -> Result<Vec<CommitHash>, Error> {
+    fn list_children(&self, _commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
     fn find_merge_base(
         &self,
-        commit_hash1: &CommitHash,
-        commit_hash2: &CommitHash,
+        commit_hash1: CommitHash,
+        commit_hash2: CommitHash,
     ) -> Result<CommitHash, Error> {
         let oid1 = Oid::from_bytes(&commit_hash1.hash)?;
         let oid2 = Oid::from_bytes(&commit_hash2.hash)?;
@@ -587,14 +587,19 @@ impl RawRepositoryImplInner {
         })
     }
 
-    fn add_remote(&mut self, remote_name: &str, remote_url: &str) -> Result<(), Error> {
-        self.repo.remote(remote_name, remote_url)?;
+    fn read_reserved_state(&self) -> Result<ReservedState, Error> {
+        unimplemented!()
+    }
+
+    fn add_remote(&mut self, remote_name: String, remote_url: String) -> Result<(), Error> {
+        self.repo
+            .remote(remote_name.as_str(), remote_url.as_str())?;
 
         Ok(())
     }
 
-    fn remove_remote(&mut self, remote_name: &str) -> Result<(), Error> {
-        self.repo.remote_delete(remote_name)?;
+    fn remove_remote(&mut self, remote_name: String) -> Result<(), Error> {
+        self.repo.remote_delete(remote_name.as_str())?;
 
         Ok(())
     }
@@ -682,29 +687,29 @@ impl RawRepository for RawRepositoryImpl {
 
     async fn create_branch(
         &self,
-        _branch_name: &Branch,
+        _branch_name: Branch,
         _commit_hash: CommitHash,
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
-    async fn locate_branch(&self, _branch: &Branch) -> Result<CommitHash, Error> {
+    async fn locate_branch(&self, _branch: Branch) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    async fn get_branches(&self, _commit_hash: &CommitHash) -> Result<Vec<Branch>, Error> {
+    async fn get_branches(&self, _commit_hash: CommitHash) -> Result<Vec<Branch>, Error> {
         unimplemented!()
     }
 
     async fn move_branch(
         &mut self,
-        _branch: &Branch,
-        _commit_hash: &CommitHash,
+        _branch: Branch,
+        _commit_hash: CommitHash,
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
-    async fn delete_branch(&mut self, _branch: &Branch) -> Result<(), Error> {
+    async fn delete_branch(&mut self, _branch: Branch) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -712,26 +717,26 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    async fn create_tag(&mut self, _tag: &Tag, _commit_hash: &CommitHash) -> Result<(), Error> {
+    async fn create_tag(&mut self, _tag: Tag, _commit_hash: CommitHash) -> Result<(), Error> {
         unimplemented!()
     }
 
-    async fn locate_tag(&self, _tag: &Tag) -> Result<CommitHash, Error> {
+    async fn locate_tag(&self, _tag: Tag) -> Result<CommitHash, Error> {
         unimplemented!()
     }
 
-    async fn get_tag(&self, _commit_hash: &CommitHash) -> Result<Vec<Tag>, Error> {
+    async fn get_tag(&self, _commit_hash: CommitHash) -> Result<Vec<Tag>, Error> {
         unimplemented!()
     }
 
-    async fn remove_tag(&mut self, _tag: &Tag) -> Result<(), Error> {
+    async fn remove_tag(&mut self, _tag: Tag) -> Result<(), Error> {
         unimplemented!()
     }
 
     async fn create_commit(
         &mut self,
-        _commit_message: &str,
-        _diff: Option<&str>,
+        _commit_message: String,
+        _diff: Option<String>,
     ) -> Result<CommitHash, Error> {
         unimplemented!()
     }
@@ -745,7 +750,7 @@ impl RawRepository for RawRepositoryImpl {
 
     async fn read_semantic_commit(
         &self,
-        _commit_hash: &CommitHash,
+        _commit_hash: CommitHash,
     ) -> Result<SemanticCommit, Error> {
         unimplemented!()
     }
@@ -758,11 +763,11 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    async fn checkout(&mut self, _branch: &Branch) -> Result<(), Error> {
+    async fn checkout(&mut self, _branch: Branch) -> Result<(), Error> {
         unimplemented!()
     }
 
-    async fn checkout_detach(&mut self, _commit_hash: &CommitHash) -> Result<(), Error> {
+    async fn checkout_detach(&mut self, _commit_hash: CommitHash) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -774,13 +779,13 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    async fn show_commit(&self, _commit_hash: &CommitHash) -> Result<String, Error> {
+    async fn show_commit(&self, _commit_hash: CommitHash) -> Result<String, Error> {
         unimplemented!()
     }
 
     async fn list_ancestors(
         &self,
-        _commit_hash: &CommitHash,
+        _commit_hash: CommitHash,
         _max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
@@ -788,20 +793,20 @@ impl RawRepository for RawRepositoryImpl {
 
     async fn list_descendants(
         &self,
-        _commit_hash: &CommitHash,
+        _commit_hash: CommitHash,
         _max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
-    async fn list_children(&self, _commit_hash: &CommitHash) -> Result<Vec<CommitHash>, Error> {
+    async fn list_children(&self, _commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
         unimplemented!()
     }
 
     async fn find_merge_base(
         &self,
-        _commit_hash1: &CommitHash,
-        _commit_hash2: &CommitHash,
+        _commit_hash1: CommitHash,
+        _commit_hash2: CommitHash,
     ) -> Result<CommitHash, Error> {
         unimplemented!()
     }
@@ -810,11 +815,11 @@ impl RawRepository for RawRepositoryImpl {
         unimplemented!()
     }
 
-    async fn add_remote(&mut self, _remote_name: &str, _remote_url: &str) -> Result<(), Error> {
+    async fn add_remote(&mut self, _remote_name: String, _remote_url: String) -> Result<(), Error> {
         unimplemented!()
     }
 
-    async fn remove_remote(&mut self, _remote_name: &str) -> Result<(), Error> {
+    async fn remove_remote(&mut self, _remote_name: String) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -912,33 +917,35 @@ mod tests {
 
         // git branch branch_a
         let head = repo.get_head().await.unwrap();
-        repo.create_branch(&BRANCH_A.into(), head).await.unwrap();
+        repo.create_branch(BRANCH_A.into(), head).await.unwrap();
 
         // "branch_list" is sorted by the name of the branches in an alphabetic order
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list, vec![BRANCH_A.to_owned(), MAIN.to_owned()]);
 
-        let branch_a_commit_hash = repo.locate_branch(&BRANCH_A.into()).await.unwrap();
+        let branch_a_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
         assert_eq!(branch_a_commit_hash, head);
 
         // Make second commit with "main" branch
-        repo.create_commit("second", Some("")).await.unwrap();
-
-        // Move "branch_a" head to "main" head
-        let main_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.move_branch(&BRANCH_A.into(), &main_commit_hash)
+        repo.create_commit("second".to_owned(), Some("".to_owned()))
             .await
             .unwrap();
-        let branch_a_commit_hash = repo.locate_branch(&BRANCH_A.into()).await.unwrap();
+
+        // Move "branch_a" head to "main" head
+        let main_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.move_branch(BRANCH_A.into(), main_commit_hash)
+            .await
+            .unwrap();
+        let branch_a_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
         assert_eq!(main_commit_hash, branch_a_commit_hash);
 
         // Remove "branch_a" and the remaining branch should be only "main"
-        repo.delete_branch(&BRANCH_A.into()).await.unwrap();
+        repo.delete_branch(BRANCH_A.into()).await.unwrap();
         let branch_list = repo.list_branches().await.unwrap();
         assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
         // This fails since current HEAD points at "main" branch
-        let remove_main = repo.delete_branch(&MAIN.into()).await.unwrap_err();
+        let remove_main = repo.delete_branch(MAIN.into()).await.unwrap_err();
     }
 
     /// Create a tag and remove it.
@@ -954,18 +961,18 @@ mod tests {
         assert!(tag_list.is_empty());
 
         // Create "tag_1" at first commit
-        let first_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_tag(&TAG_A.into(), &first_commit_hash)
+        let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.create_tag(TAG_A.into(), first_commit_hash)
             .await
             .unwrap();
         let tag_list = repo.list_tags().await.unwrap();
         assert_eq!(tag_list, vec![TAG_A.to_owned()]);
 
-        let tag_a_commit_hash = repo.locate_tag(&TAG_A.into()).await.unwrap();
+        let tag_a_commit_hash = repo.locate_tag(TAG_A.into()).await.unwrap();
         assert_eq!(first_commit_hash, tag_a_commit_hash);
 
         // Remove "tag_1"
-        repo.remove_tag(&TAG_A.into()).await.unwrap();
+        repo.remove_tag(TAG_A.into()).await.unwrap();
         let tag_list = repo.list_tags().await.unwrap();
         assert!(tag_list.is_empty());
     }
@@ -987,31 +994,37 @@ mod tests {
 
         // TODO: Should change after "create_commit" is changed
         // Create branch_a at c1 and commit c2
-        let first_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_branch(&BRANCH_A.into(), first_commit_hash)
+        let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.create_branch(BRANCH_A.into(), first_commit_hash)
             .await
             .unwrap();
-        let _commit = repo.create_commit("second", Some("")).await.unwrap();
+        let _commit = repo
+            .create_commit("second".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
         // Create branch_b at c2 and commit c3
-        let second_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_branch(&BRANCH_B.into(), second_commit_hash)
+        let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.create_branch(BRANCH_B.into(), second_commit_hash)
             .await
             .unwrap();
-        let _commit = repo.create_commit("third", Some("")).await.unwrap();
+        let _commit = repo
+            .create_commit("third".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
 
-        let first_commit_hash = repo.locate_branch(&BRANCH_A.into()).await.unwrap();
-        let second_commit_hash = repo.locate_branch(&BRANCH_B.into()).await.unwrap();
-        let third_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
+        let first_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
+        let second_commit_hash = repo.locate_branch(BRANCH_B.into()).await.unwrap();
+        let third_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
 
         // Checkout to branch_a, branch_b, main sequentially
         // Compare the head's commit hash after checkout with each branch's commit hash
-        repo.checkout(&BRANCH_A.into()).await.unwrap();
+        repo.checkout(BRANCH_A.into()).await.unwrap();
         let head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(head_commit_hash, first_commit_hash);
-        repo.checkout(&BRANCH_B.into()).await.unwrap();
+        repo.checkout(BRANCH_B.into()).await.unwrap();
         let head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(head_commit_hash, second_commit_hash);
-        repo.checkout(&MAIN.into()).await.unwrap();
+        repo.checkout(MAIN.into()).await.unwrap();
         let head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(head_commit_hash, third_commit_hash);
     }
@@ -1035,10 +1048,12 @@ mod tests {
 
         let first_commit_hash = repo.get_head().await.unwrap();
         // Make second commit with "main" branch
-        repo.create_commit("second", Some("")).await.unwrap();
+        repo.create_commit("second".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
 
         // Checkout to c1 and set HEAD detached mode
-        repo.checkout_detach(&first_commit_hash).await.unwrap();
+        repo.checkout_detach(first_commit_hash).await.unwrap();
 
         let cur_head_commit_hash = repo.get_head().await.unwrap();
         assert_eq!(cur_head_commit_hash, first_commit_hash);
@@ -1068,9 +1083,13 @@ mod tests {
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
         // Create branch_a, branch_b and commits
-        let first_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_commit("second", Some("")).await.unwrap();
-        repo.create_commit("third", Some("")).await.unwrap();
+        let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.create_commit("second".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
+        repo.create_commit("third".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
 
         let initial_commit_hash = repo.get_initial_commit().await.unwrap();
         assert_eq!(initial_commit_hash, first_commit_hash);
@@ -1092,28 +1111,30 @@ mod tests {
         let path = td.path();
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-        let first_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
-        repo.create_commit("second", Some("")).await.unwrap();
-        let second_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
+        let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+        repo.create_commit("second".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
+        let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
         // Make second commit at "main" branch
-        let third_commit_hash = repo.locate_branch(&MAIN.into()).await.unwrap();
+        let third_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
 
         // Get only one ancestor(direct parent)
         let ancestors = repo
-            .list_ancestors(&third_commit_hash, Some(1))
+            .list_ancestors(third_commit_hash, Some(1))
             .await
             .unwrap();
         assert_eq!(ancestors, vec![second_commit_hash]);
 
         // Get two ancestors with max 2
         let ancestors = repo
-            .list_ancestors(&third_commit_hash, Some(2))
+            .list_ancestors(third_commit_hash, Some(2))
             .await
             .unwrap();
         assert_eq!(ancestors, vec![second_commit_hash, first_commit_hash]);
 
         // Get all ancestors
-        let ancestors = repo.list_ancestors(&third_commit_hash, None).await.unwrap();
+        let ancestors = repo.list_ancestors(third_commit_hash, None).await.unwrap();
         assert_eq!(ancestors, vec![second_commit_hash, first_commit_hash]);
 
         // TODO: If max num > the number of ancestors
@@ -1135,27 +1156,33 @@ mod tests {
 
         // Create "branch_a" and "branch_b" branches at c1
         {
-            let commit_hash1 = repo.locate_branch(&MAIN.into()).await.unwrap();
-            repo.create_branch(&BRANCH_A.into(), commit_hash1)
+            let commit_hash1 = repo.locate_branch(MAIN.into()).await.unwrap();
+            repo.create_branch(BRANCH_A.into(), commit_hash1)
                 .await
                 .unwrap();
-            repo.create_branch(&BRANCH_B.into(), commit_hash1)
+            repo.create_branch(BRANCH_B.into(), commit_hash1)
                 .await
                 .unwrap();
         }
         // Make a commit at "branch_a" branch
-        repo.checkout(&BRANCH_A.into()).await.unwrap();
-        let _commit = repo.create_commit("branch_a", Some("")).await.unwrap();
+        repo.checkout(BRANCH_A.into()).await.unwrap();
+        let _commit = repo
+            .create_commit("branch_a".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
         // Make a commit at "branch_b" branch
-        repo.checkout(&BRANCH_B.into()).await.unwrap();
-        let _commit = repo.create_commit("branch_b", Some("")).await.unwrap();
+        repo.checkout(BRANCH_B.into()).await.unwrap();
+        let _commit = repo
+            .create_commit("branch_b".to_owned(), Some("".to_owned()))
+            .await
+            .unwrap();
 
         // Make merge base of (c2,c3)
-        let commit_hash_main = repo.locate_branch(&MAIN.into()).await.unwrap();
-        let commit_hash_a = repo.locate_branch(&BRANCH_A.into()).await.unwrap();
-        let commit_hash_b = repo.locate_branch(&BRANCH_B.into()).await.unwrap();
+        let commit_hash_main = repo.locate_branch(MAIN.into()).await.unwrap();
+        let commit_hash_a = repo.locate_branch(BRANCH_A.into()).await.unwrap();
+        let commit_hash_b = repo.locate_branch(BRANCH_B.into()).await.unwrap();
         let merge_base = repo
-            .find_merge_base(&commit_hash_a, &commit_hash_b)
+            .find_merge_base(commit_hash_a, commit_hash_b)
             .await
             .unwrap();
 
@@ -1172,7 +1199,9 @@ mod tests {
         let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
         // Add dummy remote
-        repo.add_remote("origin", "/path/to/nowhere").await.unwrap();
+        repo.add_remote("origin".to_owned(), "/path/to/nowhere".to_owned())
+            .await
+            .unwrap();
 
         let remote_list = repo.list_remotes().await.unwrap();
         assert_eq!(
@@ -1181,7 +1210,7 @@ mod tests {
         );
 
         // Remove dummy remote
-        repo.remove_remote("origin").await.unwrap();
+        repo.remove_remote("origin".to_owned()).await.unwrap();
         let remote_list = repo.list_remotes().await.unwrap();
         assert!(remote_list.is_empty());
     }

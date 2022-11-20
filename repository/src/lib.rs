@@ -152,16 +152,13 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Creates an agenda commit on top of the `work` branch.
     pub async fn create_agenda(&mut self, author: PublicKey) -> Result<CommitHash, Error> {
         let last_header = self.get_last_finalized_block_header().await?;
-        let work_commit = self.raw.locate_branch(&WORK_BRANCH_NAME.into()).await?;
-        let last_header_commit = self
-            .raw
-            .locate_branch(&FINALIZED_BRANCH_NAME.into())
-            .await?;
+        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
 
         // Check if the `work` branch is rebased on top of the `finalized` branch.
         if self
             .raw
-            .find_merge_base(&last_header_commit, &work_commit)
+            .find_merge_base(last_header_commit, work_commit)
             .await?
             != last_header_commit
         {
@@ -173,7 +170,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
 
         // Fetch and convert commits
-        let commits = self.raw.list_ancestors(&work_commit, Some(256)).await?;
+        let commits = self.raw.list_ancestors(work_commit, Some(256)).await?;
         let position = commits
             .iter()
             .position(|c| *c == last_header_commit)
@@ -182,7 +179,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         // commits starting from the very next one to the last finalized block.
         let commits = stream::iter(commits.iter().take(position).rev().cloned().map(|c| {
             let raw = &self.raw;
-            async move { raw.read_semantic_commit(&c).await.map(|x| (x, c)) }
+            async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
         }))
         .buffered(256)
         .collect::<Vec<_>>()
@@ -230,7 +227,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&agenda_commit, &last_header);
 
         self.raw.checkout_clean().await?;
-        self.raw.checkout(&WORK_BRANCH_NAME.into()).await?;
+        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         Ok(result)
     }
