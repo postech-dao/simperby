@@ -4,7 +4,7 @@ pub mod raw;
 use anyhow::anyhow;
 use format::*;
 use futures::prelude::*;
-use raw::{RawRepository, SemanticCommit};
+use raw::RawRepository;
 use serde::{Deserialize, Serialize};
 use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
