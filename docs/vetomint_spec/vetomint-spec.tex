@@ -92,7 +92,7 @@
 
 \begin{document}
 
-\section{Tendermint consensus algorithm} \label{sec:tendermint}
+\section{Vetomint consensus algorithm} \label{sec:vetomint}
 
 \newcommand\Disseminate{\textbf{Disseminate}}
 
@@ -166,7 +166,7 @@
 		\ENDUPON
 		
 		\SPACE 
-		\LINECOMMENT{on-4f-favor-prevote-propose-step}
+		\LINECOMMENT{on-4f-non-nil-prevote-in-propose-step}
 		\UPON{$\li{\Proposal,round_p, v, vr}$ \From\ $\coord(round_p)$
 			\textbf{AND} $4f+1$ $\li{\Prevote,vr,id(v)}$  \With\ $step_p = \propose \wedge (vr \ge 0 \wedge vr < round_p)$}
 		\label{line:tab:acceptProposal} 
@@ -184,7 +184,7 @@
 		
 		
 		\SPACE 
-		\LINECOMMENT{on-4f-favor-prevote-prevote-step}
+		\LINECOMMENT{on-4f-non-nil-prevote-in-prevote-step}
 		\UPON{$\li{\Proposal,round_p, v, *}$ \From\ $\coord(round_p)$
 			\textbf{AND} $4f+1$ $\li{\Prevote, round_p,id(v)}$  \With\ $valid(v) \wedge step_p \ge \prevote$ for the first time}
 		\label{line:tab:recvPrevote} 
@@ -231,7 +231,7 @@
 		\ENDUPON 
 		
 		\SPACE 
-		\LINECOMMENT{on-4f-favor-precommit}
+		\LINECOMMENT{on-4f-non-nil-precommit}
 		\UPON{$\li{\Proposal,r, v, *}$ \From\ $\coord(r)$ \textbf{AND}
 			$4f+1$ $\li{\Precommit,r,id(v)}$ \With\ $decision_p = \nil$}
 		\label{line:tab:onDecideRule} 
@@ -256,20 +256,11 @@
 			\STATE $StartRound(round_p + 1)$ \label{line:tab:nextRound} 
 		\ENDIF
 		\ENDFUNCTION	
-	\end{algorithmic} \caption{Tendermint consensus algorithm}
-	\label{alg:tendermint} 
+	\end{algorithmic} \caption{Vetomint consensus algorithm}
+	\label{alg:vetomint} 
 \end{algorithm}
 
 We assume $6f+1$ voting power where at most $f$ of it is byzantine.
-
-\section{수정사항}
-
-
-\begin{enumerate}
-	\item prevote timeout 없앰
-	\item height 개념 없앰
-	\item precommit timeout 조건 $4f+1$에서 $5f+1$로 변경 
-\end{enumerate}
 
 
 \end{document}

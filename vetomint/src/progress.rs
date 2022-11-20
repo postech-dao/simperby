@@ -37,9 +37,11 @@ pub(super) fn progress(
                     match valid_round {
                         Some(vr) => {
                             if vr < round {
-                                expected_response.append(&mut on_4f_favor_prevote_propose(
-                                    proposal, favor, state, round, vr,
-                                ));
+                                expected_response.append(
+                                    &mut on_4f_non_nil_prevote_in_propose_step(
+                                        proposal, favor, state, round, vr,
+                                    ),
+                                );
                             }
                         }
                         None => expected_response
@@ -50,7 +52,7 @@ pub(super) fn progress(
             }
             // Time-trigger events are handled later
             ConsensusEvent::Timer { .. } => Vec::new(),
-            ConsensusEvent::Prevote {
+            ConsensusEvent::NonNilPrevote {
                 proposal,
                 signer,
                 round,
@@ -68,7 +70,7 @@ pub(super) fn progress(
                         if *past_vote != Some(proposal) {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Double Prevote"),
+                                description: String::from("Double NonNilPrevote"),
                             }]
                         } else {
                             Vec::new()
@@ -112,7 +114,7 @@ pub(super) fn progress(
                             && (state.step == ConsensusStep::Prevote
                                 || state.step == ConsensusStep::Precommit)
                         {
-                            on_4f_favor_prevote_prevote(state, round)
+                            on_4f_non_nil_prevote_in_prevote_step(state, round)
                         } else {
                             Vec::new()
                         }
@@ -133,7 +135,7 @@ pub(super) fn progress(
                         if past_vote.is_none() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Double Prevote"),
+                                description: String::from("Double NonNilPrevote"),
                             }]
                         } else {
                             Vec::new()
@@ -162,18 +164,18 @@ pub(super) fn progress(
                             votes
                         });
                         let current_prevotes = &state.votes[&round].prevotes_total;
-                        let current_favor_prevotes = state.votes[&round]
+                        let current_non_nil_prevotes = state.votes[&round]
                             .prevotes_favor
                             .values()
                             .into_iter()
                             .sum::<VotingPower>();
-                        let current_nil_votes = current_prevotes - current_favor_prevotes;
+                        let current_nil_prevotes = current_prevotes - current_non_nil_prevotes;
 
                         if state.votes[&round].prevotes_total * 6 > total_voting_power * 5
                             && state.step == ConsensusStep::Prevote
                         {
                             on_5f_prevote(state, round)
-                        } else if current_nil_votes * 3 > total_voting_power * 2
+                        } else if current_nil_prevotes * 3 > total_voting_power * 2
                             && state.step == ConsensusStep::Prevote
                         {
                             on_4f_nil_prevote(state, round)
@@ -184,7 +186,7 @@ pub(super) fn progress(
                 }
             }
 
-            ConsensusEvent::Precommit {
+            ConsensusEvent::NonNilPrecommit {
                 proposal,
                 signer,
                 round,
@@ -202,7 +204,7 @@ pub(super) fn progress(
                         if *past_commit != Some(proposal) {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Double Precommit"),
+                                description: String::from("Double NonNilPrecommit"),
                             }]
                         } else {
                             Vec::new()
@@ -242,7 +244,7 @@ pub(super) fn progress(
                         if this_proposal_precommit * 3 > total_voting_power * 2
                             && ConsensusStep::Precommit == state.step
                         {
-                            on_4f_favor_precommit(proposal)
+                            on_4f_non_nil_precommit(proposal)
                         } else if state.votes[&round].precommits_total * 6 > total_voting_power * 5
                             && ConsensusStep::Precommit == state.step
                             && state.timeout_precommit.is_none()
@@ -272,7 +274,7 @@ pub(super) fn progress(
                         if past_commit.is_some() {
                             vec![ConsensusResponse::ViolationReport {
                                 violator: signer,
-                                description: String::from("Double Precommit"),
+                                description: String::from("Double NonNilPrecommit"),
                             }]
                         } else {
                             Vec::new()
@@ -400,7 +402,7 @@ fn on_proposal(
     });
 
     if Some(proposal) == state.locked_value || (favor && state.locked_round.is_none()) {
-        response.append(&mut vec![ConsensusResponse::BroadcastPrevote {
+        response.append(&mut vec![ConsensusResponse::BroadcastNonNilPrevote {
             proposal,
             round,
         }]);
@@ -410,7 +412,7 @@ fn on_proposal(
     response
 }
 
-fn on_4f_favor_prevote_propose(
+fn on_4f_non_nil_prevote_in_propose_step(
     proposal: BlockIdentifier,
     favor: bool,
     state: &mut ConsensusState,
@@ -430,7 +432,7 @@ fn on_4f_favor_prevote_propose(
         if Some(proposal) == state.locked_value
             || (favor && state.locked_round.unwrap_or(0) < valid_round)
         {
-            response.append(&mut vec![ConsensusResponse::BroadcastPrevote {
+            response.append(&mut vec![ConsensusResponse::BroadcastNonNilPrevote {
                 proposal,
                 round,
             }]);
@@ -441,7 +443,10 @@ fn on_4f_favor_prevote_propose(
     response
 }
 
-fn on_4f_favor_prevote_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusResponse> {
+fn on_4f_non_nil_prevote_in_prevote_step(
+    state: &mut ConsensusState,
+    round: Round,
+) -> Vec<ConsensusResponse> {
     let mut responses = Vec::new();
     let total_voting_power = state.height_info.validators.iter().sum::<VotingPower>();
     for (proposal, prevotes_favor) in &state.votes[&round].prevotes_favor {
@@ -452,7 +457,7 @@ fn on_4f_favor_prevote_prevote(state: &mut ConsensusState, round: Round) -> Vec<
                 state.step = ConsensusStep::Precommit;
                 state.locked_round = Some(round);
                 state.locked_value = Some(*proposal);
-                responses.append(&mut vec![ConsensusResponse::BroadcastPrecommit {
+                responses.append(&mut vec![ConsensusResponse::BroadcastNonNilPrecommit {
                     proposal: *proposal,
                     round: state.round,
                 }]);
@@ -474,7 +479,7 @@ fn on_5f_prevote(state: &mut ConsensusState, round: Round) -> Vec<ConsensusRespo
         if prevotes_favor * 3 > total_voting_power * 2 {
             state.locked_round = Some(round);
             state.locked_value = Some(*proposal);
-            return vec![ConsensusResponse::BroadcastPrecommit {
+            return vec![ConsensusResponse::BroadcastNonNilPrecommit {
                 proposal: *proposal,
                 round: state.round,
             }];
@@ -488,7 +493,7 @@ fn on_5f_precommit(state: &mut ConsensusState, time: Timestamp) -> Vec<Consensus
     Vec::new()
 }
 
-fn on_4f_favor_precommit(proposal: BlockIdentifier) -> Vec<ConsensusResponse> {
+fn on_4f_non_nil_precommit(proposal: BlockIdentifier) -> Vec<ConsensusResponse> {
     vec![ConsensusResponse::FinalizeBlock { proposal }]
 }
 
