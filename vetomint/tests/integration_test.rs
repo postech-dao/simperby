@@ -33,7 +33,7 @@ fn early_termination_by_polka_1() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrevote {
+        vec![ConsensusResponse::BroadcastNonNilPrevote {
             proposal: 0,
             round: 0
         }]
@@ -41,7 +41,7 @@ fn early_termination_by_polka_1() {
 
     // STEP 2: Prevote.
     for validator_index in 0..=1 {
-        let event = ConsensusEvent::Prevote {
+        let event = ConsensusEvent::NonNilPrevote {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -50,7 +50,7 @@ fn early_termination_by_polka_1() {
         let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 0,
         round: 0,
         signer: 2,
@@ -59,7 +59,7 @@ fn early_termination_by_polka_1() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrecommit {
+        vec![ConsensusResponse::BroadcastNonNilPrecommit {
             proposal: 0,
             round: 0
         }]
@@ -67,7 +67,7 @@ fn early_termination_by_polka_1() {
 
     // STEP 3: Precommit.
     for validator_index in 0..=1 {
-        let event = ConsensusEvent::Precommit {
+        let event = ConsensusEvent::NonNilPrecommit {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -76,7 +76,7 @@ fn early_termination_by_polka_1() {
         let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
-    let event = ConsensusEvent::Precommit {
+    let event = ConsensusEvent::NonNilPrecommit {
         proposal: 0,
         round: 0,
         signer: 2,
@@ -119,7 +119,7 @@ fn duplicate_prevotes_and_precommits() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrevote {
+        vec![ConsensusResponse::BroadcastNonNilPrevote {
             proposal: 0,
             round: 0
         }]
@@ -128,7 +128,7 @@ fn duplicate_prevotes_and_precommits() {
     // STEP 2: Duplicate Prevote.
     for _ in 0..2 {
         for validator_index in 0..=2 {
-            let event = ConsensusEvent::Prevote {
+            let event = ConsensusEvent::NonNilPrevote {
                 proposal: 0,
                 round: 0,
                 signer: validator_index,
@@ -138,7 +138,7 @@ fn duplicate_prevotes_and_precommits() {
             assert!(response.is_empty());
         }
     }
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 0,
         round: 0,
         signer: 3,
@@ -147,7 +147,7 @@ fn duplicate_prevotes_and_precommits() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrecommit {
+        vec![ConsensusResponse::BroadcastNonNilPrecommit {
             proposal: 0,
             round: 0
         }]
@@ -156,7 +156,7 @@ fn duplicate_prevotes_and_precommits() {
     // STEP 3: Duplicate Precommit.
     for _ in 0..2 {
         for validator_index in 0..=2 {
-            let event = ConsensusEvent::Precommit {
+            let event = ConsensusEvent::NonNilPrecommit {
                 proposal: 0,
                 round: 0,
                 signer: validator_index,
@@ -166,7 +166,7 @@ fn duplicate_prevotes_and_precommits() {
             assert!(response.is_empty());
         }
     }
-    let event = ConsensusEvent::Precommit {
+    let event = ConsensusEvent::NonNilPrecommit {
         proposal: 0,
         round: 0,
         signer: 3,
@@ -208,7 +208,7 @@ fn early_termination_by_polka_2() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrevote {
+        vec![ConsensusResponse::BroadcastNonNilPrevote {
             proposal: 0,
             round: 0
         }]
@@ -216,7 +216,7 @@ fn early_termination_by_polka_2() {
 
     // STEP 2: Prevote.
     for validator_index in 0..=2 {
-        let event = ConsensusEvent::Prevote {
+        let event = ConsensusEvent::NonNilPrevote {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -233,7 +233,7 @@ fn early_termination_by_polka_2() {
     let response = state.progress(event).unwrap();
     assert!(response.is_empty());
 
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 0,
         round: 0,
         signer: 4,
@@ -242,7 +242,7 @@ fn early_termination_by_polka_2() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrecommit {
+        vec![ConsensusResponse::BroadcastNonNilPrecommit {
             proposal: 0,
             round: 0
         }]
@@ -250,7 +250,7 @@ fn early_termination_by_polka_2() {
 
     // STEP 3: Precommit.
     for validator_index in 0..=2 {
-        let event = ConsensusEvent::Precommit {
+        let event = ConsensusEvent::NonNilPrecommit {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -259,7 +259,7 @@ fn early_termination_by_polka_2() {
         let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
-    let event = ConsensusEvent::Precommit {
+    let event = ConsensusEvent::NonNilPrecommit {
         proposal: 0,
         round: 0,
         signer: 3,
@@ -407,7 +407,7 @@ fn precommit_timeout_and_broadcast_proposal() {
     );
 
     // STEP 2: Prevote.
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 0,
         round: 0,
         signer: 0,
@@ -425,7 +425,7 @@ fn precommit_timeout_and_broadcast_proposal() {
     assert!(response.is_empty());
 
     for validator_index in 3..=4 {
-        let event = ConsensusEvent::Prevote {
+        let event = ConsensusEvent::NonNilPrevote {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -435,7 +435,7 @@ fn precommit_timeout_and_broadcast_proposal() {
         assert!(response.is_empty());
     }
 
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 0,
         round: 0,
         signer: 5,
@@ -515,7 +515,7 @@ fn double_vote_violation() {
     let response = state.progress(event).unwrap();
     assert_eq!(
         response,
-        vec![ConsensusResponse::BroadcastPrevote {
+        vec![ConsensusResponse::BroadcastNonNilPrevote {
             proposal: 0,
             round: 0
         }]
@@ -523,7 +523,7 @@ fn double_vote_violation() {
 
     // STEP 2: Prevote.
     for validator_index in 0..=2 {
-        let event = ConsensusEvent::Prevote {
+        let event = ConsensusEvent::NonNilPrevote {
             proposal: 0,
             round: 0,
             signer: validator_index,
@@ -532,7 +532,7 @@ fn double_vote_violation() {
         let response = state.progress(event).unwrap();
         assert!(response.is_empty());
     }
-    let event = ConsensusEvent::Prevote {
+    let event = ConsensusEvent::NonNilPrevote {
         proposal: 1,
         round: 0,
         signer: 2,
@@ -543,7 +543,7 @@ fn double_vote_violation() {
         response,
         vec![ConsensusResponse::ViolationReport {
             violator: 2,
-            description: String::from("Double Prevote")
+            description: String::from("Double NonNilPrevote")
         }]
     );
 }

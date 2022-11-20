@@ -1,7 +1,7 @@
 use vetomint::*;
 
-//TODO
-//fix functions without initialize and apply unit action to integration_test
+// TODO
+// fix functions without initialize and apply unit action to integration_test
 
 pub fn initialize(
     validators: Vec<u64>,
@@ -26,7 +26,7 @@ pub fn prevotes(
     height_info: &HeightInfo,
     state: &mut ConsensusState,
     favor_of_this_node: (bool, u64),
-    //(validator index, isFavor, voting power, timestamp)
+    // (validator index, isFavor, voting power, timestamp)
     votes: Vec<(ValidatorIndex, bool, u64, Timestamp)>,
     round: usize,
     proposal: usize,
@@ -35,31 +35,31 @@ pub fn prevotes(
     let total_voting_power: u64 = height_info.validators.iter().sum();
     votes_time_sorted.sort_by_key(|k| k.3);
 
-    let mut current_prevoted = if favor_of_this_node.0 {
+    let mut current_non_nil_prevoted = if favor_of_this_node.0 {
         favor_of_this_node.1
     } else {
         0
     };
-    let mut current_nilvoted = if !favor_of_this_node.0 {
+    let mut current_nil_prevoted = if !favor_of_this_node.0 {
         favor_of_this_node.1
     } else {
         0
     };
-    let mut current_voted;
+    let mut current_prevoted;
     let mut return_responses = Vec::<Option<Vec<ConsensusResponse>>>::new();
 
     for (signer, favor, power, time) in votes_time_sorted {
-        current_voted = current_prevoted + current_nilvoted;
-        if 3 * current_prevoted > 2 * total_voting_power
-            || 3 * current_nilvoted > 2 * total_voting_power
-            || 6 * current_voted > total_voting_power
+        current_prevoted = current_non_nil_prevoted + current_nil_prevoted;
+        if 3 * current_non_nil_prevoted > 2 * total_voting_power
+            || 3 * current_nil_prevoted > 2 * total_voting_power
+            || 6 * current_prevoted > total_voting_power
         {
             assertion_check(&return_responses);
             return return_responses;
         }
 
         if favor {
-            let event = ConsensusEvent::Prevote {
+            let event = ConsensusEvent::NonNilPrevote {
                 proposal,
                 signer,
                 round,
@@ -67,7 +67,7 @@ pub fn prevotes(
             };
             let response = state.progress(event);
             return_responses.push(response);
-            current_prevoted += power;
+            current_non_nil_prevoted += power;
         } else {
             let event = ConsensusEvent::NilPrevote {
                 signer,
@@ -76,7 +76,7 @@ pub fn prevotes(
             };
             let response = state.progress(event);
             return_responses.push(response);
-            current_nilvoted += power;
+            current_nil_prevoted += power;
         }
     }
     assertion_check(&return_responses);
@@ -96,12 +96,12 @@ pub fn precommits(
     let total_voting_power: u64 = height_info.validators.iter().sum();
     commits_time_sorted.sort_by_key(|k| k.3);
 
-    let mut current_precommitted = if favor_of_this_node.0 {
+    let mut current_non_nil_precommitted = if favor_of_this_node.0 {
         favor_of_this_node.1
     } else {
         0
     };
-    let mut current_nilcommitted = if !favor_of_this_node.0 {
+    let mut current_nil_precommitted = if !favor_of_this_node.0 {
         favor_of_this_node.1
     } else {
         0
@@ -109,14 +109,14 @@ pub fn precommits(
     let mut return_responses = Vec::<Option<Vec<ConsensusResponse>>>::new();
 
     for (signer, favor, power, time) in commits_time_sorted {
-        if 3 * current_precommitted > 2 * total_voting_power
-            || 3 * current_nilcommitted > 2 * total_voting_power
+        if 3 * current_non_nil_precommitted > 2 * total_voting_power
+            || 3 * current_nil_precommitted > 2 * total_voting_power
         {
             assertion_check(&return_responses);
             return return_responses;
         }
         if favor {
-            let event = ConsensusEvent::Precommit {
+            let event = ConsensusEvent::NonNilPrecommit {
                 proposal,
                 signer,
                 round,
@@ -124,7 +124,7 @@ pub fn precommits(
             };
             let response = state.progress(event);
             return_responses.push(response);
-            current_precommitted += power;
+            current_non_nil_precommitted += power;
         } else {
             let event = ConsensusEvent::NilPrecommit {
                 signer,
@@ -133,15 +133,15 @@ pub fn precommits(
             };
             let response = state.progress(event);
             return_responses.push(response);
-            current_nilcommitted += power;
+            current_nil_precommitted += power;
         }
     }
     assertion_check(&return_responses);
     return_responses
 }
 
-//Check formal n-1 responses are empty, on the other hand last one is not.
-//By adding expected response as a parameter, can compare actual last response with expected response.
+// Check formal n-1 responses are empty, on the other hand last one is not.
+// By adding expected response as a parameter, can compare actual last response with expected response.
 #[allow(dead_code)]
 pub fn assertion_check(responses: &Vec<Option<Vec<ConsensusResponse>>>) {
     let length = responses.len();
@@ -172,7 +172,7 @@ pub fn bulk_prevote(
     for i in 0..idx {
         let signer = signers[i];
         let time = timestamps[i];
-        let event = ConsensusEvent::Prevote {
+        let event = ConsensusEvent::NonNilPrevote {
             proposal,
             signer,
             round,
@@ -228,7 +228,7 @@ pub fn bulk_precommit(
     for i in 0..idx {
         let signer = signers[i];
         let time = timestamps[i];
-        let event = ConsensusEvent::Precommit {
+        let event = ConsensusEvent::NonNilPrecommit {
             proposal,
             signer,
             round,

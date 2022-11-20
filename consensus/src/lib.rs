@@ -41,17 +41,17 @@ pub enum ConsensusMessage {
         /// The hash of the voted block
         Hash256,
     ),
-    NonNilPreComitted(ConsensusRound, Hash256),
+    NonNilPreCommitted(ConsensusRound, Hash256),
     NilPreVoted(ConsensusRound),
-    NilPreComitted(ConsensusRound),
+    NilPreCommitted(ConsensusRound),
 }
 
 pub enum ProgressResult {
     Proposed(ConsensusRound, Hash256, Timestamp),
     NonNilPreVoted(ConsensusRound, Hash256, Timestamp),
-    NonNilPreComitted(ConsensusRound, Hash256, Timestamp),
+    NonNilPreCommitted(ConsensusRound, Hash256, Timestamp),
     NilPreVoted(ConsensusRound, Timestamp),
-    NilPreComitted(ConsensusRound, Timestamp),
+    NilPreCommitted(ConsensusRound, Timestamp),
     Finalized(Hash256, Timestamp),
 }
 
@@ -231,7 +231,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                         .iter()
                         .position(|h| h == &block_hash)
                         .expect("this must be already verified by the message filter");
-                    ConsensusEvent::Prevote {
+                    ConsensusEvent::NonNilPrevote {
                         proposal: index,
                         signer,
                         round: round as usize,
