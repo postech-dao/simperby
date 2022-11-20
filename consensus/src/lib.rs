@@ -82,9 +82,11 @@ impl MessageFilter for ConsensusMessageFilter {
 }
 
 pub struct Consensus<N: GossipNetwork, S: Storage> {
+    /// The distributed consensus message set.
     dms: DMS<N, S>,
+    /// The local storage for the consensus state.
     storage: S,
-    /// A cache of the consensus state.
+    /// The cache of the consensus state.
     state: State,
     /// The set of the block hashes that have been verified, shared by the message filter.
     ///
@@ -167,17 +169,8 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(())
     }
 
-    pub async fn read(&self) -> Result<ConsensusState, Error> {
+    pub async fn read_consensus_state(&self) -> Result<ConsensusState, Error> {
         Ok(self.state.consensus_state.clone())
-    }
-
-    pub async fn veto_block(
-        &mut self,
-        _network_config: NetworkConfig,
-        _known_peers: &[Peer],
-        _block_hash: Hash256,
-    ) -> Result<(), Error> {
-        unimplemented!()
     }
 
     pub async fn set_proposal_candidate(
@@ -230,48 +223,18 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 .iter()
                 .position(|(pk, _)| pk == message.signature().signer())
                 .expect("this must be already verified by the message filter");
-            let event = match consensus_message {
-                ConsensusMessage::NonNilPreVoted(round, block_hash) => {
-                    let index = self
-                        .state
-                        .verified_block_hashes
-                        .iter()
-                        .position(|h| h == &block_hash)
-                        .expect("this must be already verified by the message filter");
-                    ConsensusEvent::NonNilPrevote {
-                        proposal: index,
-                        signer,
-                        round: round as usize,
-                        time: timestamp,
-                    }
-                }
-                _ => unimplemented!(),
-            };
+            let event = self
+                .consensus_message_to_event(&consensus_message, signer, timestamp)
+                .await;
             // Not directly commit the change in case of possible dms errors.
             let mut consensus_state_copy = self.state.consensus_state.clone();
             let result = consensus_state_copy.progress(event);
             if let Some(result) = result {
                 for response in result {
-                    match response {
-                        ConsensusResponse::BroadcastNilPrevote { round } => {
-                            if let Some(private_key) = self.this_node_key.as_ref() {
-                                let message = ConsensusMessage::NilPreVoted(round as u64);
-                                let message = serde_json::to_string(&message).unwrap();
-                                let signature = TypedSignature::sign(&message, private_key)
-                                    .expect("private key already verified");
-                                self.dms
-                                    .add_message(
-                                        network_config,
-                                        known_peers,
-                                        Message::new(message, signature)
-                                            .expect("signature just created"),
-                                    )
-                                    .await?
-                            }
-                            final_result.push(ProgressResult::NilPreVoted(round as u64, timestamp));
-                        }
-                        _ => unimplemented!(),
-                    }
+                    let consensus_result = self
+                        .handle_consensus_response(response, network_config, known_peers, timestamp)
+                        .await?;
+                    final_result.push(consensus_result);
                 }
             }
             self.state.consensus_state = consensus_state_copy;
@@ -307,5 +270,61 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Error,
     > {
         unimplemented!()
+    }
+}
+
+impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+    async fn consensus_message_to_event(
+        &self,
+        consensus_message: &ConsensusMessage,
+        signer: usize,
+        timestamp: Timestamp,
+    ) -> ConsensusEvent {
+        match consensus_message {
+            ConsensusMessage::NonNilPreVoted(round, block_hash) => {
+                let index = self
+                    .state
+                    .verified_block_hashes
+                    .iter()
+                    .position(|h| h == block_hash)
+                    .expect("this must be already verified by the message filter");
+                ConsensusEvent::NonNilPrevote {
+                    proposal: index,
+                    signer,
+                    round: *round as usize,
+                    time: timestamp,
+                }
+            }
+            // Todo
+            _ => unimplemented!(),
+        }
+    }
+
+    async fn handle_consensus_response(
+        &mut self,
+        consensus_response: ConsensusResponse,
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+        timestamp: Timestamp,
+    ) -> Result<ProgressResult, Error> {
+        match consensus_response {
+            ConsensusResponse::BroadcastNilPrevote { round } => {
+                if let Some(private_key) = self.this_node_key.as_ref() {
+                    let message = ConsensusMessage::NilPreVoted(round as u64);
+                    let message = serde_json::to_string(&message).unwrap();
+                    let signature = TypedSignature::sign(&message, private_key)
+                        .expect("private key already verified");
+                    self.dms
+                        .add_message(
+                            network_config,
+                            known_peers,
+                            Message::new(message, signature).expect("signature just created"),
+                        )
+                        .await?;
+                }
+                Ok(ProgressResult::NilPreVoted(round as u64, timestamp))
+            }
+            _ => unimplemented!(),
+        }
     }
 }
