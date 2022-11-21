@@ -67,7 +67,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(block_header)
     }
 
-    /// Returns the reserved state from the 'finalized' branch.
+    /// Returns the reserved state from the `finalized` branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
         self.raw.read_reserved_state().await.map_err(|e| anyhow!(e))
     }
