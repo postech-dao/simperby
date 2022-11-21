@@ -58,11 +58,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
     /// Returns the block header from the `finalized` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
-        let commit_hash = self
-            .raw
-            .locate_branch(&FINALIZED_BRANCH_NAME.into())
-            .await?;
-        let semantic_commit = self.raw.read_semantic_commit(&commit_hash).await?;
+        let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let block_header: BlockHeader = serde_json::from_str(&semantic_commit.body)?;
         Ok(block_header)
     }
