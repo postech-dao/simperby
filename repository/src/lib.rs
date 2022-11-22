@@ -61,8 +61,14 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
         let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let block_header: BlockHeader = serde_json::from_str(&semantic_commit.body)?;
-        Ok(block_header)
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        if let Commit::Block(block_header) = commit {
+            Ok(block_header)
+        } else {
+            Err(anyhow!(
+                "repository integrity broken; `finalized` branch is not on a block"
+            ))
+        }
     }
 
     /// Returns the reserved state from the `finalized` branch.
@@ -217,7 +223,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commits = commits
             .into_iter()
             .map(|(commit, hash)| {
-                from_semantic_commit(commit, &last_header)
+                from_semantic_commit(commit)
                     .map_err(|e| (e, hash))
                     .map(|x| (x, hash))
             })
