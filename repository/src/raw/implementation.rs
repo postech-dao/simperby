@@ -272,20 +272,16 @@ impl RawRepositoryImplInner {
             .head()
             .map_err(|_| Error::InvalidRepository("repository is empty".to_string()))?;
 
-        // TODO: A revwalk allows traversal of the commit graph defined by including one or
-        //       more leaves and excluding one or more roots.
-        //       --> revwalk can make error if there exists one or more roots...
         let mut revwalk = self.repo.revwalk()?;
-
         revwalk.push_head()?;
-        revwalk.set_sorting(git2::Sort::TIME | git2::Sort::REVERSE)?;
+        revwalk.set_sorting(git2::Sort::TIME)?;
 
         let oids: Vec<Oid> = revwalk
             .by_ref()
             .collect::<Result<Vec<Oid>, git2::Error>>()?;
-        println!("{:?}", oids.len());
-        // TODO: What if oids[0] not exist?
-        let hash = <[u8; 20]>::try_from(oids[0].as_bytes())
+
+        let initial_oid = if oids.len() == 1 { oids[0] } else { oids[1] };
+        let hash = <[u8; 20]>::try_from(initial_oid.as_bytes())
             .map_err(|_| Error::Unknown("err".to_string()))?;
 
         Ok(CommitHash { hash })
@@ -302,16 +298,13 @@ impl RawRepositoryImplInner {
     ) -> Result<Vec<CommitHash>, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let mut revwalk = self.repo.revwalk()?;
-
-        // TODO: revwalk should be tested
         revwalk.push(oid)?;
-        revwalk.set_sorting(git2::Sort::TIME | git2::Sort::TOPOLOGICAL)?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
 
         // Compare max and ancestor's size
         let oids: Vec<Oid> = revwalk
             .by_ref()
             .collect::<Result<Vec<Oid>, git2::Error>>()?;
-
         let oids = oids[1..oids.len()].to_vec();
 
         let oids_ancestor = if let Some(num_max) = max {

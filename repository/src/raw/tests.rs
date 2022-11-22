@@ -1,4 +1,4 @@
-#![allow(dead_code, unused)]
+//#![allow(dead_code, unused)]
 
 use crate::raw::Error;
 use crate::raw::{RawRepository, RawRepositoryImpl};
@@ -9,7 +9,6 @@ const MAIN: &str = "main";
 const BRANCH_A: &str = "branch_a";
 const BRANCH_B: &str = "branch_b";
 const TAG_A: &str = "tag_a";
-const TAG_B: &str = "tag_b";
 
 /// Make a repository which includes one initial commit at "main" branch.
 /// This returns RawRepositoryImpl containing the repository.
@@ -22,7 +21,6 @@ async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepositor
 }
 
 /// Initialize repository with empty commit and empty branch.
-#[ignore]
 #[tokio::test]
 async fn init() {
     let td = TempDir::new().unwrap();
@@ -34,13 +32,12 @@ async fn init() {
     let branch_list = repo.list_branches().await.unwrap();
     assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
-    let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+    RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
         .await
         .unwrap_err();
 }
 
 /// Open existed repository and verifies whether it opens well.
-#[ignore]
 #[tokio::test]
 async fn open() {
     let td = TempDir::new().unwrap();
@@ -64,7 +61,6 @@ async fn open() {
 */
 /// Create "branch_a" at c1, create c2 at "main" branch and move "branch_a" head from c1 to c2.
 /// Finally, "branch_a" is removed.
-#[ignore]
 #[tokio::test]
 async fn branch() {
     let td = TempDir::new().unwrap();
@@ -105,11 +101,10 @@ async fn branch() {
     assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
     // This fails since current HEAD points at "main" branch
-    let remove_main = repo.delete_branch(MAIN.into()).await.unwrap_err();
+    repo.delete_branch(MAIN.into()).await.unwrap_err();
 }
 
 /// Create a tag and remove it.
-#[ignore]
 #[tokio::test]
 async fn tag() {
     let td = TempDir::new().unwrap();
@@ -145,7 +140,6 @@ async fn tag() {
     c1 (branch_a)       c1 (HEAD -> branch_a) c1 (branch_a)               c1 (branch_a)
 */
 /// Checkout to each commits with different branches.
-#[ignore]
 #[tokio::test]
 async fn checkout() {
     let td = TempDir::new().unwrap();
@@ -195,7 +189,6 @@ async fn checkout() {
     c1                      c1 (HEAD)
 */
 /// Checkout to commit and set "HEAD" to the detached mode.
-#[ignore]
 #[tokio::test]
 async fn checkout_detach() {
     let td = TempDir::new().unwrap();
@@ -234,8 +227,6 @@ async fn checkout_detach() {
     c1
 */
 /// Get initial commit.
-/// TODO: Currently fails due to revparse
-#[ignore]
 #[tokio::test]
 async fn initial_commit() {
     let td = TempDir::new().unwrap();
@@ -263,8 +254,6 @@ async fn initial_commit() {
     c1
 */
 /// Get ancestors of c3 which are [c2, c1] in the linear commit above.
-/// TODO: Currently fails due to revparse
-#[ignore]
 #[tokio::test]
 async fn ancestor() {
     let td = TempDir::new().unwrap();
@@ -272,12 +261,15 @@ async fn ancestor() {
     let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
-    repo.create_commit("second".to_owned(), Some("".to_owned()))
+    // Make second and third commits at "main" branch
+    let second_commit_hash = repo
+        .create_commit("second".to_owned(), Some("".to_owned()))
         .await
         .unwrap();
-    let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
-    // Make second commit at "main" branch
-    let third_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
+    let third_commit_hash = repo
+        .create_commit("third".to_owned(), Some("".to_owned()))
+        .await
+        .unwrap();
 
     // Get only one ancestor(direct parent)
     let ancestors = repo
@@ -307,7 +299,6 @@ async fn ancestor() {
     c1 (main)
 */
 /// Make three commits at different branches and the merge base of (c2,c3) would be c1.
-#[ignore]
 #[tokio::test]
 async fn merge_base() {
     let td = TempDir::new().unwrap();
@@ -351,7 +342,6 @@ async fn merge_base() {
 }
 
 /// add remote repository and remove it.
-#[ignore]
 #[tokio::test]
 async fn remote() {
     let td = TempDir::new().unwrap();
