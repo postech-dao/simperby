@@ -124,10 +124,11 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Checks the validity of the repository, starting from the given height.
     ///
     /// It checks
-    /// 1. all the reserved branches and tags (especially valiity of the `fp` branch)
-    /// 2. the existence of merge commits
-    /// 3. the canonical history of the `finalized` branch.
-    /// 4. the reserved state in a valid format.
+    /// 1. all the reserved branches and tags
+    /// 2. the finalization proof in the `fp` branch.
+    /// 3. the existence of merge commits
+    /// 4. the canonical history of the `finalized` branch.
+    /// 5. the reserved state in a valid format.
     pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
         unimplemented!()
     }
