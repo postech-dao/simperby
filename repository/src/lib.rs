@@ -69,9 +69,32 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.read_reserved_state().await.map_err(|e| anyhow!(e))
     }
 
+    /// Cleans all the outdated commits, remote repositories and branches.
+    ///
+    /// It will leave only
+    /// - the `finalized` branch
+    /// - the `work` branch
+    /// - the `fp` branch.
+    ///
+    /// and
+    /// - the `p` branch
+    /// - the `a-#` branch
+    /// - the `b-#` branch
+    /// if only the branches are not outdated (branched from the last finalized commit).
+    pub async fn clean(&self) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     /// Fetches new commits from the network.
+    ///
     /// It **verifies** all the incoming changes and applies them to the local repository
     /// only if they are valid.
+    ///
+    /// - It may move the `finalized` branch.
+    /// - It may add some `a-#` branches.
+    /// - It may add some `b-#` branches.
+    ///
+    /// It may leave some remote repository (representing each peer) after the operation.
     pub async fn fetch(
         &mut self,
         _network_config: &NetworkConfig,
@@ -103,9 +126,10 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Checks the validity of the repository, starting from the given height.
     ///
     /// It checks
-    /// 1. all the reserved branches and tags
+    /// 1. all the reserved branches and tags (especially valiity of the `fp` branch)
     /// 2. the existence of merge commits
     /// 3. the canonical history of the `finalized` branch.
+    /// 4. the reserved state in a valid format.
     pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
         unimplemented!()
     }
@@ -116,9 +140,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// If the given commit is not a descendant of the
     /// current `finalized` (i.e., cannot be fast-forwarded), it fails.
     ///
-    /// Note that if you sync to a block `H`, then the `finalized` branch will move to `H-1`.
-    /// To sync the last block `H`, you have to run `finalize()`.
-    /// (This is because the finalization proof for a block appears in the next block.)
+    /// Note that the proof in the `fp` branch must be set for the candidate commit
+    /// for the last finalized block, which is `block_commit`.
     pub async fn sync(&mut self, _block_commit: &CommitHash) -> Result<(), Error> {
         unimplemented!()
     }
@@ -132,9 +155,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         unimplemented!()
     }
 
-    /// Finalizes a single block and moves the `finalized` branch to it.
+    /// Finalizes a single block and moves the `finalized` branch to it, and updates the `fp` branch.
     ///
     /// It will verify the finalization proof and the commits.
+    /// The difference between `finalize` and `sync` is that `sync` doesn't update the `fp` branch,
+    /// but checks it.
     pub async fn finalize(
         &mut self,
         _block_commit_hash: &CommitHash,
