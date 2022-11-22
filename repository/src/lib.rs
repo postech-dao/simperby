@@ -52,7 +52,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(Self { raw })
     }
 
-    /// Initializes the genesis repository from the genesis working tree.
+    /// Initializes the genesis repository from the genesis working tree,
+    /// leaving a genesis header.
     pub async fn genesis(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
