@@ -1,5 +1,3 @@
-//#![allow(dead_code, unused)]
-
 use crate::raw::Error;
 use crate::raw::{RawRepository, RawRepositoryImpl};
 use std::path::Path;
