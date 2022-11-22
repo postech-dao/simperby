@@ -139,3 +139,10 @@ pub enum Commit {
     ExtraAgendaTransaction(ExtraAgendaTransaction),
     ChatLog(ChatLog),
 }
+
+/// The special finalization proof commit in the `fp` branch.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct LastFinalizationProof {
+    pub height: BlockHeight,
+    pub proof: FinalizationProof,
+}

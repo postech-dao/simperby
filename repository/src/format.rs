@@ -16,9 +16,16 @@ pub fn to_semantic_commit(commit: &Commit, last_header: &BlockHeader) -> Semanti
     }
 }
 
-pub fn from_semantic_commit(
+pub fn from_semantic_commit(_semantic_commit: SemanticCommit) -> Result<Commit, String> {
+    todo!()
+}
+
+pub fn fp_to_semantic_commit(_fp: LastFinalizationProof) -> SemanticCommit {
+    unimplemented!()
+}
+
+pub fn fp_from_semantic_commit(
     _semantic_commit: SemanticCommit,
-    _last_header: &BlockHeader,
-) -> Result<Commit, String> {
+) -> Result<LastFinalizationProof, String> {
     todo!()
 }
