@@ -110,15 +110,6 @@ impl<T: RawRepository> DistributedRepository<T> {
         unimplemented!()
     }
 
-    /// Notifies there was a push for the given repository.
-    pub async fn notify_push(
-        &mut self,
-        _network_config: &NetworkConfig,
-        _known_peers: &[Peer],
-    ) -> Result<(), Error> {
-        unimplemented!()
-    }
-
     /// Serves the distributed repository protocol indefinitely.
     /// It **verifies** all the incoming changes and applies them to the local repository
     /// only if they are valid.
