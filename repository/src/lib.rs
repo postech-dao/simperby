@@ -85,8 +85,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// and
     /// - the `p` branch
-    /// - the `a-#` branch
-    /// - the `b-#` branch
+    /// - the `a-#` branches
+    /// - the `b-#` branches
     /// if only the branches are not outdated (branched from the last finalized commit).
     pub async fn clean(&self) -> Result<(), Error> {
         unimplemented!()
