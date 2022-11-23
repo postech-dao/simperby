@@ -52,11 +52,19 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(Self { raw })
     }
 
-    /// Initializes the genesis repository from the genesis working tree,
+    /// Initializes the genesis repository from the genesis commit,
     /// leaving a genesis header.
+    ///
+    /// The repository MUST have only two commits: `initial` and `genesis` in the `finalized` branch.
+    /// The `genesis` commit MUST have set the initial reserved state in a valid format.
+    ///
+    /// It also
+    /// - creates `fp` branch and its commit (for the genesis block).
+    /// - creates `work` branch at the same place with the `finalized` branch.
     pub async fn genesis(&mut self) -> Result<(), Error> {
         unimplemented!()
     }
+
     /// Returns the block header from the `finalized` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
         let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
