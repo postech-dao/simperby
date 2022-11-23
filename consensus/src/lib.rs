@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
@@ -10,7 +11,7 @@ use simperby_network::{
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use vetomint::*;
+use vetomint2::*;
 
 pub type Error = anyhow::Error;
 const STATE_FILE_NAME: &str = "state.json";
@@ -19,11 +20,14 @@ const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
-    pub consensus_state: ConsensusState,
+    /// The vetomint core instance.
+    vetomint: Vetomint,
     /// The set of messages that have been already updated to the Vetomint state machine.
     pub updated_messages: BTreeSet<Hash256>,
     /// The set of the block hashes that have been verified.
     pub verified_block_hashes: Vec<Hash256>,
+    /// The set of the block hashes that are rejected by the user.
+    pub vetoed_block_hashes: Vec<Hash256>,
     /// The validator set eligible for this block
     pub validator_set: Vec<(PublicKey, VotingPower)>,
     /// If this node is a participant, the index of this node.
@@ -35,7 +39,11 @@ pub struct State {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConsensusMessage {
-    Proposal(Hash256),
+    Proposal {
+        round: ConsensusRound,
+        valid_round: Option<ConsensusRound>,
+        block_hash: Hash256,
+    },
     NonNilPreVoted(
         ConsensusRound,
         /// The hash of the voted block
@@ -54,6 +62,7 @@ pub enum ProgressResult {
     NilPreVoted(ConsensusRound, Timestamp),
     NilPreCommitted(ConsensusRound, Timestamp),
     Finalized(Hash256, Timestamp),
+    ViolationReported(PublicKey, String, Timestamp),
 }
 
 pub struct ConsensusMessageFilter {
@@ -96,6 +105,7 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
     this_node_key: Option<PrivateKey>,
 }
 
+// Public interface
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn create(
         mut storage: S,
@@ -112,9 +122,10 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             initial_block_candidate: NIL_BLOCK_PROPOSAL_INDEX,
         };
         let state = State {
-            consensus_state: ConsensusState::new(height_info),
+            vetomint: Vetomint::new(height_info),
             updated_messages: BTreeSet::new(),
             verified_block_hashes: vec![],
+            vetoed_block_hashes: vec![],
             validator_set: validator_set.to_vec(),
             finalized: false,
             this_node_index,
@@ -161,6 +172,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 
     pub async fn register_verified_block_hash(&mut self, hash: Hash256) -> Result<(), Error> {
+        self.abort_if_finalized()?;
         self.state.verified_block_hashes.push(hash);
         self.verified_block_hashes.write().insert(hash);
         self.storage
@@ -169,27 +181,53 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(())
     }
 
-    pub async fn read_consensus_state(&self) -> Result<ConsensusState, Error> {
-        Ok(self.state.consensus_state.clone())
-    }
+    // Todo: Read public state from the vetomint FSM.
+    // pub async fn read_consensus_state(&self) -> Result<ConsensusState, Error> {
+    //     Ok(self.state.vetomint.state)
+    // }
 
     pub async fn set_proposal_candidate(
         &mut self,
-        _network_config: &NetworkConfig,
-        _known_peers: &[Peer],
-        _block_hash: Hash256,
-        _timestamp: Timestamp,
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+        block_hash: Hash256,
+        timestamp: Timestamp,
     ) -> Result<Vec<ProgressResult>, Error> {
-        unimplemented!()
+        self.abort_if_finalized()?;
+        let block_index = self.get_block_index(&block_hash)?;
+        let consensus_event = ConsensusEvent::BlockCandidateUpdated {
+            proposal: block_index,
+        };
+        let responses = self.state.vetomint.progress(consensus_event, timestamp);
+        let result = self
+            .process_multiple_responses(responses, network_config, known_peers, timestamp)
+            .await?;
+        Ok(result)
     }
 
+    pub async fn veto_block(&mut self, block_hash: Hash256) -> Result<(), Error> {
+        self.abort_if_finalized()?;
+        self.state.vetoed_block_hashes.push(block_hash);
+        Ok(())
+    }
+
+    #[allow(unreachable_code, clippy::diverging_sub_expression)]
     pub async fn veto_round(
         &mut self,
-        _network_config: NetworkConfig,
-        _known_peers: &[Peer],
-        _round: ConsensusRound,
-    ) -> Result<(), Error> {
-        unimplemented!()
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+        round: ConsensusRound,
+        timestamp: Timestamp,
+    ) -> Result<Vec<ProgressResult>, Error> {
+        self.abort_if_finalized()?;
+        let consensus_event = ConsensusEvent::SkipRound {
+            round: round as usize,
+        };
+        let responses = self.state.vetomint.progress(consensus_event, timestamp);
+        let result = self
+            .process_multiple_responses(responses, network_config, known_peers, timestamp)
+            .await?;
+        Ok(result)
     }
 
     /// Makes a progress in the consensus process.
@@ -208,40 +246,39 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         known_peers: &[Peer],
         timestamp: Timestamp,
     ) -> Result<Vec<ProgressResult>, Error> {
-        let messages = self.dms.read_messages().await?;
-        let messages = messages
+        self.abort_if_finalized()?;
+        let messages = self
+            .dms
+            .read_messages()
+            .await?
             .into_iter()
             .filter(|m| !self.state.updated_messages.contains(&m.to_hash256()))
             .collect::<Vec<_>>();
-        let mut final_result = Vec::new();
-        for message in messages {
-            let consensus_message = serde_json::from_str::<ConsensusMessage>(message.data())
-                .expect("this must be already verified by the message filter");
+        // Not directly commit the change, by saving a copy of the vetomint FSM, in case of possible DMS errors.
+        let mut vetomint_copy = self.state.vetomint.clone();
+        let mut progress_responses = Vec::new();
+        for message in &messages {
             let signer = self
                 .state
                 .validator_set
                 .iter()
-                .position(|(pk, _)| pk == message.signature().signer())
+                .position(|(pubkey, _)| pubkey == message.signature().signer())
                 .expect("this must be already verified by the message filter");
-            let event = self
-                .consensus_message_to_event(&consensus_message, signer, timestamp)
-                .await;
-            // Not directly commit the change in case of possible dms errors.
-            let mut consensus_state_copy = self.state.consensus_state.clone();
-            let result = consensus_state_copy.progress(event);
-            if let Some(result) = result {
-                for response in result {
-                    let consensus_result = self
-                        .handle_consensus_response(response, network_config, known_peers, timestamp)
-                        .await?;
-                    final_result.push(consensus_result);
-                }
-            }
-            self.state.consensus_state = consensus_state_copy;
+            let consensus_message = serde_json::from_str::<ConsensusMessage>(message.data())
+                .expect("this must be already verified by the message filter");
+            let consensus_event = self.consensus_message_to_event(&consensus_message, signer);
+            progress_responses.extend(vetomint_copy.progress(consensus_event, timestamp));
         }
-        self.storage
-            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
+        let final_result = self
+            .process_multiple_responses(progress_responses, network_config, known_peers, timestamp)
             .await?;
+        // The change is applied here as we reached here without facing an error.
+        self.state
+            .updated_messages
+            .extend(messages.into_iter().map(|m| m.to_hash256()));
+        self.state.vetomint = vetomint_copy;
+        // Note, Todo: For now, storage errors are not handled.
+        self.commit_state_to_storage().await?;
         Ok(final_result)
     }
 
@@ -250,8 +287,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error> {
-        self.dms.fetch(network_config, known_peers).await?;
-        Ok(())
+        self.dms.fetch(network_config, known_peers).await
     }
 
     /// Serves the consensus protocol indefinitely.
@@ -273,34 +309,127 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 }
 
+// Private methods
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
-    async fn consensus_message_to_event(
-        &self,
-        consensus_message: &ConsensusMessage,
-        signer: usize,
-        timestamp: Timestamp,
-    ) -> ConsensusEvent {
-        match consensus_message {
-            ConsensusMessage::NonNilPreVoted(round, block_hash) => {
-                let index = self
-                    .state
-                    .verified_block_hashes
-                    .iter()
-                    .position(|h| h == block_hash)
-                    .expect("this must be already verified by the message filter");
-                ConsensusEvent::NonNilPrevote {
-                    proposal: index,
-                    signer,
-                    round: *round as usize,
-                    time: timestamp,
-                }
-            }
-            // Todo
-            _ => unimplemented!(),
+    fn get_block_index(&self, block_hash: &Hash256) -> Result<usize, Error> {
+        self.state
+            .verified_block_hashes
+            .iter()
+            .position(|h| h == block_hash)
+            .ok_or_else(|| anyhow!("block not verified"))
+    }
+
+    fn abort_if_finalized(&self) -> Result<(), Error> {
+        if self.state.finalized {
+            Err(anyhow!("operation on finalized state"))
+        } else {
+            Ok(())
         }
     }
 
-    async fn handle_consensus_response(
+    async fn commit_state_to_storage(&mut self) -> Result<(), Error> {
+        self.storage
+            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
+            .await
+            .map_err(|_| anyhow!("failed to commit consensus state to the storage"))
+    }
+
+    async fn broadcast_consensus_message(
+        &mut self,
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+        consensus_message: &ConsensusMessage,
+    ) -> Result<(), Error> {
+        let serialized = serde_json::to_string(consensus_message).unwrap();
+        let signature = TypedSignature::sign(&serialized, &network_config.private_key)
+            .expect("invalid(malformed) private key");
+        let message = Message::new(serialized, signature).expect("signature just created");
+        self.dms
+            .add_message(network_config, known_peers, message)
+            .await
+    }
+
+    async fn process_multiple_responses(
+        &mut self,
+        responses: Vec<ConsensusResponse>,
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+        timestamp: Timestamp,
+    ) -> Result<Vec<ProgressResult>, Error> {
+        let mut final_result = Vec::new();
+        for consensus_response in responses {
+            let consensus_result = self
+                .process_single_response(consensus_response, network_config, known_peers, timestamp)
+                .await?;
+            final_result.push(consensus_result);
+        }
+        Ok(final_result)
+    }
+
+    #[allow(unreachable_code)]
+    fn consensus_message_to_event(
+        &self,
+        consensus_message: &ConsensusMessage,
+        signer: usize,
+    ) -> ConsensusEvent {
+        match consensus_message {
+            ConsensusMessage::Proposal {
+                round,
+                valid_round,
+                block_hash,
+            } => {
+                let valid_round = valid_round.map(|r| r as usize);
+                let index = self
+                    .get_block_index(block_hash)
+                    .expect("this must be already verified by the message filter");
+                ConsensusEvent::BlockProposalReceived {
+                    proposal: index,
+                    // Todo, Note: For now, all proposals are regarded as valid.
+                    // See issue#201 (https://github.com/postech-dao/simperby/issues/201).
+                    valid: true,
+                    valid_round,
+                    proposer: signer,
+                    round: *round as usize,
+                    favor: !self.state.vetoed_block_hashes.contains(block_hash),
+                }
+            }
+            ConsensusMessage::NonNilPreVoted(round, block_hash) => {
+                let index = self
+                    .get_block_index(block_hash)
+                    .expect("this must be already verified by the message filter");
+                ConsensusEvent::Prevote {
+                    proposal: Some(index),
+                    signer,
+                    round: *round as usize,
+                }
+            }
+            ConsensusMessage::NonNilPreCommitted(round, block_hash) => {
+                let index = self
+                    .get_block_index(block_hash)
+                    .expect("this must be already verified by the message filter");
+                ConsensusEvent::Precommit {
+                    proposal: Some(index),
+                    signer,
+                    round: *round as usize,
+                }
+            }
+            ConsensusMessage::NilPreVoted(round) => ConsensusEvent::Prevote {
+                proposal: None,
+                signer,
+                round: *round as usize,
+            },
+            ConsensusMessage::NilPreCommitted(round) => ConsensusEvent::Precommit {
+                proposal: None,
+                signer,
+                round: *round as usize,
+            },
+        }
+    }
+
+    /// Handles the consensus response from the consensus state (vetomint).
+    ///
+    /// It might broadcast a block or a vote as needed.
+    async fn process_single_response(
         &mut self,
         consensus_response: ConsensusResponse,
         network_config: &NetworkConfig,
@@ -308,23 +437,108 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         timestamp: Timestamp,
     ) -> Result<ProgressResult, Error> {
         match consensus_response {
-            ConsensusResponse::BroadcastNilPrevote { round } => {
-                if let Some(private_key) = self.this_node_key.as_ref() {
-                    let message = ConsensusMessage::NilPreVoted(round as u64);
-                    let message = serde_json::to_string(&message).unwrap();
-                    let signature = TypedSignature::sign(&message, private_key)
-                        .expect("private key already verified");
-                    self.dms
-                        .add_message(
-                            network_config,
-                            known_peers,
-                            Message::new(message, signature).expect("signature just created"),
-                        )
-                        .await?;
-                }
-                Ok(ProgressResult::NilPreVoted(round as u64, timestamp))
+            ConsensusResponse::BroadcastProposal {
+                proposal,
+                valid_round,
+                round,
+            } => {
+                let _ = self
+                    .this_node_key
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                let valid_round = valid_round.map(|r| r as u64);
+                let block_hash = *self
+                    .state
+                    .verified_block_hashes
+                    .get(proposal)
+                    .expect("the block to propose is not in verified_block_hashes");
+                let consensus_message = ConsensusMessage::Proposal {
+                    round: round as u64,
+                    valid_round,
+                    block_hash,
+                };
+                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
+                    .await?;
+                Ok(ProgressResult::Proposed(
+                    round as u64,
+                    block_hash,
+                    timestamp,
+                ))
             }
-            _ => unimplemented!(),
+            ConsensusResponse::BroadcastPrevote { proposal, round } => {
+                let _ = self
+                    .this_node_key
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                let (consensus_message, progress_result) = if let Some(block_index) = proposal {
+                    let block_hash = *self
+                        .state
+                        .verified_block_hashes
+                        .get(block_index)
+                        .expect("the block to propose is not in verified_block_hashes");
+                    let message = ConsensusMessage::NonNilPreVoted(round as u64, block_hash);
+                    let result =
+                        ProgressResult::NonNilPreVoted(round as u64, block_hash, timestamp);
+                    (message, result)
+                } else {
+                    let message = ConsensusMessage::NilPreVoted(round as u64);
+                    let result = ProgressResult::NilPreVoted(round as u64, timestamp);
+                    (message, result)
+                };
+                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
+                    .await?;
+                Ok(progress_result)
+            }
+            ConsensusResponse::BroadcastPrecommit { proposal, round } => {
+                let _ = self
+                    .this_node_key
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                let (consensus_message, progress_result) = if let Some(block_index) = proposal {
+                    let block_hash = *self
+                        .state
+                        .verified_block_hashes
+                        .get(block_index)
+                        .expect("the block to propose is not in verified_block_hashes");
+                    let message = ConsensusMessage::NonNilPreCommitted(round as u64, block_hash);
+                    let result =
+                        ProgressResult::NonNilPreCommitted(round as u64, block_hash, timestamp);
+                    (message, result)
+                } else {
+                    let message = ConsensusMessage::NilPreCommitted(round as u64);
+                    let result = ProgressResult::NilPreCommitted(round as u64, timestamp);
+                    (message, result)
+                };
+                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
+                    .await?;
+                Ok(progress_result)
+            }
+            ConsensusResponse::FinalizeBlock { proposal } => {
+                let block_hash = *self
+                    .state
+                    .verified_block_hashes
+                    .get(proposal)
+                    .expect("oob access to verified_block_hashes");
+                self.state.finalized = true;
+                Ok(ProgressResult::Finalized(block_hash, timestamp))
+            }
+            ConsensusResponse::ViolationReport {
+                violator,
+                description,
+            } => {
+                let pubkey = self
+                    .state
+                    .validator_set
+                    .get(violator)
+                    .expect("oob access to validators")
+                    .0
+                    .clone();
+                Ok(ProgressResult::ViolationReported(
+                    pubkey,
+                    description,
+                    timestamp,
+                ))
+            }
         }
     }
 }
