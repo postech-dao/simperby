@@ -41,6 +41,8 @@ pub enum ConsensusEvent {
         /// Whether this node is in favor of the proposal.
         favor: bool,
     },
+    /// Informs that the node wants to skip the specific round regardless of proposals (which may even not exist).
+    SkipRound { round: Round, time: Timestamp },
     /// Updates the block candidate in which this nodes wants to propose
     BlockCandidateUpdated {
         proposal: BlockIdentifier,
@@ -82,6 +84,7 @@ impl ConsensusEvent {
         match self {
             ConsensusEvent::Start { time, .. } => *time,
             ConsensusEvent::BlockProposalReceived { time, .. } => *time,
+            ConsensusEvent::SkipRound { time, .. } => *time,
             ConsensusEvent::BlockCandidateUpdated { time, .. } => *time,
             ConsensusEvent::NonNilPrevote { time, .. } => *time,
             ConsensusEvent::NonNilPrecommit { time, .. } => *time,

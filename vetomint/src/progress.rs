@@ -50,6 +50,7 @@ pub(super) fn progress(
                 };
                 expected_response
             }
+            ConsensusEvent::SkipRound { .. } => unimplemented!(),
             // Time-trigger events are handled later
             ConsensusEvent::Timer { .. } => Vec::new(),
             ConsensusEvent::NonNilPrevote {
