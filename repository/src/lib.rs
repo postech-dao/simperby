@@ -17,6 +17,7 @@ pub type Tag = String;
 
 pub const FINALIZED_BRANCH_NAME: &str = "finalized";
 pub const WORK_BRANCH_NAME: &str = "work";
+pub const FP_BRANCH_NAME: &str = "fp";
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
@@ -96,8 +97,40 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// - the `a-#` branches
     /// - the `b-#` branches
     /// if only the branches are not outdated (branched from the last finalized commit).
-    pub async fn clean(&self) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn clean(&mut self) -> Result<(), Error> {
+        let finalized_branch_commit_hash =
+            self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+
+        let branches = self.raw.list_branches().await?;
+
+        // delete outdated p branch, a-# branches, b-# branches
+        for branch in branches {
+            if !(branch.as_str() == WORK_BRANCH_NAME
+                || branch.as_str() == FINALIZED_BRANCH_NAME
+                || branch.as_str() == FP_BRANCH_NAME)
+            {
+                let branch_commit = self.raw.locate_branch(branch.clone()).await?;
+
+                if finalized_branch_commit_hash
+                    != self
+                        .raw
+                        .find_merge_base(branch_commit, finalized_branch_commit_hash)
+                        .await?
+                {
+                    self.raw.delete_branch(branch.to_string()).await?;
+                }
+            }
+        }
+
+        // remove remote branches
+        let remote_list = self.raw.list_remotes().await?;
+        for (remote_name, _) in remote_list {
+            self.raw.remove_remote(remote_name).await?;
+        }
+
+        // TODO : CSV
+
+        Ok(())
     }
 
     /// Fetches new commits from the network.
