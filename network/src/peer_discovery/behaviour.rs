@@ -2,7 +2,7 @@ use libp2p::{
     identify,
     identity::PublicKey,
     kad::{store::MemoryStore, Kademlia, KademliaConfig, KademliaEvent},
-    NetworkBehaviour,
+    swarm::NetworkBehaviour,
 };
 use std::{borrow::Cow, time::Duration};
 
