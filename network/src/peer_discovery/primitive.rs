@@ -13,7 +13,7 @@ use libp2p::{
     identify, identity,
     noise::NoiseAuthenticated,
     swarm::{SwarmBuilder, SwarmEvent},
-    tcp::{GenTcpConfig, TokioTcpTransport},
+    tcp,
     yamux::YamuxConfig,
     Multiaddr, PeerId, Swarm, Transport,
 };
@@ -52,19 +52,22 @@ impl PeerDiscoveryPrimitiveImpl {
             convert_keypair(&network_config.public_key, &network_config.private_key)?;
         let transport = Self::create_transport(&libp2p_keypair).await?;
         let behaviour = Self::create_behaviour(&libp2p_keypair, message, port_map).await?;
-        let builder = SwarmBuilder::new(transport, behaviour, libp2p_keypair.public().to_peer_id());
-        let swarm = builder
-            .executor(Box::new(|fut| {
+        let swarm = SwarmBuilder::with_executor(
+            transport,
+            behaviour,
+            libp2p_keypair.public().to_peer_id(),
+            |fut| {
                 tokio::spawn(fut);
-            }))
-            .build();
+            },
+        )
+        .build();
         Ok(swarm)
     }
 
     async fn create_transport(
         libp2p_keypair: &identity::Keypair,
     ) -> Result<transport::Boxed<(PeerId, StreamMuxerBox)>, Error> {
-        let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true))
+        let transport = tcp::tokio::Transport::new(tcp::Config::default().nodelay(true))
             .upgrade(upgrade::Version::V1)
             .authenticate(NoiseAuthenticated::xx(libp2p_keypair).unwrap())
             .multiplex(YamuxConfig::default())
