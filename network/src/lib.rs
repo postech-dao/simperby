@@ -1,4 +1,5 @@
 pub mod dms;
+#[cfg(never)]
 mod peer_discovery;
 pub mod primitives;
 pub mod storage;
