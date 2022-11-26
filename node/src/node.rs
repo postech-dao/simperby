@@ -100,8 +100,4 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     async fn fetch(&mut self) -> Result<()> {
         unimplemented!()
     }
-
-    async fn notify_git_push(&mut self) -> Result<String> {
-        unimplemented!()
-    }
 }

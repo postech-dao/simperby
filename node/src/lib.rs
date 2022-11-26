@@ -94,8 +94,5 @@ pub trait SimperbyApi {
     /// Fetch the data from the network and apply to the repository, the governance, and the consensus.
     async fn fetch(&mut self) -> Result<()>;
 
-    /// Notifies that there was a git push. This is not intended to be used by the user.
-    async fn notify_git_push(&mut self) -> Result<String>;
-
     // TODO: Add chat-related methods.
 }
