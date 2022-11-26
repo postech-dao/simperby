@@ -58,6 +58,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
                 agenda_commit
             ));
         };
+        self.repository.vote(agenda_commit).await?;
         self.governance
             .vote(
                 &create_network_config(&self.config).await?,
