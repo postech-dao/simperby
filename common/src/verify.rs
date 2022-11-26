@@ -180,7 +180,7 @@ impl CommitSequenceVerifier {
             }
             (Commit::Transaction(tx), Phase::Block) => {
                 // Update reserved_state for reserved-diff transactions.
-                if let Diff::Reserved(rs, _) = &tx.diff {
+                if let Diff::Reserved(rs) = &tx.diff {
                     self.reserved_state = *rs.clone();
                 }
                 self.phase = Phase::Transaction {
@@ -203,7 +203,7 @@ impl CommitSequenceVerifier {
                     )));
                 }
                 // Update reserved_state for reserved-diff transactions.
-                if let Diff::Reserved(rs, _) = &tx.diff {
+                if let Diff::Reserved(rs) = &tx.diff {
                     self.reserved_state = *rs.clone();
                 }
                 preceding_transactions.push(last_transaction.clone());
@@ -461,7 +461,7 @@ mod test {
                 "recipient": "<key:some-addr-in-ethereum>",
             }))
             .unwrap(),
-            diff: Diff::General(Hash256::hash("The actual content of the diff".as_bytes())),
+            diff: Diff::NonReserved(Hash256::hash("The actual content of the diff".as_bytes())),
         })
     }
 
@@ -481,19 +481,12 @@ mod test {
             consensus_delegations: None,
         });
         reserved_state.consensus_leader_order.push(3);
-        let diff: String = serde_json::to_string(&json!({
-            "public_key": validator_keypair.last().unwrap().0,
-            "consensus_voting_power": 1,
-            "governance_voting_power": 1,
-            "delegation": null,
-        }))
-        .unwrap();
         Commit::Transaction(Transaction {
             author: validator_keypair[2].0.clone(),
             timestamp: time,
             head: "Test reserved-diff commit".to_string(),
-            body: diff.clone(),
-            diff: Diff::Reserved(Box::new(reserved_state.clone()), diff.to_hash256()),
+            body: String::new(),
+            diff: Diff::Reserved(Box::new(reserved_state.clone())),
         })
     }
 
