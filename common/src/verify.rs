@@ -135,6 +135,22 @@ impl CommitSequenceVerifier {
             commits: vec![],
         })
     }
+
+    /// Returns the block headers received so far.
+    ///
+    /// It returns `start_header` if no block header has been received.
+    pub fn get_block_header(&self) -> Vec<BlockHeader> {
+        unimplemented!()
+    }
+
+    /// Verifies finalization of the last header with the given proof.
+    ///
+    /// Note that due to the nature of the finalization proof (included in the next block)
+    /// there is always an unverified last header (which may even not be the last commit).
+    pub fn verify_last_header_finalization(&self, _proof: &FinalizationProof) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     /// Verifies the given commit and updates the internal reserved_state of CommitSequenceVerifier.
     pub fn apply_commit(&mut self, commit: &Commit) -> Result<(), Error> {
         match (commit, &mut self.phase) {
