@@ -71,18 +71,20 @@ pub struct AgendaProof {
     pub proof: Vec<TypedSignature<Agenda>>,
 }
 
+/// It holds the reserved state as a `Box` to flatten the variant size.
+/// (see https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant)
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum Diff {
     /// Nothing changed in the repository; an empty commit.
     None,
-    /// Only changes non-reserved areas. Contains the hash of the diff.
+    /// Changes the reserved area ONLY.
+    Reserved(Box<ReservedState>),
+    /// General diff that may change both the reserved state and the others.
     ///
-    /// The actual content of the diff is not covered by this crate; see `simperby-repository`.
-    General(Hash256),
-    /// Changes the reserved area. Contains the new reserved state and the hash of the diff.
-    /// It holds the reserved state as a `Box` to flatten the variant size.
-    /// (see https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant)
-    Reserved(Box<ReservedState>, Hash256),
+    /// Note that it only contains the hash of the diff.
+    /// The actual content of the diff (for the non-reserved state)
+    /// is not cared by the Simperby node.
+    General(Option<Box<ReservedState>>, Hash256),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]

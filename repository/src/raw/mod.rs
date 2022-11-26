@@ -112,6 +112,8 @@ pub trait RawRepository: Send + Sync + 'static {
     ) -> Result<CommitHash, Error>;
 
     /// Creates a semantic commit from the currently checked out branch.
+    ///
+    /// It fails if the `diff` is not `Diff::Reserved` or `Diff::None`.
     async fn create_semantic_commit(&mut self, commit: SemanticCommit)
         -> Result<CommitHash, Error>;
 
