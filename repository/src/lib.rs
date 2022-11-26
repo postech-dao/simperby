@@ -272,6 +272,16 @@ impl<T: RawRepository> DistributedRepository<T> {
         unimplemented!()
     }
 
+    /// Puts a 'vote' tag on the commit.
+    pub async fn vote(&mut self, _commit: CommitHash) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    /// Puts a 'veto' tag on the commit.
+    pub async fn veto(&mut self, _commit: CommitHash) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     /// Creates an agenda commit on top of the `work` branch.
     pub async fn create_extra_agenda_transaction(
         &mut self,
