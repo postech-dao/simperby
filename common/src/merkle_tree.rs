@@ -162,8 +162,8 @@ impl MerkleProof {
             Ok(())
         } else {
             Err(MerkleProofError::UnmatchedRoot(
-                hex::encode(root.hash),
-                hex::encode(calculated_root.hash),
+                root.to_string(),
+                calculated_root.to_string(),
             ))
         }
     }
