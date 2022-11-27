@@ -89,3 +89,36 @@ pub trait PeerDiscovery {
     /// Reads the known peers from the storage.
     async fn read_known_peers(storage_directory: &str) -> Result<Vec<Peer>, Error>;
 }
+
+/// A general handle for self-serving objects.
+pub struct Serve<T, E> {
+    task: tokio::task::JoinHandle<Result<T, E>>,
+    termination_switch: tokio::sync::oneshot::Sender<()>,
+    read_only_lock: Arc<RwLock<T>>,
+}
+
+impl<T, E> Serve<T, E> {
+    pub fn new(
+        task: tokio::task::JoinHandle<Result<T, E>>,
+        termination_switch: tokio::sync::oneshot::Sender<()>,
+        copy: Arc<RwLock<T>>,
+    ) -> Self {
+        Self {
+            task,
+            termination_switch,
+            read_only_lock: copy,
+        }
+    }
+
+    /// Join the serve task after triggering the termination switch.
+    pub async fn join(self) -> Result<Result<T, E>, tokio::task::JoinError> {
+        // drop the read-only lock to make `Arc::try_unwrap()` from the serve side succeed
+        drop(self.read_only_lock);
+        let _ = self.termination_switch.send(());
+        self.task.await
+    }
+
+    pub async fn read(&self) -> tokio::sync::RwLockReadGuard<T> {
+        self.read_only_lock.read().await
+    }
+}
