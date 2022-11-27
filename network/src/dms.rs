@@ -244,6 +244,12 @@ pub struct DistributedMessageSet<N, S> {
     _marker: std::marker::PhantomData<N>,
 }
 
+impl<N, S> std::fmt::Debug for DistributedMessageSet<N, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "?")
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// The interval of the broadcasts.
