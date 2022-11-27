@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Clean { .. } => todo!(),
         Commands::Create(CreateCommands::Agenda) => todo!(),
         Commands::Create(CreateCommands::Block) => todo!(),
-        Commands::Show { commit: _ } => todo!(),
+        Commands::Show { commit } => show(commit).await?,
         Commands::Consensus { show: _ } => todo!(),
         Commands::Relay => todo!(),
         Commands::Fetch => todo!(),
@@ -21,4 +21,15 @@ async fn main() -> anyhow::Result<()> {
     }
     #[allow(unreachable_code)]
     Ok(())
+}
+
+async fn show(_commit_hash: String) -> anyhow::Result<()> {
+    // For every type of commit,
+    // 1. Show the content.
+    // 2. Show the hash of it.
+    //
+    // For an agenda, show the governance status.
+    // For a block, show the consensus status projected on this block.
+    // For an extra-agenda transaction and a chat log, TODO.
+    todo!()
 }

@@ -93,7 +93,7 @@ pub enum Commands {
         /// If the given commit is already set to `veto`, it will be removed.
         commit: Option<String>,
     },
-    /// Show the governance status of the given agenda.
+    /// Show the overall information of the given commit.
     Show { commit: String },
     /// Run the Simperby node indefinitely. This is same as running `relay` while
     /// invoking `consensus` and `fetch` repeatedly.

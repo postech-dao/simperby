@@ -38,6 +38,19 @@ pub struct NetworkStatus {
     // TODO
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum CommitInfo {
+    Block {
+        block_header: BlockHeader,
+        // TODO: block-specific consensus status
+    },
+    Agenda {
+        agenda: Agenda,
+        voters: Vec<(MemberName, Timestamp)>,
+    },
+    // TODO
+}
+
 /// The API for the Simperby node.
 ///
 /// It is for serving the **CLI**, providing low-level functions and type-specified interfaces.
@@ -75,6 +88,9 @@ pub trait SimperbyApi {
 
     /// Vetos the given block.
     async fn veto_block(&mut self, block_commit: CommitHash) -> Result<()>;
+
+    /// Shows information about the given commit.
+    async fn show(&self, commit: CommitHash) -> Result<CommitInfo>;
 
     /// Runs indefinitely updating everything.
     async fn run(self) -> Result<()>;
