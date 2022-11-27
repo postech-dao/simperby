@@ -290,7 +290,7 @@ impl CommitSequenceVerifier {
                             last_extra_agenda_timestamp: tx.timestamp,
                         };
                     }
-                    ExtraAgendaTransaction::Report(_tx) => todo!(),
+                    ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }
             }
             (
@@ -326,10 +326,10 @@ impl CommitSequenceVerifier {
                         }
                         *last_extra_agenda_timestamp = tx.timestamp;
                     }
-                    ExtraAgendaTransaction::Report(_tx) => todo!(),
+                    ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }
             }
-            (Commit::ChatLog(_chat_log), _) => todo!(),
+            (Commit::ChatLog(_chat_log), _) => unimplemented!(),
             (commit, phase) => {
                 return Err(Error::PhaseMismatch(
                     format!("{:?}", commit),
