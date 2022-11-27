@@ -2,9 +2,8 @@ use super::Storage;
 use super::*;
 use anyhow::anyhow;
 use async_trait::async_trait;
-use futures::future::join_all;
 use futures::prelude::*;
-use futures::try_join;
+use futures::select;
 use serde_tc::http::*;
 use serde_tc::{serde_tc_full, StubCall};
 use simperby_common::*;
@@ -73,10 +72,6 @@ pub struct State {
     pub key: String,
 }
 
-pub struct StorageWrapper<S> {
-    storage: Arc<RwLock<S>>,
-}
-
 /// The interface that will be wrapped into an HTTP RPC server for the peers.
 #[serde_tc_full]
 trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
@@ -86,19 +81,38 @@ trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
         height: BlockHeight,
         knowns: Vec<Hash256>,
     ) -> Result<Vec<RawMessage>, String>;
+
+    /// Requests this node to accept a new message.
+    async fn add_messages(
+        &self,
+        height: BlockHeight,
+        messages: Vec<RawMessage>,
+    ) -> Result<(), String>;
+}
+
+struct DmsWrapper<N: GossipNetwork, S: Storage> {
+    dms: Arc<RwLock<DistributedMessageSet<N, S>>>,
 }
 
 #[async_trait]
-impl<S: Storage> DistributedMessageSetRpcInterface for StorageWrapper<S> {
+impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrapper<N, S> {
     async fn get_message(
         &self,
         height: BlockHeight,
         knowns: Vec<Hash256>,
     ) -> Result<Vec<RawMessage>, String> {
-        let mut messages = read_messages(&(*self.storage.read().await))
+        let mut messages = self
+            .dms
+            .read()
+            .await
+            .read_messages()
             .await
             .map_err(|e| e.to_string())?;
-        let height_ = read_state(&*self.storage.read().await)
+        let height_ = self
+            .dms
+            .read()
+            .await
+            .read_state()
             .await
             .map_err(|e| e.to_string())?
             .height;
@@ -116,105 +130,37 @@ impl<S: Storage> DistributedMessageSetRpcInterface for StorageWrapper<S> {
             .collect();
         Ok(messages)
     }
-}
 
-async fn read_messages(storage: &impl Storage) -> Result<Vec<Message>, Error> {
-    let files = storage.list_files().await?;
-    let tasks = files
-        .into_iter()
-        .map(|f| async move { storage.read_file(&f).await.map(|r| (f, r)) });
-    let data = future::join_all(tasks)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-    let messages = data
-        .into_iter()
-        .filter_map(|(f, r)| if f == STATE_FILE_PATH { None } else { Some(r) })
-        .map(|d| serde_json::from_str::<RawMessage>(&d))
-        .collect::<Result<Vec<RawMessage>, _>>()?;
-    let messages = messages
-        .into_iter()
-        .map(|d| d.into_message())
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(messages)
-}
-
-async fn add_message_but_not_broadcast(
-    storage: &mut impl Storage,
-    message: Message,
-) -> Result<(), Error> {
-    storage
-        .add_or_overwrite_file(
-            &format!("{}.json", message.to_hash256()),
-            serde_json::to_string(&message).unwrap(),
-        )
-        .await?;
-    Ok(())
-}
-
-async fn read_state(storage: &impl Storage) -> Result<State, Error> {
-    let state: State = serde_json::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
-    Ok(state)
-}
-
-async fn write_state(storage: &mut impl Storage, state: State) -> Result<(), Error> {
-    storage
-        .add_or_overwrite_file(STATE_FILE_PATH, serde_json::to_string(&state)?)
-        .await?;
-    Ok(())
-}
-
-async fn fetch<S: Storage>(
-    storage: Arc<RwLock<S>>,
-    _network_config: &NetworkConfig,
-    known_peers: &[Peer],
-    filter: &dyn MessageFilter,
-) -> Result<(), Error> {
-    let mut tasks = Vec::new();
-    let messages = read_messages(&*storage.read().await).await?;
-    let known_messages = messages
-        .into_iter()
-        .map(|m| m.to_hash256())
-        .collect::<Vec<_>>();
-    let state = read_state(&*storage.read().await).await?;
-    let height = state.height;
-
-    for peer in known_peers {
-        let storage = Arc::clone(&storage);
-        let port_key = state.key.clone();
-        let known_messages_ = known_messages.clone();
-        let task = async move {
-            let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
-                format!(
-                    "http://{}/{}",
-                    peer.address.ip(),
-                    peer.ports
-                        .get(&port_key)
-                        .ok_or_else(|| anyhow!("can't find port key: {}", port_key))?
-                ),
-                reqwest::Client::new(),
-            )));
-            let raw_messages = stub
-                .get_message(height, known_messages_)
-                .await?
-                .map_err(|e| anyhow!(e))?;
-            let mut storage = storage.write().await;
-            for raw_message in raw_messages {
-                let message = raw_message.into_message()?;
-                filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
-                add_message_but_not_broadcast(&mut *storage, message).await?;
-            }
-            Result::<(), Error>::Ok(())
-        };
-        tasks.push(task);
-    }
-    let results = future::join_all(tasks).await;
-    for (result, peer) in results.into_iter().zip(known_peers.iter()) {
-        if let Err(e) = result {
-            log::warn!("failed to fetch from client {:?}: {}", peer, e);
+    async fn add_messages(
+        &self,
+        height: BlockHeight,
+        messages: Vec<RawMessage>,
+    ) -> Result<(), String> {
+        let height_ = self
+            .dms
+            .read()
+            .await
+            .read_state()
+            .await
+            .map_err(|e| e.to_string())?
+            .height;
+        if height != height_ {
+            return Err(format!(
+                "height mismatch: requested {}, but {}",
+                height, height_
+            ));
         }
+        for message in messages {
+            let message = message.into_message().map_err(|e| e.to_string())?;
+            DistributedMessageSet::<N, S>::add_message_but_not_broadcast(
+                &mut (*self.dms.write().await.storage.write().await),
+                message,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 struct DummyFilter;
@@ -268,7 +214,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     /// among the networks and among the types (e.g. governance, consensus, ...).
     pub async fn create(mut storage: S, height: u64, dms_key: String) -> Result<(), Error> {
         storage.remove_all_files().await?;
-        write_state(
+        Self::write_state(
             &mut storage,
             State {
                 height,
@@ -302,13 +248,51 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         _network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error> {
-        fetch(
-            Arc::clone(&self.storage),
-            _network_config,
-            known_peers,
-            self.filter.as_ref(),
-        )
-        .await
+        let mut tasks = Vec::new();
+        let messages = self.read_messages().await?;
+        let known_messages = messages
+            .into_iter()
+            .map(|m| m.to_hash256())
+            .collect::<Vec<_>>();
+        let state = self.read_state().await?;
+        let height = state.height;
+        for peer in known_peers {
+            let storage = Arc::clone(&self.storage);
+            let filter = Arc::clone(&self.filter);
+            let port_key = state.key.clone();
+            let known_messages_ = known_messages.clone();
+            let task = async move {
+                let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
+                    format!(
+                        "{}:{}/dms",
+                        peer.address.ip(),
+                        peer.ports
+                            .get(&port_key)
+                            .ok_or_else(|| anyhow!("can't find port key: {}", port_key))?
+                    ),
+                    reqwest::Client::new(),
+                )));
+                let raw_messages = stub
+                    .get_message(height, known_messages_)
+                    .await?
+                    .map_err(|e| anyhow!(e))?;
+                let mut storage = storage.write().await;
+                for raw_message in raw_messages {
+                    let message = raw_message.into_message()?;
+                    filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
+                    Self::add_message_but_not_broadcast(&mut *storage, message).await?;
+                }
+                Result::<(), Error>::Ok(())
+            };
+            tasks.push(task);
+        }
+        let results = future::join_all(tasks).await;
+        for (result, peer) in results.into_iter().zip(known_peers.iter()) {
+            if let Err(e) = result {
+                log::warn!("failed to fetch from client {:?}: {}", peer, e);
+            }
+        }
+        Ok(())
     }
 
     /// Adds the given message to the storage, immediately broadcasting it to the network.
@@ -321,7 +305,8 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         known_peers: &[Peer],
         message: Message,
     ) -> Result<(), Error> {
-        add_message_but_not_broadcast(&mut *self.storage.write().await, message.clone()).await?;
+        Self::add_message_but_not_broadcast(&mut *(self.storage.write().await), message.clone())
+            .await?;
         N::broadcast(
             network_config,
             known_peers,
@@ -331,25 +316,119 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(())
     }
 
+    /// Tries to broadcast all the message that this DMS instance has.
+    pub async fn broadcast_all(
+        &self,
+        network_config: &NetworkConfig,
+        known_peers: &[Peer],
+    ) -> Result<(), Error> {
+        let mut tasks1 = Vec::new();
+        let state = self.read_state().await?;
+        let messages = self
+            .read_messages()
+            .await?
+            .into_iter()
+            .map(RawMessage::from_message)
+            .collect::<Vec<_>>();
+        let height = state.height;
+
+        for peer in known_peers {
+            let port_key = state.key.clone();
+            let messages_ = messages.clone();
+            let task = async move {
+                let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
+                    format!(
+                        "{}:{}/dms",
+                        peer.address.ip(),
+                        peer.ports
+                            .get(&port_key)
+                            .ok_or_else(|| anyhow!("can't find port key: {}", port_key))?
+                    ),
+                    reqwest::Client::new(),
+                )));
+                stub.add_messages(height, messages_.clone())
+                    .await?
+                    .map_err(|e| anyhow!(e))?;
+                Result::<(), Error>::Ok(())
+            };
+            tasks1.push((task, format!("RPC message add to {}", peer.public_key)));
+        }
+        let tasks2 = messages.into_iter().map(|message| {
+            let network_config = network_config.clone();
+            let peers = known_peers.to_owned();
+            let message_hash = message.data.to_hash256();
+            (
+                async move {
+                    N::broadcast(
+                        &network_config,
+                        &peers,
+                        serde_json::to_vec(&message).unwrap(),
+                    )
+                    .await?;
+                    Result::<(), Error>::Ok(())
+                },
+                format!("broadcast message {} to all peers", message_hash),
+            )
+        });
+        let mut tasks = Vec::new();
+        let mut messages = Vec::new();
+        for (task, msg) in tasks1 {
+            tasks.push(task.boxed());
+            messages.push(msg);
+        }
+        for (task, msg) in tasks2 {
+            tasks.push(task.boxed());
+            messages.push(msg);
+        }
+        let results = future::join_all(tasks).await;
+        for (result, msg) in results.into_iter().zip(messages.iter()) {
+            if let Err(e) = result {
+                log::warn!("failure in {}: {}", msg, e);
+            }
+        }
+        Ok(())
+    }
+
     /// Reads the messages from the storage.
     pub async fn read_messages(&self) -> Result<Vec<Message>, Error> {
-        let result = read_messages(&*self.storage.read().await).await?;
-        Ok(result)
+        let files = self.storage.read().await.list_files().await?;
+        let tasks = files.into_iter().map(|f| async move {
+            self.storage
+                .read()
+                .await
+                .read_file(&f)
+                .await
+                .map(|r| (f, r))
+        });
+        let data = future::join_all(tasks)
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
+        let messages = data
+            .into_iter()
+            .filter_map(|(f, r)| if f == STATE_FILE_PATH { None } else { Some(r) })
+            .map(|d| serde_json::from_str::<RawMessage>(&d))
+            .collect::<Result<Vec<RawMessage>, _>>()?;
+        let messages = messages
+            .into_iter()
+            .map(|d| d.into_message())
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(messages)
     }
 
     /// Reads the height from the storage.
     pub async fn read_height(&self) -> Result<BlockHeight, Error> {
-        let state = read_state(&*self.storage.read().await).await?;
+        let state = self.read_state().await?;
         Ok(state.height)
     }
 
     /// Advances the height of the message set, discarding all the messages.
     pub async fn advance(&mut self) -> Result<(), Error> {
-        let state = read_state(&*self.storage.read().await).await?;
+        let state = self.read_state().await?;
         let mut storage = self.storage.write().await;
         storage.remove_all_files().await?;
-        write_state(
-            &mut *storage,
+        Self::write_state(
+            &mut *self.storage.write().await,
             State {
                 height: state.height + 1,
                 key: state.key,
@@ -359,109 +438,170 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(())
     }
 
+    async fn add_message_but_not_broadcast(
+        storage: &mut impl Storage,
+        message: Message,
+    ) -> Result<(), Error> {
+        storage
+            .add_or_overwrite_file(
+                &format!("{}.json", message.to_hash256()),
+                serde_json::to_string(&message).unwrap(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn read_state(&self) -> Result<State, Error> {
+        let state: State =
+            serde_json::from_str(&self.storage.read().await.read_file(STATE_FILE_PATH).await?)?;
+        Ok(state)
+    }
+
+    async fn write_state(storage: &mut impl Storage, state: State) -> Result<(), Error> {
+        storage
+            .add_or_overwrite_file(STATE_FILE_PATH, serde_json::to_string(&state)?)
+            .await?;
+        Ok(())
+    }
+
+    async fn serve_rpc(this: Arc<RwLock<Self>>, rpc_port: u16) -> Result<(), Error> {
+        run_server(
+            rpc_port,
+            [(
+                "dms".to_owned(),
+                create_http_object(Arc::new(DmsWrapper { dms: this })
+                    as Arc<dyn DistributedMessageSetRpcInterface>),
+            )]
+            .iter()
+            .cloned()
+            .collect(),
+        )
+        .await;
+        Ok(())
+    }
+
+    async fn serve_fetch(
+        this: Arc<RwLock<Self>>,
+        network_config: NetworkConfig,
+        peers: SharedKnownPeers,
+    ) -> Result<(), Error> {
+        let interval = if let Some(x) = this.read().await.config.fetch_interval {
+            x
+        } else {
+            return Result::<(), Error>::Ok(());
+        };
+        loop {
+            if let Err(e) = Self::fetch(
+                &mut *this.write().await,
+                &network_config,
+                &peers.read().await,
+            )
+            .await
+            {
+                log::warn!("failed to parse message from the gossip network: {}", e);
+            }
+            tokio::time::sleep(interval).await;
+        }
+    }
+
+    async fn serve_broadcast(
+        this: Arc<RwLock<Self>>,
+        network_config: NetworkConfig,
+        peers: SharedKnownPeers,
+    ) -> Result<(), Error> {
+        let interval = if let Some(x) = this.read().await.config.broadcast_interval {
+            x
+        } else {
+            return Result::<(), Error>::Ok(());
+        };
+        loop {
+            if let Err(e) = this
+                .read()
+                .await
+                .broadcast_all(&network_config, &peers.read().await)
+                .await
+            {
+                log::warn!("failed to broadcast to the network: {}", e);
+            }
+            tokio::time::sleep(interval).await;
+        }
+    }
+
+    async fn serve_gossip(
+        this: Arc<RwLock<Self>>,
+        network_config: NetworkConfig,
+        peers: SharedKnownPeers,
+    ) -> Result<(), Error> {
+        let mut recv = N::serve(network_config.clone(), peers.clone()).await?;
+        while let Some(m) = recv.0.recv().await {
+            let result = async {
+                let message: RawMessage = serde_json::from_slice(&m)?;
+                let message = message.into_message()?;
+                this.read()
+                    .await
+                    .filter
+                    .filter(&message)
+                    .map_err(|e| anyhow!("{}", e))?;
+                Self::add_message_but_not_broadcast(
+                    &mut *this.read().await.storage.write().await,
+                    message,
+                )
+                .await?;
+                Result::<(), anyhow::Error>::Ok(())
+            }
+            .await;
+            if let Err(e) = result {
+                log::warn!("failed to receive a message from the gossip network: {}", e);
+            }
+        }
+        Ok(())
+    }
+
     /// Serves the gossip network node and the RPC server indefinitely, constantly updating the storage.
     pub async fn serve(
         self,
         network_config: NetworkConfig,
         rpc_port: u16,
         peers: SharedKnownPeers,
-    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
-        let mut recv = N::serve(network_config.clone(), peers.clone()).await?;
-        let storage_ = Arc::clone(&self.storage);
-        let peers_ = peers.clone();
-        let network_config_ = network_config.clone();
-        let filter = Arc::clone(&self.filter);
-        let fetch_task = async move {
-            let interval = if let Some(x) = self.config.fetch_interval {
-                x
-            } else {
-                // No fetch task!
-                return Result::<(), Error>::Ok(());
-            };
-            loop {
-                let peers = peers_.read().await;
-                if let Err(e) = fetch(
-                    Arc::clone(&storage_),
-                    &network_config_,
-                    &peers,
-                    filter.as_ref(),
-                )
-                .await
-                {
-                    log::warn!("failed to parse message from the gossip network: {}", e);
+    ) -> Result<Serve<Self, Error>, Error> {
+        let this = Arc::new(RwLock::new(self));
+        let rpc_task = tokio::spawn(Self::serve_rpc(Arc::clone(&this), rpc_port));
+        let fetch_task = tokio::spawn(Self::serve_fetch(
+            Arc::clone(&this),
+            network_config.clone(),
+            peers.clone(),
+        ));
+        let broadcast_task = tokio::spawn(Self::serve_broadcast(
+            Arc::clone(&this),
+            network_config.clone(),
+            peers.clone(),
+        ));
+        let gossip_task =
+            tokio::spawn(Self::serve_gossip(Arc::clone(&this), network_config, peers));
+        let (switch_send, switch_recv) = tokio::sync::oneshot::channel();
+        let this_ = Arc::clone(&this);
+        Ok(Serve::new(
+            tokio::spawn(async move {
+                let mut tasks =
+                    future::try_join4(rpc_task, fetch_task, broadcast_task, gossip_task).fuse();
+                let mut switch_recv = switch_recv.fuse();
+                select! {
+                    x = tasks => {
+                        let _ = switch_recv.await;
+                        match x.as_ref().unwrap() {
+                            (Ok(_), Ok(_), Ok(_), Ok(_)) => (),
+                            _ => return Err(anyhow!("{:?}", x)),
+                        }
+                    },
+                    _ = switch_recv => ()
                 }
-                tokio::time::sleep(interval).await;
-            }
-        };
-        let storage_ = Arc::clone(&self.storage);
-        let peers_ = peers.clone();
-        let broadcast_task = async move {
-            let interval = if let Some(x) = self.config.broadcast_interval {
-                x
-            } else {
-                return Result::<(), Error>::Ok(());
-            };
-            loop {
-                let peers = peers_.read().await;
-                let messages = read_messages(&*storage_.read().await).await?;
-                let tasks = messages.into_iter().map(|message| {
-                    let network_config = network_config.clone();
-                    let peers = peers.clone();
-                    async move {
-                        N::broadcast(
-                            &network_config,
-                            &peers,
-                            serde_json::to_vec(&message).unwrap(),
-                        )
-                        .await?;
-                        Result::<(), Error>::Ok(())
-                    }
-                });
-                join_all(tasks).await;
-                tokio::time::sleep(interval).await;
-            }
-        };
-        let storage_ = Arc::clone(&self.storage);
-        let filter = Arc::clone(&self.filter);
-        let gossip_serve_task = async move {
-            while let Some(m) = recv.0.recv().await {
-                let result = async {
-                    let message: RawMessage = serde_json::from_slice(&m)?;
-                    let message = message.into_message()?;
-                    filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
-                    add_message_but_not_broadcast(&mut *storage_.write().await, message).await?;
-                    Result::<(), anyhow::Error>::Ok(())
-                }
-                .await;
-                if let Err(e) = result {
-                    log::warn!("failed to receive a message from the gossip network: {}", e);
-                }
-            }
-            Result::<(), Error>::Ok(())
-        };
-        let storage = Arc::clone(&self.storage);
-        let rpc_task = async move {
-            run_server(
-                rpc_port,
-                [(
-                    "x".to_owned(),
-                    create_http_object(Arc::new(StorageWrapper { storage })
-                        as Arc<dyn DistributedMessageSetRpcInterface>),
-                )]
-                .iter()
-                .cloned()
-                .collect(),
-            )
-            .await;
-            Ok(())
-        };
-        Ok(tokio::spawn(async move {
-            let x = try_join!(rpc_task, gossip_serve_task, broadcast_task, fetch_task);
-            match x {
-                Ok(_) => Ok(()),
-                Err(e) => Err(e),
-            }
-        }))
+                Ok(Arc::try_unwrap(this)
+                    .expect("failed to unwrap serve object")
+                    .into_inner())
+            }),
+            switch_send,
+            this_,
+        ))
     }
 }
 
