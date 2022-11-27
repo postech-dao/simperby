@@ -131,9 +131,4 @@ pub enum Commands {
     /// Sign a message with the configured private key.
     #[command(subcommand)]
     Sign(SignCommands),
-    /// Notify that there was a Git push on the repository.
-    ///
-    /// This is invoked from the Git hook.
-    /// A user should not invoke this command directly.
-    GitPush,
 }
