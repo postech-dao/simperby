@@ -21,27 +21,27 @@ async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
 #[async_trait]
 impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
     async fn genesis(&mut self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn initialize(&mut self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn sync(&mut self, _commmit: CommitHash) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn clean(&mut self, _hard: bool) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn create_block(&mut self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn create_agenda(&mut self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn create_extra_agenda_transaction(&mut self, _tx: ExtraAgendaTransaction) -> Result<()> {
@@ -86,11 +86,11 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     }
 
     async fn progress_for_consensus(&mut self) -> Result<String> {
-        unimplemented!()
+        todo!()
     }
 
     async fn get_consensus_status(&self) -> Result<ConsensusStatus> {
-        unimplemented!()
+        todo!()
     }
 
     async fn get_network_status(&self) -> Result<NetworkStatus> {
@@ -98,10 +98,10 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     }
 
     async fn relay(self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 
     async fn fetch(&mut self) -> Result<()> {
-        unimplemented!()
+        todo!()
     }
 }
