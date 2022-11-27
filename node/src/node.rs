@@ -77,6 +77,10 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         unimplemented!()
     }
 
+    async fn show(&self, _commit: CommitHash) -> Result<CommitInfo> {
+        todo!()
+    }
+
     async fn run(self) -> Result<()> {
         unimplemented!()
     }
