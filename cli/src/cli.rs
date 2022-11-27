@@ -8,7 +8,7 @@ Welcome to the Simperby CLI!
 #[clap(about = "A Simperby client CLI", long_about = None)]
 pub struct Cli {
     #[clap(subcommand)]
-    command: Commands,
+    pub command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
