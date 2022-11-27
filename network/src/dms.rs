@@ -49,7 +49,7 @@ pub trait MessageFilter: Send + Sync + 'static {
 
 /// A message before verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct RawMessage {
+pub struct RawMessage {
     pub data: String,
     pub signature: TypedSignature<String>,
 }
