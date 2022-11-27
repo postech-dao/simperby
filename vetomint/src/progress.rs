@@ -10,6 +10,7 @@ pub(super) fn progress(
             state.block_candidate = proposal;
             vec![ConsensusResponse::BroadcastProposal {
                 proposal,
+                valid_round: None, // TODO
                 round: state.round,
             }]
         } else {
@@ -360,7 +361,11 @@ fn start_round(
             state.waiting_for_proposal_creation = true;
             state.block_candidate
         };
-        vec![ConsensusResponse::BroadcastProposal { proposal, round }]
+        vec![ConsensusResponse::BroadcastProposal {
+            proposal,
+            valid_round: None, // TODO
+            round,
+        }]
     } else {
         state.timeout_propose = Some(time + state.height_info.consensus_params.timeout_ms as i64);
         Vec::new()

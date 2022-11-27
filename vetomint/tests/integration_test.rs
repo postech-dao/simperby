@@ -481,6 +481,7 @@ fn precommit_timeout_and_broadcast_proposal() {
         response,
         vec![ConsensusResponse::BroadcastProposal {
             proposal: 1,
+            valid_round: None, // TODO
             round: 1
         }]
     );
