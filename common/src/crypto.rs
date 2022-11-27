@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Error, Debug, Serialize, Deserialize, Clone)]
+#[derive(Error, Debug, Clone)]
 pub enum CryptoError {
     /// When the data format is not valid.
     #[error("invalid format: {0}")]
@@ -20,57 +20,99 @@ pub trait ToHash256 {
     fn to_hash256(&self) -> Hash256;
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
+pub struct HexSerializedBytes<const N: usize> {
+    data: [u8; N],
+}
+
+impl<const N: usize> HexSerializedBytes<N> {
+    const fn zero() -> Self {
+        Self { data: [0; N] }
+    }
+}
+
+impl<const N: usize> Serialize for HexSerializedBytes<N> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(hex::encode(self.data).as_str())
+    }
+}
+
+impl<'de, const N: usize> Deserialize<'de> for HexSerializedBytes<N> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let s: &str = Deserialize::deserialize(deserializer)?;
+        let bytes = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        if bytes.len() != N {
+            return Err(serde::de::Error::custom("invalid length"));
+        }
+        let mut data = [0; N];
+        data.copy_from_slice(&bytes);
+        Ok(HexSerializedBytes { data })
+    }
+}
+
 /// A cryptographic hash.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Hash256 {
-    pub hash: [u8; 32],
+    pub hash: HexSerializedBytes<32>,
 }
 
 impl Hash256 {
     pub const fn zero() -> Self {
-        Hash256 { hash: [0; 32] }
+        Hash256 {
+            hash: HexSerializedBytes::zero(),
+        }
     }
 
     /// Hashes the given data.
     pub fn hash(data: impl AsRef<[u8]>) -> Self {
         Hash256 {
-            hash: *blake3::hash(data.as_ref()).as_bytes(),
+            hash: HexSerializedBytes {
+                data: *blake3::hash(data.as_ref()).as_bytes(),
+            },
         }
     }
 
     pub fn from_array(data: [u8; 32]) -> Self {
         Hash256 {
-            hash: *blake3::Hash::from(data).as_bytes(),
+            hash: HexSerializedBytes { data },
         }
     }
 
     pub fn aggregate(&self, other: &Self) -> Self {
-        Self::hash([self.hash, other.hash].concat())
+        Self::hash([self.hash.data, other.hash.data].concat())
     }
 }
 
 impl std::convert::AsRef<[u8]> for Hash256 {
     fn as_ref(&self) -> &[u8] {
-        &self.hash
+        &self.hash.data
     }
 }
 
 impl fmt::Display for Hash256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.hash))
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 /// A cryptographic signature.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Signature {
-    signature: Vec<u8>,
+    signature: HexSerializedBytes<64>,
 }
 
 impl Signature {
     /// Creates a new signature from the given data and keys.
     pub fn sign(data: Hash256, private_key: &PrivateKey) -> Result<Self, Error> {
-        let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key)
+        let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key.data)
             .map_err(|_| Error::InvalidFormat("private key: [omitted]".to_owned()))?;
         let public_key: ed25519_dalek::PublicKey = (&private_key).into();
         let keypair = ed25519_dalek::Keypair {
@@ -78,15 +120,17 @@ impl Signature {
             public: public_key,
         };
         Ok(Signature {
-            signature: keypair.sign(data.hash.as_ref()).to_bytes().to_vec(),
+            signature: HexSerializedBytes {
+                data: keypair.sign(data.as_ref()).to_bytes(),
+            },
         })
     }
 
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: Hash256, public_key: &PublicKey) -> Result<(), Error> {
-        let signature = ed25519_dalek::Signature::from_bytes(&self.signature)
+        let signature = ed25519_dalek::Signature::from_bytes(&self.signature.data)
             .map_err(|_| Error::InvalidFormat(format!("signature: {}", self)))?;
-        let public_key = ed25519_dalek::PublicKey::from_bytes(&public_key.key)
+        let public_key = ed25519_dalek::PublicKey::from_bytes(&public_key.key.data)
             .map_err(|_| Error::InvalidFormat(format!("public_key: {}", public_key)))?;
         public_key
             .verify(data.as_ref(), &signature)
@@ -94,9 +138,9 @@ impl Signature {
     }
 
     /// Constructs a signature from the given bytes, but does not verify its validity.
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_array(bytes: [u8; 64]) -> Self {
         Signature {
-            signature: bytes.to_vec(),
+            signature: HexSerializedBytes { data: bytes },
         }
     }
 }
@@ -104,7 +148,7 @@ impl Signature {
 /// A signature that is explicitly marked with the type of the signed data.
 ///
 /// This implies that the signature is created on `Hash256::hash(serde_json::to_vec(T).unwrap())`.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
 pub struct TypedSignature<T> {
     signature: Signature,
     signer: PublicKey,
@@ -143,72 +187,80 @@ impl<T: ToHash256> TypedSignature<T> {
 
 impl std::convert::AsRef<[u8]> for Signature {
     fn as_ref(&self) -> &[u8] {
-        &self.signature
+        &self.signature.data
     }
 }
 
 impl fmt::Display for Signature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "?")
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 /// A public key.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PublicKey {
-    key: Vec<u8>,
+    key: HexSerializedBytes<32>,
 }
 
 impl std::convert::AsRef<[u8]> for PublicKey {
     fn as_ref(&self) -> &[u8] {
-        &self.key
+        &self.key.data
     }
 }
 
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "?")
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 impl PublicKey {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        let key = ed25519_dalek::PublicKey::from_bytes(bytes)
-            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(bytes))))?
-            .to_bytes()
-            .to_vec();
-        Ok(PublicKey { key })
+    pub fn zero() -> Self {
+        Self {
+            key: HexSerializedBytes::zero(),
+        }
+    }
+
+    pub fn from_array(array: [u8; 32]) -> Result<Self, Error> {
+        let key = ed25519_dalek::PublicKey::from_bytes(array.as_ref())
+            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
+            .to_bytes();
+        Ok(PublicKey {
+            key: HexSerializedBytes { data: key },
+        })
     }
 }
 
 /// A private key.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PrivateKey {
-    pub key: Vec<u8>,
+    pub key: HexSerializedBytes<32>,
 }
 
 impl std::convert::AsRef<[u8]> for PrivateKey {
     fn as_ref(&self) -> &[u8] {
-        &self.key
+        &self.key.data
     }
 }
 
 impl PrivateKey {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        let key = ed25519_dalek::SecretKey::from_bytes(bytes)
-            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(bytes))))?
-            .to_bytes()
-            .to_vec();
-        Ok(PrivateKey { key })
+    pub fn from_array(array: &[u8]) -> Result<Self, Error> {
+        let key = ed25519_dalek::SecretKey::from_bytes(array)
+            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
+            .to_bytes();
+        Ok(PrivateKey {
+            key: HexSerializedBytes { data: key },
+        })
     }
 
     pub fn public_key(&self) -> PublicKey {
         let private_key =
-            ed25519_dalek::SecretKey::from_bytes(&self.key).expect("private key is invalid");
+            ed25519_dalek::SecretKey::from_bytes(&self.key.data).expect("private key is invalid");
         let public_key: ed25519_dalek::PublicKey = (&private_key).into();
-        PublicKey {
-            key: public_key.to_bytes().to_vec(),
-        }
+        PublicKey::from_array(public_key.to_bytes()).expect("public key is invalid")
     }
 }
 
@@ -228,11 +280,75 @@ pub fn generate_keypair(seed: impl AsRef<[u8]>) -> (PublicKey, PrivateKey) {
     let mut rng = rand::rngs::StdRng::from_seed(seed_);
     let signing_key = ed25519_dalek::Keypair::generate(&mut rng);
     (
-        PublicKey {
-            key: signing_key.public.to_bytes().to_vec(),
-        },
-        PrivateKey {
-            key: signing_key.secret.to_bytes().to_vec(),
-        },
+        PublicKey::from_array(signing_key.public.to_bytes()).expect("public key is invalid"),
+        PrivateKey::from_array(&signing_key.secret.to_bytes()).expect("private key is invalid"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pretty_format() {
+        let hash = Hash256::hash("hello world");
+        let encoded = serde_json::to_string(&hash).unwrap();
+        assert_eq!(encoded.len(), 66);
+        let (public_key, private_key) = generate_keypair("hello world");
+        let signature = Signature::sign(hash, &private_key).unwrap();
+        let encoded = serde_json::to_string(&signature).unwrap();
+        assert_eq!(encoded.len(), 130);
+        let encoded = serde_json::to_string(&public_key).unwrap();
+        assert_eq!(encoded.len(), 66);
+        let encoded = serde_json::to_string(&private_key).unwrap();
+        assert_eq!(encoded.len(), 66);
+    }
+
+    #[test]
+    fn hash_encode_decode() {
+        let hash = Hash256::hash("hello world");
+        let encoded = serde_json::to_string(&hash).unwrap();
+        let decoded = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(hash, decoded);
+    }
+
+    #[test]
+    fn hash_encode_decode_zero() {
+        let hash = Hash256::zero();
+        let encoded = serde_json::to_string(&hash).unwrap();
+        let decoded = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(hash, decoded);
+    }
+
+    #[test]
+    fn key_encode_decode() {
+        let (public_key, private_key) = generate_keypair("hello world");
+        let encoded = serde_json::to_string(&public_key).unwrap();
+        let decoded = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(public_key, decoded);
+        let encoded = serde_json::to_string(&private_key).unwrap();
+        let decoded = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(private_key, decoded);
+    }
+
+    #[test]
+    fn signature_encode_decode() {
+        let (public_key, private_key) = generate_keypair("hello world");
+        let signature = Signature::sign(Hash256::hash("hello world"), &private_key).unwrap();
+        let encoded = serde_json::to_string(&signature).unwrap();
+        let decoded = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(signature, decoded);
+        signature
+            .verify(Hash256::hash("hello world"), &public_key)
+            .unwrap();
+    }
+
+    #[test]
+    fn signature_verify() {
+        let (public_key, private_key) = generate_keypair("hello world");
+        let signature = Signature::sign(Hash256::hash("hello world"), &private_key).unwrap();
+        signature
+            .verify(Hash256::hash("hello world"), &public_key)
+            .unwrap();
+    }
 }
