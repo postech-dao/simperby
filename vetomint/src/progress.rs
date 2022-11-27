@@ -50,7 +50,17 @@ pub(super) fn progress(
                 };
                 expected_response
             }
-            ConsensusEvent::SkipRound { .. } => unimplemented!(),
+            ConsensusEvent::SkipRound { round, .. } => {
+                if round != state.round {
+                    return None;
+                };
+                if state.step == ConsensusStep::Propose {
+                    state.step = ConsensusStep::Prevote;
+                    vec![ConsensusResponse::BroadcastNilPrevote { round: state.round }]
+                } else {
+                    Vec::new()
+                }
+            }
             // Time-trigger events are handled later
             ConsensusEvent::Timer { .. } => Vec::new(),
             ConsensusEvent::NonNilPrevote {
