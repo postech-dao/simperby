@@ -605,17 +605,20 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 }
 
-/// Unit tests for the `DistributedMessageSet` implementation.
-/// Note that the tests are not for the underlying storage nor the network.
-/// Thus, we assume dummy `GossipNetwork` and rely only on the RPC fetches.
-/// Also, for the simplicity, we assume there is only one node known to every node.
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::storage::StorageImpl;
     use rand::prelude::*;
 
+    use futures::future::join_all;
+
+    // TODO: Add other DMS types that use a working gossip network.
     type Dms = DistributedMessageSet<crate::primitives::DummyGossipNetwork, StorageImpl>;
+
+    async fn sleep(ms: u64) {
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    }
 
     fn generate_random_string() -> String {
         let mut rng = rand::thread_rng();
@@ -633,11 +636,12 @@ mod tests {
         )
     }
 
-    /// Returns the only-serving-node and the others.
+    /// Returns the only-serving-node and the others, with the `Peer` info for the serving node.
+    /// `size` includes the serving node.
     fn generate_node_configs(
         serving_node_port: u16,
         size: usize,
-    ) -> (NetworkConfig, Vec<NetworkConfig>) {
+    ) -> (NetworkConfig, Vec<NetworkConfig>, Peer) {
         let mut configs = Vec::new();
         let mut keys = Vec::new();
         for _ in 0..size {
@@ -656,22 +660,31 @@ mod tests {
         }
         (
             NetworkConfig {
-                network_id: generate_random_string(),
+                network_id: network_id.clone(),
                 port: Some(serving_node_port),
                 members: keys.iter().map(|(x, _)| x).cloned().collect(),
                 public_key: keys[0].0.clone(),
                 private_key: keys[0].1.clone(),
             },
             configs,
+            Peer {
+                public_key: keys[0].0.clone(),
+                address: SocketAddrV4::new("127.0.0.1".parse().unwrap(), serving_node_port),
+                ports: [(format!("{}_dms", network_id), serving_node_port)]
+                    .iter()
+                    .cloned()
+                    .collect(),
+                message: "".to_owned(),
+                recently_seen_timestamp: 0,
+            },
         )
     }
 
-    #[tokio::test]
-    async fn single_1() {
+    async fn setup(network_id: String) -> Dms {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
         let storage = StorageImpl::open(&dir).await.unwrap();
-        Dms::create(storage, 0, generate_random_string())
+        Dms::create(storage, 0, format!("{}_dms", network_id))
             .await
             .unwrap();
         let storage = StorageImpl::open(&dir).await.unwrap();
@@ -679,7 +692,12 @@ mod tests {
             fetch_interval: Some(Duration::from_millis(100)),
             broadcast_interval: None,
         };
-        let mut dms = Dms::open(storage, config).await.unwrap();
+        Dms::open(storage, config).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn single_1() {
+        let mut dms = setup("doesn't matter".to_owned()).await;
         let network_config = generate_node_configs(4200, 1).0;
 
         for i in 0..10 {
@@ -707,5 +725,144 @@ mod tests {
                 .map(|x| x.data)
                 .collect::<std::collections::BTreeSet<_>>()
         );
+    }
+
+    async fn run_non_server_node_1(
+        index: usize,
+        mut dms: Dms,
+        my_numbers: Vec<usize>,
+        other_numbers: Vec<usize>,
+        network_config: NetworkConfig,
+        server_peer: Peer,
+    ) {
+        // Add the assigned messages to the DMS
+        for i in &my_numbers {
+            let msg = format!("{}", i);
+            dms.add_message(
+                &network_config,
+                &[server_peer.clone()],
+                Message {
+                    data: msg.clone(),
+                    signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
+                },
+            )
+            .await
+            .unwrap();
+        }
+
+        // Try to sync
+        let mut count = 0;
+        loop {
+            sleep(500).await;
+            dms.broadcast_all(&network_config, &[server_peer.clone()])
+                .await
+                .unwrap();
+            sleep(500).await;
+            dms.fetch(&network_config, &[server_peer.clone()])
+                .await
+                .unwrap();
+            let messages = dms.read_messages().await.unwrap();
+            println!(
+                "NODE #{} on trial #{}: {}%",
+                index,
+                count,
+                messages.len() as f64 / other_numbers.len() as f64 * 100.0
+            );
+            if messages.len() == other_numbers.len() {
+                break;
+            }
+            count += 1;
+        }
+
+        // Read the messages and check that they are correct
+        let mut messages = dms
+            .read_messages()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|x| x.data.parse::<usize>().unwrap())
+            .collect::<Vec<_>>();
+        messages.sort();
+        let mut expected = other_numbers;
+        expected.sort();
+        assert_eq!(expected, messages);
+    }
+
+    /// Multi-node test assuming dummy gossip network and a single server node.
+    #[tokio::test]
+    async fn multi_dummy_gn_single_sn_1() {
+        let rpc_port = 4201;
+        let n = 10;
+        let (server_network_config, network_configs, server_peer) =
+            generate_node_configs(rpc_port, n + 1);
+        let serving_node_dms = setup(server_network_config.network_id.clone()).await;
+        let _server_node = serving_node_dms
+            .serve(
+                server_network_config.clone(),
+                rpc_port,
+                // Note that the server node doesn't need any peers
+                SharedKnownPeers {
+                    lock: Default::default(),
+                },
+            )
+            .await
+            .unwrap();
+        let mut tasks = Vec::new();
+        let k = 20;
+        let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
+        for (i, network_config) in network_configs.iter().enumerate() {
+            let dms = setup(server_network_config.network_id.clone()).await;
+            let numbers = ((i * k)..(i * k + k)).into_iter().collect::<Vec<_>>();
+            tasks.push(run_non_server_node_1(
+                i,
+                dms,
+                numbers,
+                all_numbers.clone(),
+                network_config.clone(),
+                server_peer.clone(),
+            ));
+        }
+        join_all(tasks).await;
+    }
+
+    // Same, but the server node is not online from the beginning
+    #[tokio::test]
+    async fn multi_dummy_gn_single_sn_2() {
+        let rpc_port = 4202;
+        let n = 10;
+        let (server_network_config, network_configs, server_peer) =
+            generate_node_configs(rpc_port, n + 1);
+        let serving_node_dms = setup(server_network_config.network_id.clone()).await;
+        let mut tasks = Vec::new();
+        let k = 20;
+        let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
+        for (i, network_config) in network_configs.iter().enumerate() {
+            let dms = setup(server_network_config.network_id.clone()).await;
+            let numbers = ((i * k)..(i * k + k)).into_iter().collect::<Vec<_>>();
+            tasks.push(run_non_server_node_1(
+                i,
+                dms,
+                numbers,
+                all_numbers.clone(),
+                network_config.clone(),
+                server_peer.clone(),
+            ));
+        }
+        tokio::spawn(async move {
+            sleep(5000).await;
+            let _server_node = serving_node_dms
+                .serve(
+                    server_network_config.clone(),
+                    rpc_port,
+                    // Note that the server node doesn't need any peers
+                    SharedKnownPeers {
+                        lock: Default::default(),
+                    },
+                )
+                .await
+                .unwrap();
+            future::pending::<()>().await;
+        });
+        join_all(tasks).await;
     }
 }
