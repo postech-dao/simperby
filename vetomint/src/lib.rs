@@ -100,6 +100,7 @@ impl ConsensusEvent {
 pub enum ConsensusResponse {
     BroadcastProposal {
         proposal: BlockIdentifier,
+        valid_round: Option<Round>,
         round: Round,
     },
     BroadcastNonNilPrevote {
