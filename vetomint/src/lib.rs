@@ -98,10 +98,6 @@ impl ConsensusEvent {
 /// A response that the consensus might emit for a given event, which must be properly handled by the lower layer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConsensusResponse {
-    /// Creation of the actual proposal is not the role of the consensus; the lower layer will take care of it.
-    CreateProposal {
-        round: Round,
-    },
     BroadcastProposal {
         proposal: BlockIdentifier,
         round: Round,
