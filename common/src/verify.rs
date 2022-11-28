@@ -138,8 +138,8 @@ impl CommitSequenceVerifier {
 
     /// Returns the block headers received so far.
     ///
-    /// It returns `start_header` if no block header has been received.
-    pub fn get_block_header(&self) -> Vec<BlockHeader> {
+    /// It returns `[start_header]` if no block header has been received.
+    pub fn get_block_headers(&self) -> Vec<BlockHeader> {
         self.commits
             .iter()
             .filter_map(|commit| match commit {
