@@ -153,8 +153,8 @@ impl CommitSequenceVerifier {
     ///
     /// Note that due to the nature of the finalization proof (included in the next block)
     /// there is always an unverified last header (which may even not be the last commit).
-    pub fn verify_last_header_finalization(&self, _proof: &FinalizationProof) -> Result<(), Error> {
-        unimplemented!()
+    pub fn verify_last_header_finalization(&self, proof: &FinalizationProof) -> Result<(), Error> {
+        verify_finalization_proof(&self.header, proof)
     }
 
     /// Verifies the given commit and updates the internal reserved_state of CommitSequenceVerifier.
