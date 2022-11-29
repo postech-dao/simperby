@@ -301,6 +301,16 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(result)
     }
 
+    /// Puts a 'vote' tag on the commit.
+    pub async fn vote(&mut self, _commit: CommitHash) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    /// Puts a 'veto' tag on the commit.
+    pub async fn veto(&mut self, _commit: CommitHash) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     /// Creates a block commit on top of the `work` branch.
     pub async fn create_block(&mut self, _author: PublicKey) -> Result<CommitHash, Error> {
         unimplemented!()
