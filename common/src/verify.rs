@@ -850,7 +850,7 @@ mod test {
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
-            timestamp: 0,
+            timestamp: -1,
             commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
