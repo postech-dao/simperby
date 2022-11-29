@@ -46,9 +46,9 @@ pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(),
             h2.author
         )));
     }
-    if h2.timestamp <= h1.timestamp {
+    if h2.timestamp < h1.timestamp {
         return Err(Error::InvalidArgument(format!(
-            "invalid timestamp: expected larger than {}, got {}",
+            "invalid timestamp: expected larger than or equal to {}, got {}",
             h1.timestamp, h2.timestamp
         )));
     }
@@ -184,7 +184,7 @@ impl CommitSequenceVerifier {
                 // Check if the block contains all the extra-agenda transactions.
                 if block_header.timestamp < *last_extra_agenda_timestamp {
                     return Err(Error::InvalidArgument(format!(
-                        "invalid block timestamp: expected larger than the last extra-agenda transaction timestamp {}, got {}",
+                        "invalid block timestamp: expected larger than or equal to the last extra-agenda transaction timestamp {}, got {}",
                         last_extra_agenda_timestamp, block_header.timestamp
                     )));
                 }
@@ -220,7 +220,7 @@ impl CommitSequenceVerifier {
                 // Check if transactions are in chronological order
                 if tx.timestamp < last_transaction.timestamp {
                     return Err(Error::InvalidArgument(format!(
-                        "invalid transaction timestamp: expected larger than {}, got {}",
+                        "invalid transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}",
                         last_transaction.timestamp, tx.timestamp
                     )));
                 }
@@ -270,7 +270,7 @@ impl CommitSequenceVerifier {
                 // Check if agenda is in chronological order
                 if agenda.timestamp < last_transaction.timestamp {
                     return Err(Error::InvalidArgument(
-                        format!("invalid agenda timestamp: expected larger than the last transaction timestamp {}, got {}", last_transaction.timestamp, agenda.timestamp)
+                        format!("invalid agenda timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_transaction.timestamp, agenda.timestamp)
                     ));
                 }
                 // Verify agenda
@@ -354,7 +354,7 @@ impl CommitSequenceVerifier {
                         // Check if extra-agenda transactions are in chronological order
                         if tx.timestamp < *last_extra_agenda_timestamp {
                             return Err(Error::InvalidArgument(
-                                format!("invalid extra-agenda transaction timestamp: expected larger than the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.timestamp)
+                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.timestamp)
                             ));
                         }
                         *last_extra_agenda_timestamp = tx.timestamp;
@@ -367,7 +367,7 @@ impl CommitSequenceVerifier {
                         // Check if extra-agenda transactions are in chronological order
                         if tx.timestamp < *last_extra_agenda_timestamp {
                             return Err(Error::InvalidArgument(
-                                format!("invalid extra-agenda transaction timestamp: expected larger than the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.timestamp)
+                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.timestamp)
                             ));
                         }
                         *last_extra_agenda_timestamp = tx.timestamp;
