@@ -1132,6 +1132,23 @@ mod test {
     // TODO: add test case where the transaction commit is invalid because it is extra-agenda transaction phase.
 
     #[test]
+    /// Test the case where the agenda commit is invalid because the agenda height is invalid.
+    /// The agenda height should be the next height of the last header height.
+    fn invalid_agenda_commit_with_invalid_height() {
+        let (validator_keypair, _, mut csv) = setup_test(3);
+        // Apply agenda commit with invalid height
+        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone(), csv.header.height);
+        let agenda: Agenda = Agenda {
+            author: validator_keypair[0].0.clone(),
+            timestamp: 1,
+            hash: agenda_hash_value,
+            height: 0,
+        };
+        csv.apply_commit(&generate_agenda_commit(&agenda))
+            .unwrap_err();
+    }
+
+    #[test]
     /// Test the case where the agenda commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_commit_with_invalid_agenda_hash1() {
         let (validator_keypair, _, mut csv) = setup_test(3);
@@ -1234,6 +1251,34 @@ mod test {
     }
 
     // TODO: add test case where the agenda commit is invalid because it is extra-agenda transaction phase.
+
+    #[test]
+    /// Test the case where the agenda proof commit is invalid because the agenda proof height is invalid.
+    /// The agenda proof height should be the next height of the last header height.
+    fn invalid_agenda_proof_commit_with_invalid_height() {
+        let (validator_keypair, _, mut csv) = setup_test(3);
+        // Apply agenda commit
+        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone(), csv.header.height);
+        let agenda: Agenda = Agenda {
+            author: validator_keypair[0].0.clone(),
+            timestamp: 1,
+            hash: agenda_hash_value,
+            height: csv.header.height + 1,
+        };
+        csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
+        // Apply agenda-proof commit with invalid height
+        csv.apply_commit(&generate_agenda_proof_commit(
+            &validator_keypair,
+            &Agenda {
+                author: validator_keypair[1].0.clone(),
+                timestamp: 1,
+                hash: agenda_hash_value,
+                height: 0,
+            },
+            agenda_hash_value,
+        ))
+        .unwrap_err();
+    }
 
     #[test]
     /// Test the case where the agenda proof commit is invalid because the agenda hash is invalid.
