@@ -9,6 +9,8 @@ use git2::{BranchType, ObjectType, Oid, Repository, RepositoryInitOptions};
 use implementation::RawRepositoryImplInner;
 use simperby_common::reserved::ReservedState;
 use std::convert::TryFrom;
+use std::fs;
+use std::path::Path;
 use std::str;
 use thiserror::Error;
 
