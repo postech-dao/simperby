@@ -7,6 +7,7 @@ const MAIN: &str = "main";
 const BRANCH_A: &str = "branch_a";
 const BRANCH_B: &str = "branch_b";
 const TAG_A: &str = "tag_a";
+const TAG_B: &str = "tag_b";
 
 /// Make a repository which includes one initial commit at "main" branch.
 /// This returns RawRepositoryImpl containing the repository.
@@ -70,20 +71,26 @@ async fn branch() {
     assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
     // git branch branch_a
-    let head = repo.get_head().await.unwrap();
-    repo.create_branch(BRANCH_A.into(), head).await.unwrap();
+    let c1_commit_hash = repo.get_head().await.unwrap();
+    repo.create_branch(BRANCH_A.into(), c1_commit_hash)
+        .await
+        .unwrap();
 
     // "branch_list" is sorted by the name of the branches in an alphabetic order
     let branch_list = repo.list_branches().await.unwrap();
     assert_eq!(branch_list, vec![BRANCH_A.to_owned(), MAIN.to_owned()]);
 
     let branch_a_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
-    assert_eq!(branch_a_commit_hash, head);
+    assert_eq!(branch_a_commit_hash, c1_commit_hash);
 
     // Make second commit with "main" branch
-    repo.create_commit("second".to_owned(), Some("".to_owned()))
+    let c2_commit_hash = repo
+        .create_commit("second".to_owned(), Some("".to_owned()))
         .await
         .unwrap();
+
+    let branch_list_from_commit = repo.get_branches(c2_commit_hash).await.unwrap();
+    assert_eq!(branch_list_from_commit, vec![MAIN.to_owned()]);
 
     // Move "branch_a" head to "main" head
     let main_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
@@ -92,6 +99,14 @@ async fn branch() {
         .unwrap();
     let branch_a_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
     assert_eq!(main_commit_hash, branch_a_commit_hash);
+
+    let branch_list_from_commit = repo.get_branches(c2_commit_hash).await.unwrap();
+    assert_eq!(
+        branch_list_from_commit,
+        vec![BRANCH_A.to_owned(), MAIN.to_owned()]
+    );
+    let branch_list_from_commit = repo.get_branches(c1_commit_hash).await.unwrap();
+    assert_eq!(branch_list_from_commit.len(), 0);
 
     // Remove "branch_a" and the remaining branch should be only "main"
     repo.delete_branch(BRANCH_A.into()).await.unwrap();
@@ -102,6 +117,9 @@ async fn branch() {
     repo.delete_branch(MAIN.into()).await.unwrap_err();
 }
 
+/*
+   c1 (HEAD -> main, tag_a, tag_b)  -->  c1 (HEAD -> main, tag_b)
+*/
 /// Create a tag and remove it.
 #[tokio::test]
 async fn tag() {
@@ -113,21 +131,29 @@ async fn tag() {
     let tag_list = repo.list_tags().await.unwrap();
     assert!(tag_list.is_empty());
 
-    // Create "tag_1" at first commit
+    // Create "tag_a" and "tag_b" at first commit
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     repo.create_tag(TAG_A.into(), first_commit_hash)
         .await
         .unwrap();
+    repo.create_tag(TAG_B.into(), first_commit_hash)
+        .await
+        .unwrap();
     let tag_list = repo.list_tags().await.unwrap();
-    assert_eq!(tag_list, vec![TAG_A.to_owned()]);
+    assert_eq!(tag_list, vec![TAG_A.to_owned(), TAG_B.to_owned()]);
 
     let tag_a_commit_hash = repo.locate_tag(TAG_A.into()).await.unwrap();
     assert_eq!(first_commit_hash, tag_a_commit_hash);
+    let tag_b_commit_hash = repo.locate_tag(TAG_B.into()).await.unwrap();
+    assert_eq!(first_commit_hash, tag_b_commit_hash);
 
-    // Remove "tag_1"
+    let tags = repo.get_tag(first_commit_hash).await.unwrap();
+    assert_eq!(tags, vec![TAG_A.to_owned(), TAG_B.to_owned()]);
+
+    // Remove "tag_a"
     repo.remove_tag(TAG_A.into()).await.unwrap();
     let tag_list = repo.list_tags().await.unwrap();
-    assert!(tag_list.is_empty());
+    assert_eq!(tag_list, vec![TAG_B.to_owned()]);
 }
 
 /*
@@ -339,26 +365,67 @@ async fn merge_base() {
     assert_eq!(merge_base, commit_hash_main);
 }
 
-/// add remote repository and remove it.
+/// TODO: Change remote repository examples.
+/// Add remote repository and remove it.
 #[tokio::test]
 async fn remote() {
     let td = TempDir::new().unwrap();
     let path = td.path();
     let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-    // Add dummy remote
-    repo.add_remote("origin".to_owned(), "/path/to/nowhere".to_owned())
-        .await
-        .unwrap();
+    // Add remote repositories
+    repo.add_remote(
+        "simperby".to_owned(),
+        "https://github.com/JeongHunP/simperby.git".to_owned(),
+    )
+    .await
+    .unwrap();
+    repo.add_remote(
+        "cosmos".to_owned(),
+        "https://github.com/JeongHunP/cosmos.git".to_owned(),
+    )
+    .await
+    .unwrap();
 
     let remote_list = repo.list_remotes().await.unwrap();
     assert_eq!(
         remote_list,
-        vec![("origin".to_owned(), "/path/to/nowhere".to_owned())]
+        vec![
+            (
+                "cosmos".to_owned(),
+                "https://github.com/JeongHunP/cosmos.git".to_owned()
+            ),
+            (
+                "simperby".to_owned(),
+                "https://github.com/JeongHunP/simperby.git".to_owned()
+            )
+        ]
     );
 
-    // Remove dummy remote
-    repo.remove_remote("origin".to_owned()).await.unwrap();
+    repo.fetch_all().await.unwrap();
+    let branches = repo.list_remote_tracking_branches().await.unwrap();
+    println!("{:?}", branches);
+
+    // TODO: After read_reserved_state() implemented, add this.
+    /*
+    let remote_repo = git2::Repository::clone(
+        "https://github.com/postech-dao/simperby-git-example.git",
+        td.path().join("git-ex"),
+    )
+    .unwrap();
+    let remote_repo = RawRepositoryImpl::open(td.path().join("git-ex").to_str().unwrap())
+        .await
+        .unwrap();
+    let reserved_state = remote_repo.read_reserved_state().await.unwrap(); */
+
+    // Remove "simperby" remote repository
+    repo.remove_remote("simperby".to_owned()).await.unwrap();
     let remote_list = repo.list_remotes().await.unwrap();
-    assert!(remote_list.is_empty());
+    assert_eq!(
+        remote_list,
+        vec![(
+            "cosmos".to_owned(),
+            "https://github.com/JeongHunP/cosmos.git".to_owned()
+        )]
+    );
 }
