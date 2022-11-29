@@ -232,6 +232,14 @@ impl CommitSequenceVerifier {
                 *last_transaction = tx.clone();
             }
             (Commit::Agenda(agenda), Phase::Block) => {
+                // Check if agenda is associated with the current block sequence.
+                if agenda.height != self.header.height + 1 {
+                    return Err(Error::InvalidArgument(format!(
+                        "invalid agenda block height: expected {}, got {}",
+                        self.header.height + 1,
+                        agenda.height
+                    )));
+                }
                 // Verify agenda without transactions
                 if agenda.hash != Agenda::calculate_hash(self.header.height, &[]) {
                     return Err(Error::InvalidArgument(format!(
@@ -251,6 +259,14 @@ impl CommitSequenceVerifier {
                     preceding_transactions,
                 },
             ) => {
+                // Check if agenda is associated with the current block sequence.
+                if agenda.height != self.header.height + 1 {
+                    return Err(Error::InvalidArgument(format!(
+                        "invalid agenda block height: expected {}, got {}",
+                        self.header.height + 1,
+                        agenda.height
+                    )));
+                }
                 // Check if agenda is in chronological order
                 if agenda.timestamp < last_transaction.timestamp {
                     return Err(Error::InvalidArgument(
@@ -275,6 +291,14 @@ impl CommitSequenceVerifier {
                 };
             }
             (Commit::AgendaProof(agenda_proof), Phase::Agenda { agenda }) => {
+                // Check if agenda proof is associated with the current block sequence.
+                if agenda_proof.height != self.header.height + 1 {
+                    return Err(Error::InvalidArgument(format!(
+                        "invalid agenda proof block height: expected {}, got {}",
+                        self.header.height + 1,
+                        agenda_proof.height
+                    )));
+                }
                 // Check if agenda hash matches
                 if agenda_proof.agenda_hash != agenda.hash {
                     return Err(Error::InvalidArgument(format!(
@@ -528,6 +552,7 @@ mod test {
         Commit::AgendaProof(AgendaProof {
             agenda_hash: agenda_hash_value,
             proof: agenda_proof,
+            height: agenda.height,
         })
     }
 
@@ -639,6 +664,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -660,6 +686,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -681,6 +708,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -721,6 +749,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -761,6 +790,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -801,6 +831,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -841,6 +872,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -884,6 +916,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -927,6 +960,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -1019,6 +1053,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply block commit at agenda phase
@@ -1061,6 +1096,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply transaction commit at agenda phase
@@ -1078,6 +1114,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -1110,6 +1147,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
             .unwrap_err();
@@ -1128,6 +1166,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
             .unwrap_err();
@@ -1145,6 +1184,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 0,
             hash: Agenda::calculate_hash(csv.header.height, &[]),
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
             .unwrap_err();
@@ -1160,6 +1200,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda commit again
@@ -1177,6 +1218,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -1203,6 +1245,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit with invalid agenda hash
@@ -1224,6 +1267,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit with invalid signature
@@ -1233,6 +1277,7 @@ mod test {
                 author: validator_keypair[1].0.clone(),
                 timestamp: 0,
                 hash: Hash256::zero(),
+                height: csv.header.height + 1,
             },
             agenda_hash_value,
         ))
@@ -1249,6 +1294,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
@@ -1280,6 +1326,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
@@ -1301,6 +1348,7 @@ mod test {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
             hash: agenda_hash_value,
+            height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,

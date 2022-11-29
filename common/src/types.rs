@@ -55,6 +55,7 @@ pub struct BlockHeader {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Agenda {
+    pub height: BlockHeight,
     pub author: PublicKey,
     pub timestamp: Timestamp,
     pub hash: Hash256,
@@ -67,6 +68,7 @@ pub struct ChatLog {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct AgendaProof {
+    pub height: BlockHeight,
     pub agenda_hash: Hash256,
     pub proof: Vec<TypedSignature<Agenda>>,
 }
