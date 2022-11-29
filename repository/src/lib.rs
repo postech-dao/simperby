@@ -291,6 +291,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             author,
             timestamp: get_timestamp(),
             hash: Agenda::calculate_hash(last_header.height + 1, &transactions),
+            height: last_header.height + 1,
         });
         let semantic_commit = to_semantic_commit(&agenda_commit, &last_header);
 
