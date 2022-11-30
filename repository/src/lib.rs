@@ -187,7 +187,84 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
     /// Returns the currently valid and height-acceptable agendas in the repository.
     pub async fn get_agendas(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
-        unimplemented!()
+        let mut agendas: Vec<(CommitHash, Hash256)> = vec![];
+        let branches = self.raw.list_branches().await?;
+        let last_header_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        for branch in branches {
+            // Check if the branch is an agenda branch
+            if branch.as_str().starts_with("a-") {
+                let branch_commit_hash = self.raw.locate_branch(branch.clone()).await?;
+                // Check if the agenda branch is rebased on top of the `finalized` branch
+                if self
+                    .raw
+                    .find_merge_base(last_header_commit_hash, branch_commit_hash)
+                    .await?
+                    != last_header_commit_hash
+                {
+                    return Err(anyhow!(
+                        "branch {} should be rebased on {}",
+                        branch,
+                        FINALIZED_BRANCH_NAME
+                    ));
+                }
+
+                // Construct a commit list starting from the next commit of the last finalized block to the `branch_commit`(the most recent commit of the branch)
+                let ancestor_commits = self
+                    .raw
+                    .list_ancestors(branch_commit_hash, Some(256))
+                    .await?;
+                let position = ancestor_commits
+                    .iter()
+                    .position(|c| *c == last_header_commit_hash)
+                    .expect("TODO: handle the case where it exceeds the limit");
+                let commits = stream::iter(
+                    ancestor_commits
+                        .iter()
+                        .take(position)
+                        .rev()
+                        .cloned()
+                        .map(|c| {
+                            let raw = &self.raw;
+                            async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
+                        }),
+                )
+                .buffered(256)
+                .collect::<Vec<_>>()
+                .await;
+                let mut commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
+                // Add most recent commit of the branch to the list since it is not included in the ancestor commits
+                let branch_commit = self.raw.read_semantic_commit(branch_commit_hash).await?;
+                commits.push((branch_commit, branch_commit_hash));
+                let commits = commits
+                    .into_iter()
+                    .map(|(commit, hash)| {
+                        from_semantic_commit(commit)
+                            .map_err(|e| (e, hash))
+                            .map(|x| (x, hash))
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|(error, hash)| {
+                        anyhow!("failed to convert the commit {}: {}", hash, error)
+                    })?;
+
+                // Push currently valid and height-acceptable agendas to the list
+                let last_header = self.get_last_finalized_block_header().await?;
+                let reserved_state = self.get_reserved_state().await?;
+                let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
+                    .map_err(|e| anyhow!("failed to create a verifier: {}", e))?;
+                for (commit, hash) in commits {
+                    if verifier.apply_commit(&commit).is_err() {
+                        break;
+                    }
+                    if let Commit::Agenda(agenda) = commit {
+                        if agenda.height == last_header.height + 1 {
+                            agendas.push((hash, agenda.hash));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(agendas)
     }
 
     /// Returns the currently valid and height-acceptable blocks in the repository.
