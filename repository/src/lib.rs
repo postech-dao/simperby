@@ -252,7 +252,12 @@ impl<T: RawRepository> DistributedRepository<T> {
         .buffered(256)
         .collect::<Vec<_>>()
         .await;
-        let commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
+        let mut commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
+        // Add most recent commit of the branch to the list since it is not included in the ancestor commits
+        commits.push((
+            self.raw.read_semantic_commit(work_commit).await?,
+            work_commit,
+        ));
         let commits = commits
             .into_iter()
             .map(|(commit, hash)| {
