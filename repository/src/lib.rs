@@ -16,6 +16,7 @@ use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
 use std::{collections::HashSet, fmt};
+use utils::{read_commits, retrieve_local_branches};
 
 pub type Branch = String;
 pub type Tag = String;
@@ -260,7 +261,41 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     /// Returns the currently valid and height-acceptable blocks in the repository.
     pub async fn get_blocks(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
-        unimplemented!()
+        let mut blocks: Vec<(CommitHash, Hash256)> = vec![];
+        let branches = retrieve_local_branches(&self.raw).await?;
+        let last_header_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        for (branch, branch_commit_hash) in branches {
+            // Check if the branch is a block branch
+            if branch.as_str().starts_with("b-") {
+                // Check if the block branch is rebased on top of the `finalized` branch
+                if self
+                    .raw
+                    .find_merge_base(last_header_commit_hash, branch_commit_hash)
+                    .await?
+                    != last_header_commit_hash
+                {
+                    log::warn!(
+                        "branch {} should be rebased on top of the {} branch",
+                        branch,
+                        FINALIZED_BRANCH_NAME
+                    );
+                    continue;
+                }
+
+                // Push currently valid and height-acceptable blocks to the list
+                let commits =
+                    read_commits(self, last_header_commit_hash, branch_commit_hash).await?;
+                let last_header = self.get_last_finalized_block_header().await?;
+                for (commit, hash) in commits {
+                    if let Commit::Block(block_header) = commit {
+                        if block_header.height == last_header.height + 1 {
+                            blocks.push((hash, block_header.to_hash256()));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(blocks)
     }
 
     /// Informs that the given agenda has been approved.
