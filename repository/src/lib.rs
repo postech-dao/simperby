@@ -312,7 +312,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             hash: Agenda::calculate_hash(last_header.height + 1, &transactions),
             height: last_header.height + 1,
         });
-        let semantic_commit = to_semantic_commit(&agenda_commit, &last_header);
+        let semantic_commit = to_semantic_commit(&agenda_commit);
 
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
