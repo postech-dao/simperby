@@ -116,6 +116,12 @@ pub struct Signature {
 }
 
 impl Signature {
+    pub const fn zero() -> Self {
+        Signature {
+            signature: HexSerializedBytes { data: [0; 64] },
+        }
+    }
+
     /// Creates a new signature from the given data and keys.
     pub fn sign(data: Hash256, private_key: &PrivateKey) -> Result<Self, Error> {
         let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key.data)
