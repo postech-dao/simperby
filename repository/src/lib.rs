@@ -253,7 +253,41 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
     /// Returns the currently valid and height-acceptable agendas in the repository.
     pub async fn get_agendas(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
-        unimplemented!()
+        let mut agendas: Vec<(CommitHash, Hash256)> = vec![];
+        let branches = retrieve_local_branches(&self.raw).await?;
+        let last_header_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        for (branch, branch_commit_hash) in branches {
+            // Check if the branch is an agenda branch
+            if branch.as_str().starts_with("a-") {
+                // Check if the agenda branch is rebased on top of the `finalized` branch
+                if self
+                    .raw
+                    .find_merge_base(last_header_commit_hash, branch_commit_hash)
+                    .await?
+                    != last_header_commit_hash
+                {
+                    log::warn!(
+                        "branch {} should be rebased on top of the {} branch",
+                        branch,
+                        FINALIZED_BRANCH_NAME
+                    );
+                    continue;
+                }
+
+                // Push currently valid and height-acceptable agendas to the list
+                let commits =
+                    read_commits(self, last_header_commit_hash, branch_commit_hash).await?;
+                let last_header = self.get_last_finalized_block_header().await?;
+                for (commit, hash) in commits {
+                    if let Commit::Agenda(agenda) = commit {
+                        if agenda.height == last_header.height + 1 {
+                            agendas.push((hash, agenda.to_hash256()));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(agendas)
     }
 
     /// Returns the currently valid and height-acceptable blocks in the repository.
