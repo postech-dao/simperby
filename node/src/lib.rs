@@ -26,6 +26,11 @@ pub struct Config {
 
     pub broadcast_interval_ms: Option<u64>,
     pub fetch_interval_ms: Option<u64>,
+
+    /// Public repos (usually mirrors) for the read-only accesses
+    ///
+    /// They're added as a remote repo, named `public_#`.
+    pub public_repo_url: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
