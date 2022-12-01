@@ -14,6 +14,16 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     consensus: Consensus<N, S>,
 }
 
+impl SimperbyNode {
+    pub async fn initialize(_config: &Config) -> Result<Self> {
+        todo!()
+    }
+
+    pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
+        self.repository.get_raw_mut()
+    }
+}
+
 async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
     unimplemented!()
 }
@@ -21,10 +31,6 @@ async fn create_network_config(_config: &Config) -> Result<NetworkConfig> {
 #[async_trait]
 impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
     async fn genesis(&mut self) -> Result<()> {
-        todo!()
-    }
-
-    async fn initialize(&mut self) -> Result<()> {
         todo!()
     }
 
