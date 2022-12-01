@@ -1,4 +1,5 @@
 mod implementation;
+pub mod reserved_state;
 #[cfg(test)]
 mod tests;
 
