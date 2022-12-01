@@ -18,6 +18,7 @@ pub type Tag = String;
 pub const FINALIZED_BRANCH_NAME: &str = "finalized";
 pub const WORK_BRANCH_NAME: &str = "work";
 pub const FP_BRANCH_NAME: &str = "fp";
+pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
@@ -317,6 +318,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        self.raw
+            .create_branch(
+                format!(
+                    "a-{:?}",
+                    agenda_commit
+                        .to_hash256()
+                        .to_string()
+                        .truncate(COMMIT_TITLE_HASH_DIGITS)
+                ),
+                result,
+            )
+            .await?;
         Ok(result)
     }
 
