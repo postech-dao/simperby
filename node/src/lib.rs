@@ -15,9 +15,10 @@ pub const PROTOCOL_VERSION: &str = "0.0.0";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
+    pub chain_name: String,
+
     pub public_key: PublicKey,
     pub private_key: PrivateKey,
-    pub chain_name: String,
 
     pub peer_directory: String,
     pub governance_directory: String,
@@ -65,11 +66,6 @@ pub trait SimperbyApi {
     /// stored in the given directory (which is not yet a Git repository).
     async fn genesis(&mut self) -> Result<()>;
 
-    /// Initializes a new Simperby node from the repository.
-    ///
-    /// The `finalized` branch MUST be on a valid block commit.
-    async fn initialize(&mut self) -> Result<()>;
-
     /// Synchronizes the `finalized` branch to the given commit.
     async fn sync(&mut self, commmit: CommitHash) -> Result<()>;
 
@@ -116,4 +112,15 @@ pub trait SimperbyApi {
     async fn fetch(&mut self) -> Result<()>;
 
     // TODO: Add chat-related methods.
+}
+
+/// A working Simperby node.
+pub type SimperbyNode = node::Node<
+    simperby_network::primitives::DummyGossipNetwork,
+    simperby_network::storage::StorageImpl,
+    simperby_repository::raw::RawRepositoryImpl,
+>;
+
+pub async fn initiliaze(_config: Config) -> Result<SimperbyNode> {
+    todo!()
 }
