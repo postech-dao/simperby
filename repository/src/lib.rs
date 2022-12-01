@@ -32,6 +32,15 @@ impl fmt::Display for CommitHash {
 
 pub type Error = anyhow::Error;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    /// Public repos (usually mirrors) for the read-only accesses
+    ///
+    /// They're added as a remote repo, named `public_#`.
+    /// Note that they are not part of `known_peers`.
+    pub mirrors: Vec<String>,
+}
+
 /// The local Simperby blockchain data repository.
 ///
 /// It automatically locks the repository once created.
@@ -40,6 +49,7 @@ pub type Error = anyhow::Error;
 /// only if they are valid.
 pub struct DistributedRepository<T> {
     raw: T,
+    _config: Config,
 }
 
 fn get_timestamp() -> Timestamp {
@@ -49,8 +59,12 @@ fn get_timestamp() -> Timestamp {
 }
 
 impl<T: RawRepository> DistributedRepository<T> {
-    pub async fn new(raw: T) -> Result<Self, Error> {
-        Ok(Self { raw })
+    pub fn get_raw_mut(&mut self) -> &mut T {
+        &mut self.raw
+    }
+
+    pub async fn new(raw: T, _config: Config) -> Result<Self, Error> {
+        Ok(Self { raw, _config })
     }
 
     /// Initializes the genesis repository from the genesis commit,
