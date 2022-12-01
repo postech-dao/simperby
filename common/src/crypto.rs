@@ -40,6 +40,12 @@ impl<const N: usize> Serialize for HexSerializedBytes<N> {
     }
 }
 
+impl<const N: usize> fmt::Display for HexSerializedBytes<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.data).as_str())
+    }
+}
+
 impl<'de, const N: usize> Deserialize<'de> for HexSerializedBytes<N> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -98,7 +104,7 @@ impl std::convert::AsRef<[u8]> for Hash256 {
 
 impl fmt::Display for Hash256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
+        write!(f, "{}", self.hash)
     }
 }
 
@@ -193,7 +199,7 @@ impl std::convert::AsRef<[u8]> for Signature {
 
 impl fmt::Display for Signature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
+        write!(f, "{}", self.signature)
     }
 }
 
@@ -212,7 +218,7 @@ impl std::convert::AsRef<[u8]> for PublicKey {
 
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
+        write!(f, "{}", self.key)
     }
 }
 
@@ -292,6 +298,7 @@ mod tests {
     #[test]
     fn pretty_format() {
         let hash = Hash256::hash("hello world");
+        assert_eq!(hash.to_string().len(), 64);
         let encoded = serde_json::to_string(&hash).unwrap();
         assert_eq!(encoded.len(), 66);
         let (public_key, private_key) = generate_keypair("hello world");
