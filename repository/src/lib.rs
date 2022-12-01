@@ -763,7 +763,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok((block_header, result))
     }
 
-    /// Creates an agenda commit on top of the `work` branch.
+    /// Creates an extra-agenda transaction commit on top of the `work` branch.
     pub async fn create_extra_agenda_transaction(
         &mut self,
         _transaction: &ExtraAgendaTransaction,
