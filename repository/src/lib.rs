@@ -19,6 +19,7 @@ pub const FINALIZED_BRANCH_NAME: &str = "finalized";
 pub const WORK_BRANCH_NAME: &str = "work";
 pub const FP_BRANCH_NAME: &str = "fp";
 pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
+pub const TAG_NAME_HASH_DIGITS: usize = 8;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
@@ -335,8 +336,27 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     /// Puts a 'veto' tag on the commit.
-    pub async fn veto(&mut self, _commit: CommitHash) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
+        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        // Check if the commit is an agenda commit.
+        if let Commit::Block(_) = commit {
+            self.raw
+                .create_tag(
+                    format!(
+                        "veto-{:?}",
+                        commit
+                            .to_hash256()
+                            .to_string()
+                            .truncate(TAG_NAME_HASH_DIGITS)
+                    ),
+                    commit_hash,
+                )
+                .await?;
+            Ok(())
+        } else {
+            Err(anyhow!("commit {} is not a block commit", commit_hash))
+        }
     }
 
     /// Creates a block commit on top of the `work` branch.
