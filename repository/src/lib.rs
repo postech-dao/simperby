@@ -330,8 +330,16 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     /// Puts a 'vote' tag on the commit.
-    pub async fn vote(&mut self, _commit: CommitHash) -> Result<(), Error> {
-        unimplemented!()
+    pub async fn vote(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
+        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        // Check if the commit is an agenda commit.
+        if let Commit::Agenda(_) = commit {
+            self.raw.create_tag("vote-#".into(), commit_hash).await?;
+            Ok(())
+        } else {
+            Err(anyhow!("commit {} is not an agenda commit", commit_hash))
+        }
     }
 
     /// Puts a 'veto' tag on the commit.
