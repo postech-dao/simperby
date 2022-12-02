@@ -111,7 +111,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
 
 pub fn fp_to_semantic_commit(fp: &LastFinalizationProof) -> SemanticCommit {
     let title = format!(">fp: {}", fp.height);
-    let body = serde_json::to_string(&fp.proof).unwrap();
+    let body = serde_json::to_string(&fp).unwrap();
     SemanticCommit {
         title,
         body,
@@ -125,10 +125,22 @@ pub fn fp_from_semantic_commit(
     let pattern = Regex::new(r"^>fp: (\d+)$").unwrap();
     let captures = pattern.captures(&semantic_commit.title);
     if let Some(captures) = captures {
-        let height = captures.get(1).map_or("", |m| m.as_str());
+        let height = captures.get(1).map(|m| m.as_str()).ok_or_else(|| {
+            anyhow!(
+                "Failed to parse commit height from commit title: {}",
+                semantic_commit.title
+            )
+        })?;
         let height = height.parse::<u64>()?;
-        let proof: FinalizationProof = serde_json::from_str(&semantic_commit.body)?;
-        Ok(LastFinalizationProof { height, proof })
+        let proof: LastFinalizationProof = serde_json::from_str(&semantic_commit.body)?;
+        if height != proof.height {
+            return Err(anyhow!(
+                "proof height mismatch: expected {}, got {}",
+                proof.height,
+                height
+            ));
+        }
+        Ok(proof)
     } else {
         Err(anyhow!("unknown commit type: {}", semantic_commit.title))
     }
