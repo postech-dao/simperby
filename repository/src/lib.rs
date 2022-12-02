@@ -156,6 +156,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// - It may move the `finalized` branch.
     /// - It may add some `a-#` branches.
     /// - It may add some `b-#` branches.
+    /// - It may update the `fp` branch.
     ///
     /// It may leave some remote repository (representing each peer) after the operation.
     pub async fn fetch(
@@ -195,9 +196,13 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// If the given commit is not a descendant of the
     /// current `finalized` (i.e., cannot be fast-forwarded), it fails.
     ///
-    /// Note that the proof in the `fp` branch must be set for the candidate commit
-    /// for the last finalized block, which is `block_commit`.
-    pub async fn sync(&mut self, _block_commit: &CommitHash) -> Result<(), Error> {
+    /// Note that the last block will be verified by the given `last_block_proof`,
+    /// and the `fp` branch will be updated as well.
+    pub async fn sync(
+        &mut self,
+        _commit: CommitHash,
+        _last_block_proof: &FinalizationProof,
+    ) -> Result<(), Error> {
         unimplemented!()
     }
     /// Returns the currently valid and height-acceptable agendas in the repository.
@@ -207,19 +212,6 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     /// Returns the currently valid and height-acceptable blocks in the repository.
     pub async fn get_blocks(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
-        unimplemented!()
-    }
-
-    /// Finalizes a single block and moves the `finalized` branch to it, and updates the `fp` branch.
-    ///
-    /// It will verify the finalization proof and the commits.
-    /// The difference between `finalize` and `sync` is that `sync` doesn't update the `fp` branch,
-    /// but checks it.
-    pub async fn finalize(
-        &mut self,
-        _block_commit_hash: &CommitHash,
-        _proof: &FinalizationProof,
-    ) -> Result<(), Error> {
         unimplemented!()
     }
 
