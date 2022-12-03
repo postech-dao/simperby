@@ -530,9 +530,112 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Creates a block commit on top of the `work` branch.
     pub async fn create_block(
         &mut self,
-        _author: PublicKey,
+        author: PublicKey,
     ) -> Result<(BlockHeader, CommitHash), Error> {
-        unimplemented!()
+        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+
+        // Check if the `work` branch is rebased on top of the `finalized` branch.
+        if self
+            .raw
+            .find_merge_base(last_header_commit, work_commit)
+            .await?
+            != last_header_commit
+        {
+            return Err(anyhow!(
+                "branch {} should be rebased on {}",
+                WORK_BRANCH_NAME,
+                FINALIZED_BRANCH_NAME
+            ));
+        }
+
+        // Check the validity of the commit sequence
+        let commits = read_commits(self, last_header_commit, work_commit).await?;
+        let last_header = self.get_last_finalized_block_header().await?;
+        let mut reserved_state = self.get_reserved_state().await?;
+        let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
+            .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
+        for (commit, hash) in commits.iter() {
+            verifier
+                .apply_commit(commit)
+                .map_err(|e| anyhow!("verification error on commit {}: {}", hash, e))?;
+        }
+
+        // Check whether the commit sequence is in the agenda proof phase or
+        // extra-agenda transaction phase.
+        let mut transactions = Vec::new();
+
+        for (commit, _) in commits.clone() {
+            match commit {
+                Commit::Transaction(t) => transactions.push(t.clone()),
+                Commit::Agenda(_) => {}
+                Commit::AgendaProof(_) => {}
+                Commit::ExtraAgendaTransaction(tx) => match tx {
+                    ExtraAgendaTransaction::Delegate(tx) => {
+                        reserved_state
+                            .apply_delegate(&tx)
+                            .map_err(|e| anyhow!("invalid delegation: {}", e))?;
+                    }
+                    ExtraAgendaTransaction::Undelegate(tx) => {
+                        reserved_state
+                            .apply_undelegate(&tx)
+                            .map_err(|e| anyhow!("invalid undelegation: {}", e))?;
+                    }
+                    ExtraAgendaTransaction::Report(_t) => unimplemented!(),
+                },
+                Commit::ChatLog(_) => {}
+                _ => {
+                    return Err(anyhow!(
+                    "branch {} is not in the agenda proof phase or extra-agenda transaction phase",
+                    WORK_BRANCH_NAME
+                ))
+                }
+            }
+        }
+
+        // Verify `finalization_proof`
+        let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
+        let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
+        let finalization_proof = fp_from_semantic_commit(fp_semantic_commit).unwrap().proof;
+        verify::verify_finalization_proof(&last_header, &finalization_proof)
+            .map_err(|e| anyhow!(e))?;
+
+        // Create block commit
+        let block_header = BlockHeader {
+            author: author.clone(),
+            prev_block_finalization_proof: finalization_proof.clone(),
+            previous_hash: Commit::Block(last_header.clone()).to_hash256(),
+            height: last_header.height + 1,
+            timestamp: get_timestamp(),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &commits
+                    .iter()
+                    .map(|(commit, _)| commit.clone())
+                    .collect::<Vec<_>>(),
+            ),
+            repository_merkle_root: Hash256::zero(), // TODO
+            validator_set: reserved_state.create_validator_set().unwrap(),
+            version: "0.0.0".to_string(),
+        };
+        let block_commit = Commit::Block(block_header.clone());
+        let semantic_commit = to_semantic_commit(&block_commit);
+
+        self.raw.checkout_clean().await?;
+        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
+        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        self.raw
+            .create_branch(
+                format!(
+                    "b-{:?}",
+                    block_commit
+                        .to_hash256()
+                        .to_string()
+                        .truncate(COMMIT_TITLE_HASH_DIGITS)
+                ),
+                result,
+            )
+            .await?;
+        Ok((block_header, result))
     }
 
     /// Creates an agenda commit on top of the `work` branch.
