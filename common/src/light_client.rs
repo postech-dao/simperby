@@ -1,11 +1,6 @@
 use crate::*;
+use merkle_tree::*;
 use serde::{Deserialize, Serialize};
-
-/// A Merkle proof.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MerkleProof {
-    // TODO
-}
 
 /// A light client state machine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,10 +37,20 @@ impl LightClient {
     /// Verifies the given data with its proof.
     pub fn verify_commitment(
         &self,
-        _message: Vec<u8>,
-        _block_height: u64,
-        _proof: MerkleProof,
+        message: Vec<u8>,
+        block_height: u64,
+        proof: MerkleProof,
     ) -> bool {
-        unimplemented!()
+        if block_height < self.commit_roots_height_offset
+            || block_height >= self.commit_roots_height_offset + self.commit_roots.len() as u64
+        {
+            return false;
+        }
+        proof
+            .verify(
+                self.commit_roots[(block_height - self.commit_roots_height_offset) as usize],
+                &message,
+            )
+            .is_ok()
     }
 }
