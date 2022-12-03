@@ -360,12 +360,12 @@ impl RawRepositoryImplInner {
         ancestors
     }
 
-    pub(crate) fn list_descendants(
+    pub(crate) fn query_commit_path(
         &self,
-        _commit_hash: CommitHash,
-        _max: Option<usize>,
+        _ancestor: CommitHash,
+        _descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
-        unimplemented!()
+        todo!()
     }
 
     pub(crate) fn list_children(&self, _commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
