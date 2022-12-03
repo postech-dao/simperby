@@ -257,27 +257,19 @@ impl<T: RawRepository> DistributedRepository<T> {
             ));
         }
 
-        // Fetch and convert commits
-        let commits = self.raw.list_ancestors(work_commit, Some(256)).await?;
-        let position = commits
-            .iter()
-            .position(|c| *c == last_header_commit)
-            .expect("TODO: handle the case where it exceeds the limit.");
-
-        // commits starting from the very next one to the last finalized block.
-        let commits = stream::iter(commits.iter().take(position).rev().cloned().map(|c| {
+        // Construct a commit list starting from the next commit of the last finalized block to the `branch_commit`(the most recent commit of the branch)
+        let commits = self
+            .raw
+            .query_commit_path(last_header_commit, work_commit)
+            .await?;
+        let commits = stream::iter(commits.iter().cloned().map(|c| {
             let raw = &self.raw;
             async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
         }))
         .buffered(256)
         .collect::<Vec<_>>()
         .await;
-        let mut commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
-        // Add most recent commit of the branch to the list since it is not included in the ancestor commits
-        commits.push((
-            self.raw.read_semantic_commit(work_commit).await?,
-            work_commit,
-        ));
+        let commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
         let commits = commits
             .into_iter()
             .map(|(commit, hash)| {
