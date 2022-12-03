@@ -163,14 +163,13 @@ pub trait RawRepository: Send + Sync + 'static {
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error>;
 
-    /// Lists the descendant commits of the given commit (The first element is the direct child).
+    /// Queries the commits from `ancestor` to `descendant`, including both.
     ///
-    /// It fails if there are diverged commits (i.e., having multiple children commit)
-    /// * `max`: the maximum number of entries to be returned.
-    async fn list_descendants(
+    /// It fails if the `ancestor` is not the merge base of the two commits.
+    async fn query_commit_path(
         &self,
-        commit_hash: CommitHash,
-        max: Option<usize>,
+        ancestor: CommitHash,
+        descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error>;
 
     /// Returns the children commits of the given commit.
@@ -468,16 +467,16 @@ impl RawRepository for RawRepositoryImpl {
         .await
     }
 
-    async fn list_descendants(
+    async fn query_commit_path(
         &self,
-        commit_hash: CommitHash,
-        max: Option<usize>,
+        ancestor: CommitHash,
+        descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
         helper_2(
             self,
-            RawRepositoryImplInner::list_descendants,
-            commit_hash,
-            max,
+            RawRepositoryImplInner::query_commit_path,
+            ancestor,
+            descendant,
         )
         .await
     }
