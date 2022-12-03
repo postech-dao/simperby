@@ -19,6 +19,7 @@ pub const FINALIZED_BRANCH_NAME: &str = "finalized";
 pub const WORK_BRANCH_NAME: &str = "work";
 pub const FP_BRANCH_NAME: &str = "fp";
 pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
+pub const TAG_NAME_HASH_DIGITS: usize = 8;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
@@ -335,7 +336,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
-            self.raw.create_tag("vote-#".into(), commit_hash).await?;
+            self.raw
+                .create_tag(
+                    format!(
+                        "vote-{:?}",
+                        commit
+                            .to_hash256()
+                            .to_string()
+                            .truncate(TAG_NAME_HASH_DIGITS)
+                    ),
+                    commit_hash,
+                )
+                .await?;
             Ok(())
         } else {
             Err(anyhow!("commit {} is not an agenda commit", commit_hash))
