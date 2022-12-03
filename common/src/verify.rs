@@ -18,7 +18,7 @@ pub enum Error {
 /// Verifies whether `h2` can be the direct child of `h1`.
 ///
 /// Note that you still need to verify
-/// 1. block body (other commits)
+/// 1. block body (other next_block_commits)
 /// 2. finalization proof
 /// 3. protocol version of the node binary.
 pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(), Error> {
@@ -114,7 +114,7 @@ enum Phase {
     Block,
 }
 
-/// Verifies whether the given sequence of commits can be agenda subset of agenda finalized chain.
+/// Verifies whether the given sequence of next_block_commits can be agenda subset of agenda finalized chain.
 ///
 /// It may accept sequences that contain more than one `BlockHeader`.
 #[derive(Debug, Clone)]
@@ -122,7 +122,7 @@ pub struct CommitSequenceVerifier {
     header: BlockHeader,
     phase: Phase,
     reserved_state: ReservedState,
-    commits: Vec<Commit>,
+    next_block_commits: Vec<Commit>,
     total_commits: Vec<Commit>,
 }
 
@@ -133,12 +133,12 @@ impl CommitSequenceVerifier {
             header: start_header.clone(),
             phase: Phase::Block,
             reserved_state,
-            commits: Vec::new(),
+            next_block_commits: Vec::new(),
             total_commits: vec![Commit::Block(start_header)],
         })
     }
 
-    /// Returns the commits received so far.
+    /// Returns the next_block_commits received so far.
     pub fn get_commits(&self) -> &[Commit] {
         &self.total_commits
     }
@@ -147,7 +147,7 @@ impl CommitSequenceVerifier {
     ///
     /// It returns `[start_header]` if no block header has been received.
     pub fn get_block_headers(&self) -> Vec<BlockHeader> {
-        self.commits
+        self.next_block_commits
             .iter()
             .filter_map(|commit| match commit {
                 Commit::Block(header) => Some(header.clone()),
@@ -170,7 +170,8 @@ impl CommitSequenceVerifier {
             (Commit::Block(block_header), Phase::AgendaProof { agenda_proof: _ }) => {
                 verify_header_to_header(&self.header, block_header)?;
                 // Verify commit merkle root
-                let commit_merkle_root = BlockHeader::calculate_commit_merkle_root(&self.commits);
+                let commit_merkle_root =
+                    BlockHeader::calculate_commit_merkle_root(&self.next_block_commits);
                 if commit_merkle_root != block_header.commit_merkle_root {
                     return Err(Error::InvalidArgument(format!(
                         "invalid commit merkle root: expected {}, got {}",
@@ -179,7 +180,7 @@ impl CommitSequenceVerifier {
                 };
                 self.header = block_header.clone();
                 self.phase = Phase::Block;
-                self.commits = vec![];
+                self.next_block_commits = vec![];
             }
             (
                 Commit::Block(block_header),
@@ -196,7 +197,8 @@ impl CommitSequenceVerifier {
                     )));
                 }
                 // Verify commit hash
-                let commit_merkle_root = BlockHeader::calculate_commit_merkle_root(&self.commits);
+                let commit_merkle_root =
+                    BlockHeader::calculate_commit_merkle_root(&self.next_block_commits);
                 if commit_merkle_root != block_header.commit_merkle_root {
                     return Err(Error::InvalidArgument(format!(
                         "invalid commit merkle root: expected {}, got {}",
@@ -205,7 +207,7 @@ impl CommitSequenceVerifier {
                 };
                 self.header = block_header.clone();
                 self.phase = Phase::Block;
-                self.commits = vec![];
+                self.next_block_commits = vec![];
             }
             (Commit::Transaction(tx), Phase::Block) => {
                 // Update reserved_state for reserved-diff transactions.
@@ -391,7 +393,7 @@ impl CommitSequenceVerifier {
                 ));
             }
         }
-        self.commits.push(commit.clone());
+        self.next_block_commits.push(commit.clone());
         self.total_commits.push(commit.clone());
         Ok(())
     }
@@ -685,7 +687,7 @@ mod test {
     }
 
     #[test]
-    /// Test the case where the commit sequence is correct but there are no transaction commits.
+    /// Test the case where the commit sequence is correct but there are no transaction next_block_commits.
     fn correct_commit_sequence2() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
@@ -736,7 +738,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 2,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -777,7 +779,7 @@ mod test {
             previous_hash: Hash256::zero(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -818,7 +820,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -859,7 +861,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: -1,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -947,7 +949,7 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
