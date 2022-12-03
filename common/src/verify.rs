@@ -123,17 +123,24 @@ pub struct CommitSequenceVerifier {
     phase: Phase,
     reserved_state: ReservedState,
     commits: Vec<Commit>,
+    total_commits: Vec<Commit>,
 }
 
 impl CommitSequenceVerifier {
     /// Creates agenda new `CommitSequenceVerifier` with the given block header.
     pub fn new(start_header: BlockHeader, reserved_state: ReservedState) -> Result<Self, Error> {
         Ok(Self {
-            header: start_header,
+            header: start_header.clone(),
             phase: Phase::Block,
             reserved_state,
-            commits: vec![],
+            commits: Vec::new(),
+            total_commits: vec![Commit::Block(start_header)],
         })
+    }
+
+    /// Returns the commits received so far.
+    pub fn get_commits(&self) -> &[Commit] {
+        &self.total_commits
     }
 
     /// Returns the block headers received so far.
@@ -384,6 +391,7 @@ impl CommitSequenceVerifier {
             }
         }
         self.commits.push(commit.clone());
+        self.total_commits.push(commit.clone());
         Ok(())
     }
 }
