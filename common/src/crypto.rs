@@ -164,6 +164,7 @@ impl Signature {
 pub struct TypedSignature<T> {
     signature: Signature,
     signer: PublicKey,
+    #[serde(skip)]
     _mark: std::marker::PhantomData<T>,
 }
 

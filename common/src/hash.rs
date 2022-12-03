@@ -81,8 +81,12 @@ impl Transaction {
 }
 
 impl Agenda {
-    pub fn calculate_hash(height: BlockHeight, transactions: &[Transaction]) -> Hash256 {
-        let mut hash = Hash256::hash(format!("{}", height));
+    /// Calculates the `hash` field.
+    ///
+    /// Don't confuse with the `impl ToHash256 for Agenda`, which
+    /// calculates the hash of the agenda itself.
+    pub fn calculate_hash(transactions: &[Transaction]) -> Hash256 {
+        let mut hash = Hash256::zero();
         for tx in transactions {
             hash = hash.aggregate(&tx.to_hash256());
         }
