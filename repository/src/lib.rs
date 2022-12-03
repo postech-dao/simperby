@@ -336,7 +336,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
-            self.raw.create_tag("vote-#".into(), commit_hash).await?;
+            self.raw
+                .create_tag(
+                    format!(
+                        "vote-{:?}",
+                        commit
+                            .to_hash256()
+                            .to_string()
+                            .truncate(TAG_NAME_HASH_DIGITS)
+                    ),
+                    commit_hash,
+                )
+                .await?;
             Ok(())
         } else {
             Err(anyhow!("commit {} is not an agenda commit", commit_hash))
