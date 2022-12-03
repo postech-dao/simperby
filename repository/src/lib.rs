@@ -216,6 +216,10 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     /// Informs that the given agenda has been approved.
+    ///
+    ///
+    /// After verification, it will create an agenda-proof commit,
+    /// and update the corresponding `a-#` branch to it
     pub async fn approve(
         &mut self,
         _agenda_commit_hash: &CommitHash,
