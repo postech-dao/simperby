@@ -163,7 +163,8 @@ pub trait RawRepository: Send + Sync + 'static {
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error>;
 
-    /// Queries the commits from `ancestor` to `descendant`, including both.
+    /// Queries the commits from the very next commit of `ancestor` to `descendant`.
+    /// `ancestor` not included, `descendant` included.
     ///
     /// It fails if the `ancestor` is not the merge base of the two commits.
     async fn query_commit_path(
