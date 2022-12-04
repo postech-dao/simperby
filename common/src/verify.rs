@@ -250,11 +250,11 @@ impl CommitSequenceVerifier {
                     )));
                 }
                 // Verify agenda without transactions
-                if agenda.hash != Agenda::calculate_hash(&[]) {
+                if agenda.transactions_hash != Agenda::calculate_hash(&[]) {
                     return Err(Error::InvalidArgument(format!(
-                        "invalid agenda hash: expected {}, got {}",
+                        "invalid agenda transactions_hash: expected {}, got {}",
                         Agenda::calculate_hash(&[]),
-                        agenda.hash
+                        agenda.transactions_hash
                     )));
                 }
                 self.phase = Phase::Agenda {
@@ -288,11 +288,11 @@ impl CommitSequenceVerifier {
                     vec![last_transaction.clone()],
                 ]
                 .concat();
-                if agenda.hash != Agenda::calculate_hash(&transactions) {
+                if agenda.transactions_hash != Agenda::calculate_hash(&transactions) {
                     return Err(Error::InvalidArgument(format!(
-                        "invalid agenda hash: expected {}, got {}",
+                        "invalid agenda transactions_hash: expected {}, got {}",
                         Agenda::calculate_hash(&transactions),
-                        agenda.hash
+                        agenda.transactions_hash
                     )));
                 }
                 self.phase = Phase::Agenda {

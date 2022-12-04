@@ -58,7 +58,7 @@ pub struct Agenda {
     pub height: BlockHeight,
     pub author: PublicKey,
     pub timestamp: Timestamp,
-    pub hash: Hash256,
+    pub transactions_hash: Hash256,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]

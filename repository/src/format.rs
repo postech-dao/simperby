@@ -171,7 +171,7 @@ mod tests {
             height: 3,
             author: PublicKey::zero(),
             timestamp: 123,
-            hash: Hash256::hash("hello"),
+            transactions_hash: Hash256::hash("hello"),
         });
         assert_eq!(
             agenda,
