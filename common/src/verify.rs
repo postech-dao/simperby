@@ -18,7 +18,7 @@ pub enum Error {
 /// Verifies whether `h2` can be the direct child of `h1`.
 ///
 /// Note that you still need to verify
-/// 1. block body (other next_block_commits)
+/// 1. block body (other commits)
 /// 2. finalization proof
 /// 3. protocol version of the node binary.
 pub fn verify_header_to_header(h1: &BlockHeader, h2: &BlockHeader) -> Result<(), Error> {
@@ -114,7 +114,7 @@ enum Phase {
     Block,
 }
 
-/// Verifies whether the given sequence of next_block_commits can be agenda subset of agenda finalized chain.
+/// Verifies whether the given sequence of commits can be agenda subset of agenda finalized chain.
 ///
 /// It may accept sequences that contain more than one `BlockHeader`.
 #[derive(Debug, Clone)]
@@ -138,8 +138,8 @@ impl CommitSequenceVerifier {
         })
     }
 
-    /// Returns the next_block_commits received so far.
-    pub fn get_commits(&self) -> &[Commit] {
+    /// Returns the commits received so far.
+    pub fn get_total_commits(&self) -> &[Commit] {
         &self.total_commits
     }
 
@@ -687,7 +687,7 @@ mod test {
     }
 
     #[test]
-    /// Test the case where the commit sequence is correct but there are no transaction next_block_commits.
+    /// Test the case where the commit sequence is correct but there are no transaction commits.
     fn correct_commit_sequence2() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
