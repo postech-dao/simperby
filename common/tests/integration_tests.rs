@@ -66,7 +66,7 @@ fn basic1() {
         height: 1,
         author: keys[0].0.clone(),
         timestamp: 0,
-        hash: Agenda::calculate_hash(&[tx.clone()]),
+        transactions_hash: Agenda::calculate_hash(&[tx.clone()]),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {
