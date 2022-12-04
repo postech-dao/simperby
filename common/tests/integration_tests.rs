@@ -40,7 +40,7 @@ fn basic1() {
         header: genesis_header.clone(),
         genesis_proof: keys
             .iter()
-            .map(|(_, secret_key)| TypedSignature::sign(&genesis_header, secret_key).unwrap())
+            .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
             .collect::<Vec<_>>(),
         chain_name: "test-chain".to_string(),
     };
@@ -74,7 +74,7 @@ fn basic1() {
         agenda_hash: agenda.to_hash256(),
         proof: keys
             .iter()
-            .map(|(_, secret_key)| TypedSignature::sign(&agenda, secret_key).unwrap())
+            .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
             .collect::<Vec<_>>(),
     }))
     .unwrap();
@@ -93,7 +93,7 @@ fn basic1() {
         .unwrap();
     let fp = keys
         .iter()
-        .map(|(_, secret_key)| TypedSignature::sign(&block_header, secret_key).unwrap())
+        .map(|(_, private_key)| TypedSignature::sign(&block_header, private_key).unwrap())
         .collect::<Vec<_>>();
     csv.verify_last_header_finalization(&fp).unwrap();
     light_client.update(block_header, fp).unwrap();
