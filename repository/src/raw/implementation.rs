@@ -537,6 +537,12 @@ impl RawRepositoryImplInner {
         ancestor: CommitHash,
         descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
+        if ancestor == descendant {
+            return Err(Error::InvalidRepository(
+                "ancestor and descendant are same".to_string(),
+            ));
+        }
+
         let merge_base = self.find_merge_base(ancestor, descendant)?;
         if merge_base != ancestor {
             return Err(Error::InvalidRepository(
@@ -546,13 +552,13 @@ impl RawRepositoryImplInner {
 
         let descendant_oid = Oid::from_bytes(&descendant.hash)?;
         let ancestor_oid = Oid::from_bytes(&ancestor.hash)?;
-        let ancestor_commit = self.repo.find_commit(ancestor_oid)?;
-        let ancestor_parent_oid = ancestor_commit.parent(0)?.id();
+        //let ancestor_commit = self.repo.find_commit(ancestor_oid)?;
+        //let ancestor_parent_oid = ancestor_commit.parent(0)?.id();
 
         let mut revwalk = self.repo.revwalk()?;
-        let range = format!("{}{}{}", ancestor_parent_oid, "..", descendant_oid);
+        let range = format!("{}{}{}", ancestor_oid, "..", descendant_oid);
         revwalk.push_range(range.as_str())?;
-        revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::REVERSE)?;
 
         let oids: Vec<Oid> = revwalk
             .by_ref()
