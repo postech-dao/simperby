@@ -534,10 +534,42 @@ impl RawRepositoryImplInner {
 
     pub(crate) fn query_commit_path(
         &self,
-        _ancestor: CommitHash,
-        _descendant: CommitHash,
+        ancestor: CommitHash,
+        descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
-        todo!()
+        let merge_base = self.find_merge_base(ancestor, descendant)?;
+        if merge_base != ancestor {
+            return Err(Error::InvalidRepository(
+                "ancestor is not the merge base of two commits".to_string(),
+            ));
+        }
+
+        let descendant_oid = Oid::from_bytes(&descendant.hash)?;
+        let ancestor_oid = Oid::from_bytes(&ancestor.hash)?;
+        let ancestor_commit = self.repo.find_commit(ancestor_oid)?;
+        let ancestor_parent_oid = ancestor_commit.parent(0)?.id();
+
+        let mut revwalk = self.repo.revwalk()?;
+        let range = format!("{}{}{}", ancestor_parent_oid, "..", descendant_oid);
+        revwalk.push_range(range.as_str())?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
+
+        let oids: Vec<Oid> = revwalk
+            .by_ref()
+            .collect::<Result<Vec<Oid>, git2::Error>>()?;
+
+        let commits = oids
+            .iter()
+            .map(|&oid| {
+                let hash: [u8; 20] = oid
+                    .as_bytes()
+                    .try_into()
+                    .map_err(|_| Error::Unknown("err".to_string()))?;
+                Ok(CommitHash { hash })
+            })
+            .collect::<Result<Vec<CommitHash>, Error>>()?;
+
+        Ok(commits)
     }
 
     pub(crate) fn list_children(&self, _commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
