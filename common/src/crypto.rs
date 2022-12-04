@@ -51,7 +51,7 @@ impl<'de, const N: usize> Deserialize<'de> for HexSerializedBytes<N> {
     where
         D: serde::de::Deserializer<'de>,
     {
-        let s: &str = Deserialize::deserialize(deserializer)?;
+        let s: String = Deserialize::deserialize(deserializer)?;
         let bytes = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
         if bytes.len() != N {
             return Err(serde::de::Error::custom("invalid length"));

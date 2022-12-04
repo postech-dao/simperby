@@ -16,7 +16,7 @@ log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
 # libp2p = { version = "0.50.0", features = ["tcp", "tokio", "yamux", "noise", "kad", "identify", "macros"], optional = true }
 thiserror = "1.0"
-serde-tc = "0.4.0"
+serde-tc = "0.4.1"
 reqwest = "0.11"
 fs2 = { version = "0.4.3"}
 tokio-stream = { version = "0.1.11", features = ["fs"] }
