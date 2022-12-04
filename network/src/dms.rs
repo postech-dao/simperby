@@ -392,21 +392,16 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     /// Reads the messages from the storage.
     pub async fn read_messages(&self) -> Result<Vec<Message>, Error> {
         let files = self.storage.read().await.list_files().await?;
-        let tasks = files.into_iter().map(|f| async move {
-            self.storage
-                .read()
-                .await
-                .read_file(&f)
-                .await
-                .map(|r| (f, r))
-        });
+        let tasks = files
+            .into_iter()
+            .filter(|x| x != STATE_FILE_PATH)
+            .map(|f| async move { self.storage.read().await.read_file(&f).await });
         let data = future::join_all(tasks)
             .await
             .into_iter()
             .collect::<Result<Vec<_>, _>>()?;
         let messages = data
             .into_iter()
-            .filter_map(|(f, r)| if f == STATE_FILE_PATH { None } else { Some(r) })
             .map(|d| serde_json::from_str::<RawMessage>(&d))
             .collect::<Result<Vec<RawMessage>, _>>()?;
         let messages = messages
