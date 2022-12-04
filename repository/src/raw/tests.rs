@@ -284,10 +284,10 @@ async fn ancestor() {
     assert_eq!(ancestors, vec![second_commit_hash, first_commit_hash]);
 
     let query_path = repo
-        .query_commit_path(second_commit_hash, third_commit_hash)
+        .query_commit_path(first_commit_hash, third_commit_hash)
         .await
         .unwrap();
-    assert_eq!(query_path, vec![third_commit_hash, second_commit_hash]);
+    assert_eq!(query_path, vec![second_commit_hash, third_commit_hash]);
 
     // Get all ancestors
     let ancestors = repo.list_ancestors(third_commit_hash, None).await.unwrap();
