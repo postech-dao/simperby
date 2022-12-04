@@ -166,6 +166,7 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Queries the commits from the very next commit of `ancestor` to `descendant`.
     /// `ancestor` not included, `descendant` included.
     ///
+    /// It fails if the two commits are the same.
     /// It fails if the `ancestor` is not the merge base of the two commits.
     async fn query_commit_path(
         &self,
