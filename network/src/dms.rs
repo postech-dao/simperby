@@ -582,6 +582,9 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                 let mut switch_recv = switch_recv.fuse();
                 select! {
                     x = tasks => {
+                        // To wait the handle to drop the read only lock in `join()`.
+                        // In other words, this task will not be terminated until the handle
+                        // calls `join()`.
                         let _ = switch_recv.await;
                         match x.as_ref().unwrap() {
                             (Ok(_), Ok(_), Ok(_), Ok(_)) => (),
