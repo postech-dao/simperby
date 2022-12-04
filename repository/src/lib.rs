@@ -257,7 +257,8 @@ impl<T: RawRepository> DistributedRepository<T> {
             ));
         }
 
-        // Construct a commit list starting from the next commit of the last finalized block to the `branch_commit`(the most recent commit of the branch)
+        // Construct a commit list starting from the next commit of the last finalized block
+        // to the `branch_commit`(the most recent commit of the branch)
         let commits = self
             .raw
             .query_commit_path(last_header_commit, work_commit)
