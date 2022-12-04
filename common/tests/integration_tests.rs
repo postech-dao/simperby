@@ -84,7 +84,9 @@ fn basic1() {
         previous_hash: genesis_info.header.to_hash256(),
         height: 1,
         timestamp: 0,
-        commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.get_commits()[1..]),
+        commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+            &csv.get_total_commits()[1..],
+        ),
         repository_merkle_root: Hash256::zero(),
         validator_set: genesis_info.header.validator_set.clone(),
         version: genesis_info.header.version,
@@ -98,7 +100,7 @@ fn basic1() {
     csv.verify_last_header_finalization(&fp).unwrap();
     light_client.update(block_header, fp).unwrap();
     let merkle_tree = OneshotMerkleTree::create(
-        csv.get_commits()[1..=3]
+        csv.get_total_commits()[1..=3]
             .iter()
             .map(|c| c.to_hash256())
             .collect(),
