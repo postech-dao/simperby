@@ -96,6 +96,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
     }
 
+    pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<Commit, Error> {
+        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))
+    }
+
     /// Returns the reserved state from the `finalized` branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
         self.raw.read_reserved_state().await.map_err(|e| anyhow!(e))
