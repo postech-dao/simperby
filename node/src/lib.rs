@@ -73,10 +73,10 @@ pub trait SimperbyApi {
     async fn clean(&mut self, hard: bool) -> Result<()>;
 
     /// Creates a block commit on the `finalized` branch.
-    async fn create_block(&mut self) -> Result<()>;
+    async fn create_block(&mut self) -> Result<CommitHash>;
 
     /// Creates a block commit on the `finalized` branch.
-    async fn create_agenda(&mut self) -> Result<()>;
+    async fn create_agenda(&mut self) -> Result<CommitHash>;
 
     /// Creates an extra-agenda transaction on the `finalized` branch.
     async fn create_extra_agenda_transaction(&mut self, tx: ExtraAgendaTransaction) -> Result<()>;

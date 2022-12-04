@@ -230,7 +230,10 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     /// Creates an agenda commit on top of the `work` branch.
-    pub async fn create_agenda(&mut self, author: PublicKey) -> Result<CommitHash, Error> {
+    pub async fn create_agenda(
+        &mut self,
+        author: PublicKey,
+    ) -> Result<(Agenda, CommitHash), Error> {
         let last_header = self.get_last_finalized_block_header().await?;
         let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
         let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
@@ -304,12 +307,13 @@ impl<T: RawRepository> DistributedRepository<T> {
             }
         }
 
-        let agenda_commit = Commit::Agenda(Agenda {
+        let agenda = Agenda {
             author,
             timestamp: get_timestamp(),
             transactions_hash: Agenda::calculate_hash(&transactions),
             height: last_header.height + 1,
-        });
+        };
+        let agenda_commit = Commit::Agenda(agenda.clone());
         let semantic_commit = to_semantic_commit(&agenda_commit);
 
         self.raw.checkout_clean().await?;
@@ -327,7 +331,7 @@ impl<T: RawRepository> DistributedRepository<T> {
                 result,
             )
             .await?;
-        Ok(result)
+        Ok((agenda, result))
     }
 
     /// Puts a 'vote' tag on the commit.
@@ -379,7 +383,10 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     /// Creates a block commit on top of the `work` branch.
-    pub async fn create_block(&mut self, _author: PublicKey) -> Result<CommitHash, Error> {
+    pub async fn create_block(
+        &mut self,
+        _author: PublicKey,
+    ) -> Result<(BlockHeader, CommitHash), Error> {
         unimplemented!()
     }
 
