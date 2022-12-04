@@ -681,20 +681,15 @@ impl RawRepositoryImplInner {
                 Ok(branch_name)
             })
             .collect::<Result<Vec<Branch>, Error>>()?;
-        // TODO: Name is simperby/branch or just branch?
+
         let branches = branches
             .iter()
             .map(|branch| {
                 let names: Vec<&str> = branch.split('/').collect();
                 let remote_name = names[0];
                 let branch_name = names[1];
-                let remote = self.repo.find_remote(remote_name)?;
-
-                let url = remote
-                    .url()
-                    .ok_or_else(|| Error::Unknown("unable to get valid url".to_string()))?;
-
                 let branch = self.repo.find_branch(branch, BranchType::Remote)?;
+
                 let oid = branch
                     .get()
                     .target()
@@ -703,10 +698,33 @@ impl RawRepositoryImplInner {
                     .map_err(|_| Error::Unknown("err".to_string()))?;
                 let commit_hash = CommitHash { hash };
 
-                Ok((branch_name.to_string(), url.to_string(), commit_hash))
+                Ok((
+                    remote_name.to_string(),
+                    branch_name.to_string(),
+                    commit_hash,
+                ))
             })
             .collect::<Result<Vec<(String, String, CommitHash)>, Error>>()?;
 
         Ok(branches)
+    }
+
+    pub(crate) fn locate_remote_tracking_branch(
+        &self,
+        remote_name: String,
+        branch_name: String,
+    ) -> Result<CommitHash, Error> {
+        let name = format!("{}/{}", remote_name, branch_name);
+        let branch = self.repo.find_branch(name.as_str(), BranchType::Remote)?;
+
+        let oid = branch
+            .get()
+            .target()
+            .ok_or_else(|| Error::Unknown("err".to_string()))?;
+        let hash =
+            <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
+        let commit_hash = CommitHash { hash };
+
+        Ok(commit_hash)
     }
 }

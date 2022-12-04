@@ -1,5 +1,5 @@
 use crate::raw::Error;
-use crate::raw::{RawRepository, RawRepositoryImpl};
+use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -402,9 +402,22 @@ async fn remote() {
         ]
     );
 
+    // Fetch all of the remote repositories.
     repo.fetch_all().await.unwrap();
     let branches = repo.list_remote_tracking_branches().await.unwrap();
     println!("{:?}", branches);
+
+    // Verify the commit hash of remote branch is right or not.
+    let simperby_main_branch = branches
+        .into_iter()
+        .filter(|(remote_name, branch_name, _)| remote_name == "simperby" && branch_name == "main")
+        .collect::<Vec<(String, String, CommitHash)>>();
+
+    let simperby_main_branch_commit_hash = repo
+        .locate_remote_tracking_branch("simperby".to_owned(), "main".to_owned())
+        .await
+        .unwrap();
+    assert_eq!(simperby_main_branch[0].2, simperby_main_branch_commit_hash);
 
     // TODO: After read_reserved_state() implemented, add this.
     /*

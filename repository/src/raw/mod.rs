@@ -209,10 +209,17 @@ pub trait RawRepository: Send + Sync + 'static {
 
     /// Lists all the remote tracking branches.
     ///
-    /// Returns `(remote_name, remote_url, commit_hash)`
+    /// Returns `(remote_name, branch_name, commit_hash)`
     async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error>;
+
+    /// Returns the commit of given remote branch.
+    async fn locate_remote_tracking_branch(
+        &self,
+        remote_name: String,
+        branch_name: String,
+    ) -> Result<CommitHash, Error>;
 }
 
 #[derive(Debug)]
@@ -533,5 +540,19 @@ impl RawRepository for RawRepositoryImpl {
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error> {
         helper_0(self, RawRepositoryImplInner::list_remote_tracking_branches).await
+    }
+
+    async fn locate_remote_tracking_branch(
+        &self,
+        remote_name: String,
+        branch_name: String,
+    ) -> Result<CommitHash, Error> {
+        helper_2(
+            self,
+            RawRepositoryImplInner::locate_remote_tracking_branch,
+            remote_name,
+            branch_name,
+        )
+        .await
     }
 }
