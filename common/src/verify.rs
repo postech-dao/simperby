@@ -133,7 +133,7 @@ impl CommitSequenceVerifier {
             header: start_header.clone(),
             phase: Phase::Block,
             reserved_state,
-            next_block_commits: Vec::new(),
+            next_block_commits: vec![],
             total_commits: vec![Commit::Block(start_header)],
         })
     }
