@@ -69,15 +69,13 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(Self { raw, _config })
     }
 
-    /// Initializes the genesis repository from the genesis commit,
-    /// leaving a genesis header.
-    ///
-    /// The repository MUST have only two commits: `initial` and `genesis` in the `finalized` branch.
-    /// The `genesis` commit MUST have set the initial reserved state in a valid format.
+    /// Initializes the genesis repository, leaving a genesis header.
     ///
     /// It also
     /// - creates `fp` branch and its commit (for the genesis block).
     /// - creates `work` branch at the same place with the `finalized` branch.
+    ///
+    /// Note that `genesis` can be called on any commit.
     pub async fn genesis(&mut self) -> Result<(), Error> {
         unimplemented!()
     }

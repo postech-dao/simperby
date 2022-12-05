@@ -42,14 +42,12 @@ Here we present the specification of the Simperby Git repository.
 
 A commit is defined as follows
 
-1. `initial`: an empty, initial commit as the very first commit of the repository.
-2. `genesis`: a non-empty commit that contains the initial state and the genesis info.
-3. `block`: an empty commit for the either proposed or finalized block
-4. `tx`: a transaction of an arbitrary update on the state (except the reserved directory). Note that a `tx` commit is the only exception that the commit title does not start with its type, `tx`. It may be empty.
-5. `tx-delegate`, `tx-undelegate`: a non-empty extra-agenda transaction that updates the delegation state which resides in the reserved directory of the repository.
-6. `tx-report`: a non-empty commit that reports the misbehavior of a validator with cryptographic proof. This must include the state change caused by the slashing.
-7. `chat`: an empty commit for the chat logs of the height.
-8. `agenda-proof`: an empty commit for the proof of the governance approval of an agenda.
+1. `block`: an empty commit for the either proposed or finalized block
+2. `tx`: a transaction of an arbitrary update on the state (except the reserved directory). Note that a `tx` commit is the only exception that the commit title does not start with its type, `tx`. It may be empty.
+3. `tx-delegate`, `tx-undelegate`: a non-empty extra-agenda transaction that updates the delegation state which resides in the reserved directory of the repository.
+4. `tx-report`: a non-empty commit that reports the misbehavior of a validator with cryptographic proof. This must include the state change caused by the slashing.
+5. `chat`: an empty commit for the chat logs of the height.
+6. `agenda-proof`: an empty commit for the proof of the governance approval of an agenda.
 
 ### Commit Format
 
