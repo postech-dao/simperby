@@ -552,8 +552,6 @@ impl RawRepositoryImplInner {
 
         let descendant_oid = Oid::from_bytes(&descendant.hash)?;
         let ancestor_oid = Oid::from_bytes(&ancestor.hash)?;
-        //let ancestor_commit = self.repo.find_commit(ancestor_oid)?;
-        //let ancestor_parent_oid = ancestor_commit.parent(0)?.id();
 
         let mut revwalk = self.repo.revwalk()?;
         let range = format!("{}{}{}", ancestor_oid, "..", descendant_oid);
