@@ -60,7 +60,7 @@ pub trait GossipNetwork: Send + Sync + 'static {
     ) -> Result<(), Error>;
 
     /// Remains online on the network indefinitely,
-    /// relaying (propagating) messages broadcasted over the network.
+    /// serving (propagating) messages broadcasted over the network.
     async fn serve(
         config: NetworkConfig,
         peers: SharedKnownPeers,
