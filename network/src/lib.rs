@@ -7,7 +7,7 @@ pub mod storage;
 use async_trait::async_trait;
 use primitives::*;
 use serde::{Deserialize, Serialize};
-use simperby_common::{crypto::*, Timestamp};
+use simperby_common::{crypto::*, MemberName, Timestamp};
 use std::collections::HashMap;
 use std::{net::SocketAddrV4, sync::Arc};
 use tokio::sync::RwLock;
@@ -18,6 +18,7 @@ pub type Error = anyhow::Error;
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Peer {
     pub public_key: PublicKey,
+    pub name: MemberName,
     /// The address used for the discovery protocol
     pub address: SocketAddrV4,
     /// For the other network services like gossip or RPC,
