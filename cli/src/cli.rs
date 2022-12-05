@@ -95,7 +95,7 @@ pub enum Commands {
     },
     /// Show the overall information of the given commit.
     Show { commit: String },
-    /// Run the Simperby node indefinitely. This is same as running `relay` while
+    /// Run the Simperby node indefinitely. This is same as running `serve` while
     /// invoking `consensus` and `fetch` repeatedly.
     Run,
     /// Make a progress on the consensus.
@@ -112,8 +112,8 @@ pub enum Commands {
     },
     /// Show the current status of the p2p network.
     Network,
-    /// Serve the gossip protocol indefinitely, relaying the incoming packets to other peers.
-    Relay,
+    /// Serve the p2p network indefinitely.
+    Serve,
     /// Fetch the data broadcasted over the network and update it to the repository,
     /// the governance, and the consensus.
     Fetch,

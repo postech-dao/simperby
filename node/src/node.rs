@@ -128,7 +128,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         unimplemented!()
     }
 
-    async fn relay(self) -> Result<()> {
+    async fn serve(self) -> Result<()> {
         todo!()
     }
 

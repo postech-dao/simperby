@@ -105,8 +105,8 @@ pub trait SimperbyApi {
     /// Gets the current status of the p2p network.
     async fn get_network_status(&self) -> Result<NetworkStatus>;
 
-    /// Serves indefinitely relaying network messages.
-    async fn relay(self) -> Result<()>;
+    /// Serves indefinitely the p2p network.
+    async fn serve(self) -> Result<()>;
 
     /// Fetch the data from the network and apply to the repository, the governance, and the consensus.
     async fn fetch(&mut self) -> Result<()>;

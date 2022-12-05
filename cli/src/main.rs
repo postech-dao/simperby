@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Create(CreateCommands::Block) => todo!(),
         Commands::Show { commit } => show(commit).await?,
         Commands::Consensus { show: _ } => todo!(),
-        Commands::Relay => todo!(),
+        Commands::Serve => todo!(),
         Commands::Fetch => todo!(),
         _ => unimplemented!(),
     }
