@@ -60,7 +60,7 @@ These are the names of the branches that are specially treated by the Simperby n
 3. `p`: the block proposal for this node. The node operator may push or force-push to this branch. When pushed, the Git server will check the validity of the branch. The consensus engine will recognize this branch and propose to the consensus. It stands for 'block proposal'.
 4. `a-<hash>`: a valid agenda (but not yet approved) propagated from other nodes. If the governance has approved the agenda, it will point to the `agenda-proof` commit which lies on top of the agenda commit. The `<hash>` MUST be the hash of the commit, truncated in the first 8 digits.
 5. `b-<hash>`: a valid (but not yet finalized) block propagated from other nodes. The `<hash>` MUST be the hash of the commit, truncated in the first 8 digits.
-6. `fp`: a very special branch that always holds the finalization proof for the last block. This is required because a block header doesn't contain the finalization proof of itself. Thus, to make a repository self-verifiable, it is essential to have the proof somewhere, in some way. This branch has only one empty commit that is directly on top of the genesis commit, titled with `finalization proof of the last block`. The commit message body contains the actual proof.
+6. `fp`: a very special branch that always holds the finalization proof for the last block. This is required because a block header doesn't contain the finalization proof of itself. Thus, to make a repository self-verifiable, it is essential to have the proof somewhere, in some way. This branch has only one empty commit that is directly on top of the corresponding block commit, titled with `finalization proof of the last block`. The commit message body contains the actual proof.
 
 ### Tags
 
