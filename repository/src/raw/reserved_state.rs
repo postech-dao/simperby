@@ -18,6 +18,7 @@ pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
         let member: Member = serde_json::from_str(member.as_str())?;
         members.push(member);
     }
+    members.sort_by(|m1, m2| m1.name.cmp(&m2.name));
 
     let consensus_leader_order = fs::read_to_string(format!(
         "{}/{}",
@@ -27,6 +28,7 @@ pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
     let consensus_leader_order: Vec<usize> = serde_json::from_str(consensus_leader_order.as_str())?;
 
     let version = fs::read_to_string(format!("{}/{}", path, "reserved/version")).await?;
+    let version: String = serde_json::from_str(version.as_str())?;
 
     let reserved_state = ReservedState {
         genesis_info,
@@ -75,4 +77,67 @@ pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn format_reserved_state() {
+        let genesis_info = GenesisInfo {
+            header: BlockHeader {
+                height: 3,
+                author: PublicKey::zero(),
+                prev_block_finalization_proof: vec![TypedSignature::new(
+                    Signature::zero(),
+                    PublicKey::zero(),
+                )],
+                previous_hash: Hash256::hash("hello1"),
+                timestamp: 0,
+                commit_merkle_root: Hash256::hash("hello2"),
+                repository_merkle_root: Hash256::hash("hello3"),
+                validator_set: vec![(PublicKey::zero(), 1)],
+                version: "0.1.0".to_string(),
+            },
+            genesis_proof: vec![TypedSignature::new(Signature::zero(), PublicKey::zero())],
+            chain_name: "chain".to_string(),
+        };
+
+        let member1 = Member {
+            public_key: PublicKey::zero(),
+            name: "name1".to_string(),
+            governance_voting_power: 1,
+            consensus_voting_power: 1,
+            governance_delegations: Some(PublicKey::zero()),
+            consensus_delegations: Some(PublicKey::zero()),
+        };
+        let member2 = Member {
+            public_key: PublicKey::zero(),
+            name: "name2".to_string(),
+            governance_voting_power: 1,
+            consensus_voting_power: 1,
+            governance_delegations: Some(PublicKey::zero()),
+            consensus_delegations: Some(PublicKey::zero()),
+        };
+        let members: Vec<Member> = vec![member1, member2];
+
+        let reserved_state = ReservedState {
+            genesis_info,
+            members,
+            consensus_leader_order: vec![0, 1],
+            version: "0.1.0".to_string(),
+        };
+
+        let td = TempDir::new().unwrap();
+        let path = td.path();
+        let path = path.to_str().unwrap();
+
+        write_reserved_state(path, &reserved_state).await.unwrap();
+        let read_reserved_state = read_reserved_state(path).await.unwrap();
+
+        assert_eq!(reserved_state, read_reserved_state);
+        println!("{:?}", read_reserved_state);
+    }
 }
