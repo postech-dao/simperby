@@ -77,7 +77,41 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// Note that `genesis` can be called on any commit.
     pub async fn genesis(&mut self) -> Result<(), Error> {
-        unimplemented!()
+        let reserved_state = self.get_reserved_state().await?;
+        let block_header = BlockHeader {
+            author: PublicKey::zero(),
+            prev_block_finalization_proof: vec![],
+            previous_hash: Hash256::zero(),
+            height: 0,
+            timestamp: get_timestamp(),
+            commit_merkle_root: Hash256::zero(),
+            repository_merkle_root: Hash256::zero(),
+            validator_set: reserved_state
+                .members
+                .iter()
+                .map(|m| (m.public_key.clone(), m.consensus_voting_power))
+                .collect(),
+            version: "0.1.0".to_owned(),
+        };
+        let block_commit = Commit::Block(block_header);
+        let semantic_commit = to_semantic_commit(&block_commit);
+
+        self.raw.checkout_clean().await?;
+        self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
+        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        self.raw
+            .create_branch(FP_BRANCH_NAME.into(), result)
+            .await?;
+        self.raw
+            .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
+                height: 0,
+                proof: reserved_state.genesis_info.genesis_proof.clone(),
+            }))
+            .await?;
+        self.raw
+            .create_branch(WORK_BRANCH_NAME.into(), result)
+            .await?;
+        Ok(())
     }
 
     /// Returns the block header from the `finalized` branch.
