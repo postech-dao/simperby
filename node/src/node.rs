@@ -10,7 +10,6 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     config: Config,
     repository: DistributedRepository<R>,
     governance: Governance<N, S>,
-    #[allow(dead_code)]
     consensus: Consensus<N, S>,
 }
 

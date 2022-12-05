@@ -41,6 +41,12 @@ pub struct Config {
     /// They're added as a remote repo, named `public_#`.
     /// Note that they are not part of the `known_peers`.
     pub mirrors: Vec<String>,
+    /// The distance that if a commit is past this far,
+    /// any forked branch starting from the commit
+    /// will be considered as a long range attack and thus ignored.
+    ///
+    /// If zero, fork can be detected only from the currently last-finalized commit.
+    pub long_range_attack_distance: usize,
 }
 
 /// The local Simperby blockchain data repository.
@@ -51,7 +57,7 @@ pub struct Config {
 /// only if they are valid.
 pub struct DistributedRepository<T> {
     raw: T,
-    _config: Config,
+    config: Config,
 }
 
 fn get_timestamp() -> Timestamp {
@@ -65,8 +71,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self.raw
     }
 
-    pub async fn new(raw: T, _config: Config) -> Result<Self, Error> {
-        Ok(Self { raw, _config })
+    pub async fn new(raw: T, config: Config) -> Result<Self, Error> {
+        Ok(Self { raw, config })
     }
 
     /// Initializes the genesis repository, leaving a genesis header.
@@ -193,6 +199,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// - It may update the `fp` branch.
     ///
     /// It may leave some remote repository (representing each peer) after the operation.
+    ///
+    /// TODO: add fork detection logic considering the long range attack distance.
     pub async fn fetch(
         &mut self,
         _network_config: &NetworkConfig,
