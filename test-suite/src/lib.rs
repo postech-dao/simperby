@@ -1,7 +1,10 @@
+use path_slash::PathExt as _;
 use simperby_node::simperby_common::*;
+use tempfile::TempDir;
 
 #[cfg(target_os = "windows")]
 pub async fn run_command(command: impl AsRef<str>) {
+    println!("> RUN: {}", command.as_ref());
     let mut child = tokio::process::Command::new("C:/Program Files/Git/bin/sh.exe")
         .arg("--login")
         .arg("-c")
@@ -14,6 +17,7 @@ pub async fn run_command(command: impl AsRef<str>) {
 
 #[cfg(not(target_os = "windows"))]
 pub async fn run_command(command: impl AsRef<str>) {
+    println!("> RUN: {}", command.as_ref());
     let mut child = tokio::process::Command::new("sh")
         .arg("-c")
         .arg(command.as_ref())
@@ -78,14 +82,32 @@ pub fn generate_standard_genesis(
     )
 }
 
+/// Creates a `repository` directory inside the given directory
+/// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
-    run_command(format!("cd {} && git init", path)).await;
+    run_command(format!(
+        "cd {} && mkdir repository && cd repository && git init",
+        path
+    ))
+    .await;
     simperby_node::simperby_repository::raw::reserved_state::write_reserved_state(
         path,
         &reserved_state,
     )
     .await
     .unwrap();
+    let path = format!("{}/repository", path);
     run_command(format!("cd {} && git add -A", path)).await;
-    run_command(format!("cd {} && git commit -m 'genesis'", path)).await;
+    run_command(format!(
+        "cd {} && git commit --author='TestAuthor <test@test.com>' -m 'genesis'",
+        path
+    ))
+    .await;
+}
+
+pub fn create_temp_dir() -> String {
+    let td = TempDir::new().unwrap();
+    let path = td.path().to_slash().unwrap().into_owned();
+    std::mem::forget(td);
+    path
 }
