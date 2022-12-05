@@ -667,6 +667,7 @@ mod tests {
             configs,
             Peer {
                 public_key: keys[0].0.clone(),
+                name: format!("{}", keys[0].0),
                 address: SocketAddrV4::new("127.0.0.1".parse().unwrap(), serving_node_port),
                 ports: [(format!("{}_dms", network_id), serving_node_port)]
                     .iter()
