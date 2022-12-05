@@ -284,7 +284,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check the validity of the commit sequence
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
-            .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
+            .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
