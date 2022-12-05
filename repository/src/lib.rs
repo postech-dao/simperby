@@ -1,16 +1,18 @@
+mod fetch;
 pub mod format;
 pub mod raw;
 
 use anyhow::anyhow;
 use format::*;
 use futures::prelude::*;
+use log::{info, warn};
 use raw::RawRepository;
 use serde::{Deserialize, Serialize};
 use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
-use std::fmt;
+use std::{collections::HashSet, fmt};
 
 pub type Branch = String;
 pub type Tag = String;
@@ -203,193 +205,10 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// TODO: add fork detection logic considering the long range attack distance.
     pub async fn fetch(
         &mut self,
-        _network_config: &NetworkConfig,
+        network_config: &NetworkConfig,
         known_peers: &[Peer],
     ) -> Result<(), Error> {
-        // Add remote repo and check duplicated ones
-        for _peer in known_peers {
-            let existing_remote = self.raw.list_remotes().await?;
-            let remote_name = "yoonho".to_string();
-            let remote_url = "github".to_string();
-            if !existing_remote
-                .iter()
-                .map(|(remote_name, _)| remote_name)
-                .any(|x| x == &remote_name)
-            {
-                self.raw.add_remote(remote_name, remote_url).await?;
-            }
-            // TODO: change yoonho, github into something else with peer
-            // It will be evaluated by "git" method
-        }
-
-        self.raw.fetch_all().await?;
-
-        // For all incoming branches, verify all the incoming commits and apply them to the local repository only if they are valid.
-        let branches = self.raw.list_remote_tracking_branches().await?;
-        let branches: Vec<&String> = branches.iter().map(|(branch, _, _)| branch).collect();
-        let finalized_branch_commit_hash =
-            self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-        let last_header = self.get_last_finalized_block_header().await?;
-        let reserved_state = self.get_reserved_state().await?;
-
-        'branch: for branch in branches {
-            let branch_tip_commit_hash = self.raw.locate_branch(branch.clone()).await?;
-            // Check if the branch is rebased on top of the `finalized` branch.
-            if finalized_branch_commit_hash
-                != self
-                    .raw
-                    .find_merge_base(branch_tip_commit_hash, finalized_branch_commit_hash)
-                    .await?
-            {
-                self.raw.delete_branch(branch.to_string()).await?;
-                continue 'branch;
-            }
-
-            // Construct a query commit list starting from the last finalized block
-            // to the `branch_tip_commit`(the most recent commit of the branch)
-            let query_commits = self
-                .raw
-                .query_commit_path(finalized_branch_commit_hash, branch_tip_commit_hash)
-                .await?;
-            let new_semantic_commits = stream::iter(query_commits.iter().cloned().map(|c| {
-                let raw = &self.raw;
-                async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
-            }))
-            .buffered(256)
-            .collect::<Vec<_>>()
-            .await;
-            let new_semantic_commits = new_semantic_commits
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>();
-            if new_semantic_commits.is_err() {
-                log::warn!("Found invalid remote tracking branches");
-                continue 'branch;
-            }
-            let new_semantic_commits = new_semantic_commits.unwrap();
-            let new_commits = new_semantic_commits
-                .into_iter()
-                .map(|(commit, hash)| {
-                    from_semantic_commit(commit)
-                        .map_err(|e| (e, hash))
-                        .map(|x| (x, hash))
-                })
-                .collect::<Result<Vec<_>, _>>();
-            if new_commits.is_err() {
-                log::warn!("Found invalid remote tracking branches");
-                continue 'branch;
-            }
-            let new_commits = new_commits.unwrap();
-
-            // Verify all the incoming commits and apply them to the local repository only if they are valid.
-            let mut verifier =
-                CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
-                    .map_err(|e| anyhow!("failed to create a verifier: {}", e))?;
-            for (new_commit, _) in &new_commits {
-                if verifier.apply_commit(new_commit).is_err() {
-                    continue 'branch;
-                }
-            }
-            let branch_tip_commit = &new_commits.last().unwrap().0;
-            match branch_tip_commit {
-                Commit::Agenda(_) => {
-                    // If branch tip commit is Agenda commit, create a new agenda branch
-                    let branch_tip_commit_hash = self.raw.locate_branch(branch.clone()).await?;
-                    let branch_name = format!(
-                        "a-{:?}",
-                        branch_tip_commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(COMMIT_TITLE_HASH_DIGITS)
-                    );
-                    self.raw
-                        .create_branch(branch_name, branch_tip_commit_hash)
-                        .await?;
-                }
-                Commit::AgendaProof(_) => {
-                    // Else if branch tip commit is AgendaProof commit, create a new agenda branch
-                    let branch_tip_commit_hash = self.raw.locate_branch(branch.clone()).await?;
-                    let branch_name = format!(
-                        "a-{:?}",
-                        branch_tip_commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(COMMIT_TITLE_HASH_DIGITS)
-                    );
-                    self.raw
-                        .create_branch(branch_name, branch_tip_commit_hash)
-                        .await?;
-                }
-                Commit::Block(block_header) => {
-                    // Verify finalization proof
-                    let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
-                    // TODO: change this FP_BRANCH_NAME to remote one
-                    let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
-                    let finalization_proof: FinalizationProof =
-                        serde_json::from_str(&fp_semantic_commit.body).unwrap();
-                    let result =
-                        verify::verify_finalization_proof(block_header, &finalization_proof);
-                    match result {
-                        // If we find the right finalization proof, we check the merge base and height
-                        // If both of them are satisfied, we move the finalized branch and update fp branch
-                        Ok(()) => {
-                            let known_finalized_branch_commit_hash =
-                                self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-                            if known_finalized_branch_commit_hash
-                                != self
-                                    .raw
-                                    .find_merge_base(
-                                        branch_tip_commit_hash,
-                                        known_finalized_branch_commit_hash,
-                                    )
-                                    .await?
-                            {
-                                panic!("chain forked");
-                            }
-                            let known_height = self.get_last_finalized_block_header().await?.height;
-                            if known_height < block_header.height {
-                                self.raw
-                                    .move_branch(
-                                        FINALIZED_BRANCH_NAME.to_string(),
-                                        branch_tip_commit_hash,
-                                    )
-                                    .await?;
-                                let fp_commit_hash =
-                                    self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
-                                // TODO: change this FP_BRANCH_NAME to remote one
-                                let fp_semantic_commit =
-                                    self.raw.read_semantic_commit(fp_commit_hash).await?;
-                                let finalization_proof: FinalizationProof =
-                                    serde_json::from_str(&fp_semantic_commit.body).unwrap();
-                                self.sync(branch_tip_commit_hash, &finalization_proof)
-                                    .await?;
-                            }
-                        }
-                        // If we can't find right finalization proof, we create a new b# branch
-                        Err(_) => {
-                            let branch_tip_commit_hash =
-                                self.raw.locate_branch(branch.clone()).await?;
-                            let branch_name = format!(
-                                "b-{:?}",
-                                branch_tip_commit
-                                    .to_hash256()
-                                    .to_string()
-                                    .truncate(COMMIT_TITLE_HASH_DIGITS)
-                            );
-                            self.raw
-                                .create_branch(branch_name, branch_tip_commit_hash)
-                                .await?
-                        }
-                    }
-                }
-                _ => {
-                    // Else, fast-forward branches
-                    self.raw
-                        .move_branch(branch.clone(), branch_tip_commit_hash)
-                        .await?;
-                }
-            };
-        }
-        Ok(())
+        fetch::fetch(self, network_config, known_peers).await
     }
 
     /// Serves the distributed repository protocol indefinitely.
