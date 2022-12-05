@@ -2,6 +2,8 @@ mod fetch;
 pub mod format;
 pub mod raw;
 mod utils;
+// TODO: integrate the server feature with `DistributedRepository`
+pub mod server;
 
 use anyhow::anyhow;
 use format::*;

@@ -15,3 +15,5 @@ futures = "0.3"
 log = "0.4"
 simperby-node = { path = "../node" }
 rand = "0.8"
+path-slash = "0.2.1"
+tempfile = "3"

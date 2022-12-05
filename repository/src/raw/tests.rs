@@ -413,7 +413,6 @@ async fn remote() {
     // Fetch all of the remote repositories.
     repo.fetch_all().await.unwrap();
     let branches = repo.list_remote_tracking_branches().await.unwrap();
-    println!("{:?}", branches);
 
     // Verify the commit hash of remote branch is right or not.
     let simperby_main_branch = branches

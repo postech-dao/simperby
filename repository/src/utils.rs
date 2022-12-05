@@ -7,7 +7,12 @@ pub async fn add_remotes<T: RawRepository>(
 ) -> Result<(), Error> {
     for peer in known_peers {
         let remote_name = peer.name.clone();
-        let remote_url = format!("git://{}/repo", peer.address.ip());
+        let remote_url = format!(
+            "git://{}:{}/repo",
+            peer.address.ip(),
+            // 9418 is the default port for git server
+            peer.ports.get("repository").unwrap_or(&9418)
+        );
         if let Err(err) = this.raw.add_remote(remote_name, remote_url.clone()).await {
             warn!("failed to add remote({}): {}", remote_url, err);
         }
