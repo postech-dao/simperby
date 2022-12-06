@@ -25,6 +25,7 @@ pub const WORK_BRANCH_NAME: &str = "work";
 pub const FP_BRANCH_NAME: &str = "fp";
 pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
 pub const TAG_NAME_HASH_DIGITS: usize = 8;
+pub const BRANCH_NAME_HASH_DIGITS: usize = 8;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
 pub struct CommitHash {
@@ -269,10 +270,73 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// and update the corresponding `a-#` branch to it
     pub async fn approve(
         &mut self,
-        _agenda_commit_hash: &CommitHash,
-        _proof: Vec<TypedSignature<Agenda>>,
+        agenda_commit_hash: &CommitHash,
+        proof: Vec<TypedSignature<Agenda>>,
     ) -> Result<CommitHash, Error> {
-        unimplemented!()
+        // Check if the agenda branch is rebased on top of the `finalized` branch.
+        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let agenda_branch_name = self.raw.get_branches(*agenda_commit_hash).await?;
+        let agenda_branch_name = agenda_branch_name
+            .get(0)
+            .ok_or_else(|| anyhow::anyhow!("cannot get valid agenda branch name"))?;
+        if self
+            .raw
+            .find_merge_base(last_header_commit, *agenda_commit_hash)
+            .await?
+            != last_header_commit
+        {
+            return Err(anyhow!(
+                "branch {} should be rebased on {}",
+                agenda_branch_name,
+                FINALIZED_BRANCH_NAME
+            ));
+        }
+
+        // Verify all the incoming commits
+        let finalized_header = self.get_last_finalized_block_header().await?;
+        let reserved_state = self.get_reserved_state().await?;
+        let finalized_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let commits = utils::read_commits(self, finalized_commit_hash, *agenda_commit_hash).await?;
+        let mut verifier = CommitSequenceVerifier::new(finalized_header.clone(), reserved_state)
+            .map_err(|e| anyhow!("failed to create a verifier: {}", e))?;
+        for (commit, hash) in commits.iter() {
+            verifier
+                .apply_commit(commit)
+                .map_err(|e| anyhow!("verification error on commit {}: {}", hash, e))?;
+        }
+        // Verify agenda with agenda proof
+        let agenda_commit = commits.iter().map(|(commit, _)| commit).last().unwrap();
+        let agenda = match agenda_commit {
+            Commit::Agenda(agenda) => agenda,
+            _ => return Err(anyhow::anyhow!("not an agenda commit")),
+        };
+        // Delete past `a-(trimmed agenda hash)` branch and create new `a-(trimmed agenda proof hash)` branch
+        self.raw.delete_branch(agenda_branch_name.clone()).await?;
+        // Create agenda proof commit
+        let agenda_proof = AgendaProof {
+            height: agenda.height,
+            agenda_hash: agenda_commit.to_hash256(),
+            proof,
+        };
+        let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
+        let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit);
+        let agenda_proof_commit_hash = self
+            .raw
+            .create_semantic_commit(agenda_proof_semantic_commit)
+            .await?;
+        self.raw
+            .create_branch(
+                format!(
+                    "a-{:?}",
+                    agenda_proof_commit
+                        .to_hash256()
+                        .to_string()
+                        .truncate(COMMIT_TITLE_HASH_DIGITS)
+                ),
+                agenda_proof_commit_hash,
+            )
+            .await?;
+        Ok(agenda_proof_commit_hash)
     }
 
     /// Creates an agenda commit on top of the `work` branch.
