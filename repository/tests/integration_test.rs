@@ -83,7 +83,7 @@ async fn basic_1() {
         .map(|(_, private_key)| TypedSignature::sign(&block, private_key).unwrap())
         .collect();
     server_node_repo
-        .sync(block_commit, &block_proof)
+        .sync(&block_commit, &block_proof)
         .await
         .unwrap();
     client_node_repo.fetch().await.unwrap();
