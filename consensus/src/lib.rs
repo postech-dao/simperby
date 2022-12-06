@@ -211,7 +211,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(())
     }
 
-    #[allow(unreachable_code, clippy::diverging_sub_expression)]
     pub async fn veto_round(
         &mut self,
         network_config: &NetworkConfig,
@@ -236,10 +235,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     /// 1. broadcast a proposal.
     /// 2. broadcast a pre-vote.
     /// 3. broadcast a pre-commit.
-    /// 4. finalize the block and advance the height.
+    /// 4. finalize a block, return its proof, and mark `self` as finalized to prevent any state transition.
     ///
-    /// For the case 4, it will clear the storage and will leave the finalization proof
-    /// of the previous (just finalized) block.
+    /// For the case 4, storage cleanup and increase of height will be handled by the node.
     pub async fn progress(
         &mut self,
         network_config: &NetworkConfig,
@@ -254,7 +252,8 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .into_iter()
             .filter(|m| !self.state.updated_messages.contains(&m.to_hash256()))
             .collect::<Vec<_>>();
-        // Not directly commit the change, by saving a copy of the vetomint FSM, in case of possible DMS errors.
+        // Save a copy of the vetomint FSM to recover from possible DMS errors.
+        // Changes are applied to the other copy, and then it is saved to the state when all messages are processed.
         let mut vetomint_copy = self.state.vetomint.clone();
         let mut progress_responses = Vec::new();
         for message in &messages {
