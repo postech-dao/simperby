@@ -12,6 +12,8 @@ pub struct ReservedState {
     /// The members.
     pub members: Vec<Member>,
     /// The leader order of the consensus rounds.
+    ///
+    /// It MUST be sorted by the name of the members.
     pub consensus_leader_order: Vec<usize>,
     /// The semantic version of Simperby protocol for this network.
     pub version: String,
