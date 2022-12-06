@@ -267,7 +267,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn approve(
         &mut self,
         _agenda_commit_hash: &CommitHash,
-        _proof: Vec<(PublicKey, TypedSignature<Agenda>)>,
+        _proof: Vec<TypedSignature<Agenda>>,
     ) -> Result<CommitHash, Error> {
         unimplemented!()
     }
