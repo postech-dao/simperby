@@ -9,26 +9,26 @@ async fn add_remotes<T: RawRepository>(
         let remote_name = peer.name.clone();
         let remote_url = format!("git://{}/repo", peer.address.ip());
         if let Err(err) = this.raw.add_remote(remote_name, remote_url.clone()).await {
-            warn!("Failed to add remote({}): {}", remote_url, err);
+            warn!("failed to add remote({}): {}", remote_url, err);
         }
     }
     for (i, mirror) in this.config.mirrors.iter().enumerate() {
         let remote_name = format!("mirror_{}", i);
         if let Err(err) = this.raw.add_remote(remote_name, mirror.clone()).await {
-            warn!("Failed to add remote({}): {}", mirror, err);
+            warn!("failed to add remote({}): {}", mirror, err);
         }
     }
     Ok(())
 }
 
-/// Retrieve all the finalization proof
+/// Retrieve all the finalization proofs
 async fn retrieve_fps<T: RawRepository>(
     this: &DistributedRepository<T>,
     remote_branches: &[(String, String, CommitHash)],
 ) -> Result<Vec<LastFinalizationProof>, Error> {
     let mut result = Vec::new();
     for (remote_name, branch_name, commit_hash) in remote_branches {
-        let branch_displayed = format!(" {}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
 
         // Skip if the branch is not `fp`.
         if branch_name != FP_BRANCH_NAME {
@@ -120,9 +120,9 @@ pub async fn fetch<T: RawRepository>(
 
     let mut next_step_branches = Vec::new();
 
-    // step 1: update finalization
+    // Step 1: update finalization
     'branch_loop: for (remote_name, branch_name, commit_hash) in remote_branches {
-        let branch_displayed = format!(" {}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
 
         // Skip if the branch is `fp`.
         if branch_name == FP_BRANCH_NAME {
@@ -134,7 +134,7 @@ pub async fn fetch<T: RawRepository>(
             .iter()
             .any(|(_, commit_hash_)| *commit_hash_ == commit_hash)
         {
-            info!("skip {}: alreadd tracked by local repo", branch_displayed);
+            info!("skip {}: already tracked by local repository", branch_displayed);
             continue;
         }
 
@@ -165,7 +165,7 @@ pub async fn fetch<T: RawRepository>(
         for (new_commit, new_commit_hash) in &commits {
             if let Err(e) = csv.apply_commit(new_commit) {
                 warn!(
-                    "commit verification failed for branch {}: {} at {}",
+                    "commit sequence verification failed for branch {}: {} at {}",
                     branch_displayed, e, new_commit_hash
                 );
                 continue 'branch_loop;
@@ -188,17 +188,18 @@ pub async fn fetch<T: RawRepository>(
             )
             .collect::<Vec<_>>();
 
-        // Try to finalized the last block with the known finalization proofs.
+        // Try to finalize the last block with the known finalization proofs.
         let mut hit = false;
         for proof in &finalization_proofs {
             if csv.verify_last_header_finalization(&proof.proof).is_ok() {
                 last_finalization_proof = proof.clone();
                 last_finalized_commit_hash = *block_commit_hashes.last().unwrap();
                 hit = true;
+                break;
             }
         }
 
-        // If failed, finalize the last-last block.
+        // If failed, finalize the second to last block.
         if !hit && block_commit_hashes.len() > 2 {
             let last_block = csv.get_block_headers().last().unwrap().clone();
             last_finalization_proof = LastFinalizationProof {
@@ -209,9 +210,9 @@ pub async fn fetch<T: RawRepository>(
         }
     }
 
-    // step 2: create `a` and `b` branches.
+    // Step 2: create `a` and `b` branches.
     for (remote_name, branch_name, commit_hash, commit) in next_step_branches {
-        let branch_displayed = format!(" {}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
         match &commit {
             Commit::Agenda(agenda) => {
                 if agenda.height == last_finalization_proof.height + 1 {
@@ -253,7 +254,7 @@ pub async fn fetch<T: RawRepository>(
         }
     }
 
-    // step 3: update finalization
+    // Step 3: update finalization
     this.raw.checkout_clean().await?;
     this.raw
         .move_branch(FINALIZED_BRANCH_NAME.into(), last_finalized_commit_hash)
