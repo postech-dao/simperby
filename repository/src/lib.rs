@@ -1,6 +1,7 @@
 mod fetch;
 pub mod format;
 pub mod raw;
+mod utils;
 
 use anyhow::anyhow;
 use format::*;
