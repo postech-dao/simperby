@@ -51,6 +51,9 @@ pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(
     let reserved_path = Path::new(path.as_str());
     if !reserved_path.exists() {
         fs::create_dir(path.as_str()).await?;
+    } else {
+        fs::remove_dir_all(path.as_str()).await?;
+        fs::create_dir(path.as_str()).await?;
     }
 
     fs::write(

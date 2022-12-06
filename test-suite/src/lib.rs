@@ -23,7 +23,8 @@ pub async fn run_command(command: impl AsRef<str>) {
     assert!(ecode.success());
 }
 
-/// Generates a standard test chain config returning the genesis reserved-state.
+/// Generates a standard test chain config returning the genesis reserved-state
+/// and the associated key pairs of the members.
 pub fn generate_standard_genesis(
     member_number: usize,
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {

@@ -1,14 +1,15 @@
 pub mod node;
 
 pub use simperby_common;
-use simperby_governance::Governance;
 pub use simperby_network;
+pub use simperby_repository;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
+use simperby_governance::Governance;
 use simperby_repository::CommitHash;
 
 pub const PROTOCOL_VERSION: &str = "0.0.0";

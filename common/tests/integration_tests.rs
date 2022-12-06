@@ -5,8 +5,8 @@ use simperby_test_suite::*;
 
 #[test]
 fn basic1() {
-    let n = 10;
-    let (rs, keys) = generate_standard_genesis(n);
+    let member_number = 10;
+    let (rs, keys) = generate_standard_genesis(member_number);
     let genesis_info = rs.genesis_info.clone();
     let genesis_header = rs.genesis_info.header.clone();
 
