@@ -53,12 +53,12 @@ async fn retrieve_local_branches<T: RawRepository>(
     raw: &T,
 ) -> Result<HashSet<(Branch, CommitHash)>, Error> {
     let local_branches = raw.list_branches().await?;
-    let mut result = Vec::new();
+    let mut result = HashSet::new();
     // TODO: making this concurrent causes a god damn lifetime annoying error
     for b in local_branches {
-        result.push((b.clone(), raw.locate_branch(b).await?))
+        result.insert((b.clone(), raw.locate_branch(b).await?));
     }
-    Ok(result.into_iter().collect())
+    Ok(result)
 }
 
 #[derive(Debug, Error)]
@@ -134,7 +134,10 @@ pub async fn fetch<T: RawRepository>(
             .iter()
             .any(|(_, commit_hash_)| *commit_hash_ == commit_hash)
         {
-            info!("skip {}: already tracked by local repository", branch_displayed);
+            info!(
+                "skip {}: already tracked by local repository",
+                branch_displayed
+            );
             continue;
         }
 
