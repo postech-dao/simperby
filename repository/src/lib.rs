@@ -45,7 +45,7 @@ pub struct Config {
     pub mirrors: Vec<String>,
     /// The distance that if a commit is past this far,
     /// any forked branch starting from the commit
-    /// will be considered as a long range attack and thus ignored.
+    /// will be considered a long range attack and thus ignored.
     ///
     /// If zero, fork can be detected only from the currently last-finalized commit.
     pub long_range_attack_distance: usize,
