@@ -7,4 +7,5 @@ pub mod types;
 pub mod verify;
 
 pub use crypto::*;
+pub use reserved::*;
 pub use types::*;
