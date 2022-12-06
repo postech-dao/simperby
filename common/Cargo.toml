@@ -14,5 +14,8 @@ rand = { version = "0.7" }
 serde_json = "1.0"
 hex = "0.4.3"
 
+[dev-dependencies]
+simperby-test-suite = { path = "../test-suite" }
+
 [features]
 full = []

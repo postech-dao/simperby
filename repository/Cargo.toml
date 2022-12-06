@@ -22,3 +22,6 @@ regex = "1.7.0"
 
 [dependencies.libgit2-sys]
 version = "0.14.0"
+
+[dev-dependencies]
+simperby-test-suite = { path = "../test-suite" }
