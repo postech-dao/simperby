@@ -132,7 +132,7 @@ pub async fn fetch<T: RawRepository>(
         // Check if the branch is already in the local repo.
         if local_branches
             .iter()
-            .any(|(_, commit_hash_)| *commit_hash_ == commit_hash)
+            .any(|(_, local_branch_commit_hash)| *local_branch_commit_hash == commit_hash)
         {
             info!(
                 "skip {}: already tracked by local repository",
