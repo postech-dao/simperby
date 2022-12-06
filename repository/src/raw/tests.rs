@@ -1,5 +1,7 @@
+use super::SemanticCommit;
 use crate::raw::Error;
 use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
+use simperby_common::Diff;
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -447,4 +449,25 @@ async fn remote() {
             "https://github.com/JeongHunP/cosmos.git".to_owned()
         )]
     );
+}
+
+#[tokio::test]
+async fn reserved_state() {
+    let td = TempDir::new().unwrap();
+    let path = td.path();
+    let mut repo = init_repository_with_initial_commit(path).await.unwrap();
+
+    let (rs, _) = simperby_test_suite::generate_standard_genesis(10);
+
+    repo.checkout(MAIN.into()).await.unwrap();
+    repo.create_semantic_commit(SemanticCommit {
+        title: "test".to_owned(),
+        body: "test-body".to_owned(),
+        diff: Diff::Reserved(Box::new(rs.clone())),
+    })
+    .await
+    .unwrap();
+    let rs_after = repo.read_reserved_state().await.unwrap();
+
+    assert_eq!(rs_after, rs);
 }
