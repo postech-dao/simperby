@@ -86,11 +86,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             timestamp: get_timestamp(),
             commit_merkle_root: Hash256::zero(),
             repository_merkle_root: Hash256::zero(),
-            validator_set: reserved_state
-                .members
-                .iter()
-                .map(|m| (m.public_key.clone(), m.consensus_voting_power))
-                .collect(),
+            validator_set: reserved_state.create_validator_set().unwrap(),
             version: "0.1.0".to_owned(),
         };
         let block_commit = Commit::Block(block_header);
