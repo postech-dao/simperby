@@ -180,7 +180,13 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         unimplemented!()
     }
 
-    pub async fn set_proposal(&mut self, _block_hash: Hash256) -> Result<(), Error> {
+    pub async fn set_proposal_candidate(
+        &mut self,
+        _network_config: &NetworkConfig,
+        _known_peers: &[Peer],
+        _block_hash: Hash256,
+        _timestamp: Timestamp,
+    ) -> Result<Vec<ProgressResult>, Error> {
         unimplemented!()
     }
 
