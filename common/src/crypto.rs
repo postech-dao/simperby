@@ -1,7 +1,7 @@
 //! A set of types and functions related to cryptography, that are widely used in the entire Simperby project.
-use ed25519::signature::{Signer, Verifier};
-use rand::SeedableRng;
+use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
 use std::fmt;
 use thiserror::Error;
 
@@ -78,9 +78,12 @@ impl Hash256 {
 
     /// Hashes the given data.
     pub fn hash(data: impl AsRef<[u8]>) -> Self {
+        let mut hasher = Keccak256::new();
+        hasher.update(data);
+        let result = hasher.finalize();
         Hash256 {
             hash: HexSerializedBytes {
-                data: *blake3::hash(data.as_ref()).as_bytes(),
+                data: result.as_slice().try_into().unwrap(),
             },
         }
     }
@@ -124,28 +127,26 @@ impl Signature {
 
     /// Creates a new signature from the given data and keys.
     pub fn sign(data: Hash256, private_key: &PrivateKey) -> Result<Self, Error> {
-        let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key.key.data)
+        let private_key = secp256k1::SecretKey::from_slice(&private_key.key.data)
             .map_err(|_| Error::InvalidFormat("private key: [omitted]".to_owned()))?;
-        let public_key: ed25519_dalek::PublicKey = (&private_key).into();
-        let keypair = ed25519_dalek::Keypair {
-            secret: private_key,
-            public: public_key,
-        };
+        let secp = Secp256k1::new();
+        let message = Message::from_slice(data.as_ref()).unwrap();
         Ok(Signature {
             signature: HexSerializedBytes {
-                data: keypair.sign(data.as_ref()).to_bytes(),
+                data: secp.sign_ecdsa(&message, &private_key).serialize_compact(),
             },
         })
     }
 
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: Hash256, public_key: &PublicKey) -> Result<(), Error> {
-        let signature = ed25519_dalek::Signature::from_bytes(&self.signature.data)
+        let secp = Secp256k1::new();
+        let signature = secp256k1::ecdsa::Signature::from_compact(&self.signature.data)
             .map_err(|_| Error::InvalidFormat(format!("signature: {}", self)))?;
-        let public_key = ed25519_dalek::PublicKey::from_bytes(&public_key.key.data)
+        let public_key = secp256k1::PublicKey::from_slice(&public_key.key.data)
             .map_err(|_| Error::InvalidFormat(format!("public_key: {}", public_key)))?;
-        public_key
-            .verify(data.as_ref(), &signature)
+        let message = Message::from_slice(data.as_ref()).unwrap();
+        secp.verify_ecdsa(&message, &signature, &public_key)
             .map_err(|_| Error::VerificationFailed)
     }
 
@@ -214,7 +215,7 @@ impl fmt::Display for Signature {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PublicKey {
-    key: HexSerializedBytes<32>,
+    key: HexSerializedBytes<33>,
 }
 
 impl std::convert::AsRef<[u8]> for PublicKey {
@@ -236,10 +237,19 @@ impl PublicKey {
         }
     }
 
-    pub fn from_array(array: [u8; 32]) -> Result<Self, Error> {
-        let key = ed25519_dalek::PublicKey::from_bytes(array.as_ref())
+    pub fn from_array_uncompressed(array: [u8; 65]) -> Result<Self, Error> {
+        let key = secp256k1::PublicKey::from_slice(array.as_ref())
             .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
-            .to_bytes();
+            .serialize();
+        Ok(PublicKey {
+            key: HexSerializedBytes { data: key },
+        })
+    }
+
+    pub fn from_array(array: [u8; 33]) -> Result<Self, Error> {
+        let key = secp256k1::PublicKey::from_slice(array.as_ref())
+            .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
+            .serialize();
         Ok(PublicKey {
             key: HexSerializedBytes { data: key },
         })
@@ -260,10 +270,10 @@ impl std::convert::AsRef<[u8]> for PrivateKey {
 }
 
 impl PrivateKey {
-    pub fn from_array(array: &[u8]) -> Result<Self, Error> {
-        let key = ed25519_dalek::SecretKey::from_bytes(array)
+    pub fn from_array(array: [u8; 32]) -> Result<Self, Error> {
+        let key = secp256k1::SecretKey::from_slice(&array)
             .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
-            .to_bytes();
+            .secret_bytes();
         Ok(PrivateKey {
             key: HexSerializedBytes { data: key },
         })
@@ -271,13 +281,14 @@ impl PrivateKey {
 
     pub fn public_key(&self) -> PublicKey {
         let private_key =
-            ed25519_dalek::SecretKey::from_bytes(&self.key.data).expect("private key is invalid");
-        let public_key: ed25519_dalek::PublicKey = (&private_key).into();
-        PublicKey::from_array(public_key.to_bytes()).expect("public key is invalid")
+            secp256k1::SecretKey::from_slice(&self.key.data).expect("invalid private key");
+        let secp = Secp256k1::new();
+        let public_key = private_key.public_key(&secp);
+        PublicKey::from_array(public_key.serialize()).expect("invalid public key")
     }
 }
 
-/// Checkes whether the given public and private keys match.
+/// Checks whether the given public and private keys match.
 pub fn check_keypair_match(public_key: &PublicKey, private_key: &PrivateKey) -> Result<(), Error> {
     let msg = "Some Random Message".as_bytes();
     let signature = Signature::sign(Hash256::hash(msg), private_key)?;
@@ -290,11 +301,13 @@ pub fn generate_keypair(seed: impl AsRef<[u8]>) -> (PublicKey, PrivateKey) {
     for (i, x) in Hash256::hash(seed).as_ref()[0..32].iter().enumerate() {
         seed_[i] = *x;
     }
-    let mut rng = rand::rngs::StdRng::from_seed(seed_);
-    let signing_key = ed25519_dalek::Keypair::generate(&mut rng);
+    use secp256k1::rand::SeedableRng;
+    let mut rng = secp256k1::rand::rngs::StdRng::from_seed(seed_);
+    let secp = Secp256k1::new();
+    let (private_key, public_key) = secp.generate_keypair(&mut rng);
     (
-        PublicKey::from_array(signing_key.public.to_bytes()).expect("public key is invalid"),
-        PrivateKey::from_array(&signing_key.secret.to_bytes()).expect("private key is invalid"),
+        PublicKey::from_array(public_key.serialize()).expect("invalid public key"),
+        PrivateKey::from_array(private_key.secret_bytes()).expect("invalid private key"),
     )
 }
 
@@ -313,7 +326,7 @@ mod tests {
         let encoded = serde_json::to_string(&signature).unwrap();
         assert_eq!(encoded.len(), 130);
         let encoded = serde_json::to_string(&public_key).unwrap();
-        assert_eq!(encoded.len(), 66);
+        assert_eq!(encoded.len(), 68);
         let encoded = serde_json::to_string(&private_key).unwrap();
         assert_eq!(encoded.len(), 66);
     }
@@ -364,5 +377,27 @@ mod tests {
         signature
             .verify(Hash256::hash("hello world"), &public_key)
             .unwrap();
+    }
+
+    #[test]
+    fn signature_verify_invalid() {
+        let (public_key, private_key) = generate_keypair("hello world");
+        let signature = Signature::sign(Hash256::hash("hello world2"), &private_key).unwrap();
+        signature
+            .verify(Hash256::hash("hello world"), &public_key)
+            .unwrap_err();
+    }
+
+    #[test]
+    fn compressed() {
+        let public_key = "0479c0e6973634b801da80fdf9274c13e327880e6360ca7735877f16e6a903c811afc2f0bb2c17de59110b022956dee0d625a694132b0da03fbba8ccdca219657c";
+        let private_key = "f54a850441ef31968ffda8ea2ebdd831f0764c6bd52cd5185c8cb35d407201a4";
+        let public_key = hex::decode(public_key).unwrap();
+        let private_key = hex::decode(private_key).unwrap();
+        let public_key =
+            PublicKey::from_array_uncompressed(public_key.as_slice().try_into().unwrap()).unwrap();
+        let private_key =
+            PrivateKey::from_array(private_key.as_slice().try_into().unwrap()).unwrap();
+        check_keypair_match(&public_key, &private_key).unwrap();
     }
 }
