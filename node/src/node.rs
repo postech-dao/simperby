@@ -2,7 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use simperby_consensus::Consensus;
 use simperby_network::primitives::{GossipNetwork, Storage};
-use simperby_network::NetworkConfig;
+use simperby_network::{NetworkConfig, Peer};
 use simperby_repository::raw::RawRepository;
 use simperby_repository::DistributedRepository;
 
@@ -34,6 +34,10 @@ fn get_timestamp() -> Timestamp {
         .as_millis() as Timestamp
 }
 
+fn get_known_peers() -> Vec<Peer> {
+    todo!()
+}
+
 #[async_trait]
 impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
     async fn genesis(&mut self) -> Result<()> {
@@ -57,7 +61,14 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         self.consensus
             .register_verified_block_hash(header.to_hash256())
             .await?;
-        self.consensus.set_proposal(header.to_hash256()).await?;
+        self.consensus
+            .set_proposal_candidate(
+                &create_network_config(&self.config),
+                &get_known_peers(),
+                header.to_hash256(),
+                get_timestamp(),
+            )
+            .await?;
         Ok(commit_hash)
     }
 
