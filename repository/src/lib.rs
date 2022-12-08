@@ -585,13 +585,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
         let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
         let finalization_proof = fp_from_semantic_commit(fp_semantic_commit).unwrap().proof;
-        verify::verify_finalization_proof(&last_header, &finalization_proof)
-            .map_err(|e| anyhow!(e))?;
 
         // Create block commit
         let block_header = BlockHeader {
             author: author.clone(),
-            prev_block_finalization_proof: finalization_proof.clone(),
+            prev_block_finalization_proof: finalization_proof,
             previous_hash: Commit::Block(last_header.clone()).to_hash256(),
             height: last_header.height + 1,
             timestamp: get_timestamp(),
