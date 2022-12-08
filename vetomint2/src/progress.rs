@@ -315,8 +315,8 @@ fn on_5f_prevote(
         && state.get_total_prevotes(target_round) * 6 > state.get_total_voting_power() * 5
     {
         state.step = ConsensusStep::Precommit;
-        if let Some(prposal) = target_proposal {
-            if state.get_total_prevotes_on_proposal(target_round, prposal) * 3
+        if let Some(proposal) = target_proposal {
+            if state.get_total_prevotes_on_proposal(target_round, proposal) * 3
                 > state.get_total_voting_power() * 2
             {
                 vec![ConsensusResponse::BroadcastPrecommit {
@@ -324,7 +324,10 @@ fn on_5f_prevote(
                     round: state.round,
                 }]
             } else {
-                Vec::new()
+                vec![ConsensusResponse::BroadcastPrecommit {
+                    proposal: None,
+                    round: target_round,
+                }]
             }
         } else {
             vec![ConsensusResponse::BroadcastPrecommit {
