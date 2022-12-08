@@ -552,7 +552,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check the validity of the commit sequence
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
-        let mut reserved_state = self.get_reserved_state().await?;
+        let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
         for (commit, hash) in commits.iter() {
@@ -570,19 +570,7 @@ impl<T: RawRepository> DistributedRepository<T> {
                 Commit::Transaction(t) => transactions.push(t.clone()),
                 Commit::Agenda(_) => {}
                 Commit::AgendaProof(_) => {}
-                Commit::ExtraAgendaTransaction(tx) => match tx {
-                    ExtraAgendaTransaction::Delegate(tx) => {
-                        reserved_state
-                            .apply_delegate(&tx)
-                            .map_err(|e| anyhow!("invalid delegation: {}", e))?;
-                    }
-                    ExtraAgendaTransaction::Undelegate(tx) => {
-                        reserved_state
-                            .apply_undelegate(&tx)
-                            .map_err(|e| anyhow!("invalid undelegation: {}", e))?;
-                    }
-                    ExtraAgendaTransaction::Report(_t) => unimplemented!(),
-                },
+                Commit::ExtraAgendaTransaction(_) => {}
                 Commit::ChatLog(_) => {}
                 _ => {
                     return Err(anyhow!(
