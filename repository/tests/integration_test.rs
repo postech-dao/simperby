@@ -1,5 +1,5 @@
 use simperby_common::*;
-use simperby_network::{NetworkConfig, Peer};
+use simperby_network::{Peer, SharedKnownPeers};
 use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 
@@ -12,13 +12,6 @@ async fn basic_1() {
         mirrors: Vec::new(),
         long_range_attack_distance: 1,
     };
-    let network_config = NetworkConfig {
-        network_id: "test".to_string(),
-        port: None,
-        members: vec![keys[0].0.clone(), keys[1].0.clone()],
-        public_key: keys[1].0.clone(),
-        private_key: keys[1].1.clone(),
-    };
     let peers = vec![Peer {
         public_key: keys[0].0.clone(),
         name: "server-node".to_owned(),
@@ -27,12 +20,14 @@ async fn basic_1() {
         message: "".to_owned(),
         recently_seen_timestamp: 0,
     }];
+    let peers = SharedKnownPeers::new_static(peers);
 
     let server_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
     let mut server_node_repo = DistributedRepository::new(
         RawRepositoryImpl::open(&server_node_dir).await.unwrap(),
         config.clone(),
+        peers.clone(),
     )
     .await
     .unwrap();
@@ -45,6 +40,7 @@ async fn basic_1() {
     let mut client_node_repo = DistributedRepository::new(
         RawRepositoryImpl::open(&client_node_dir).await.unwrap(),
         config,
+        peers.clone(),
     )
     .await
     .unwrap();
@@ -55,10 +51,7 @@ async fn basic_1() {
         .create_agenda(keys[0].0.clone())
         .await
         .unwrap();
-    client_node_repo
-        .fetch(&network_config, &peers)
-        .await
-        .unwrap();
+    client_node_repo.fetch().await.unwrap();
     assert_eq!(
         client_node_repo.get_agendas().await.unwrap(),
         vec![(agenda_commit, agenda.to_hash256())]
@@ -78,10 +71,7 @@ async fn basic_1() {
         .create_block(keys[0].0.clone())
         .await
         .unwrap();
-    client_node_repo
-        .fetch(&network_config, &peers)
-        .await
-        .unwrap();
+    client_node_repo.fetch().await.unwrap();
     assert_eq!(
         client_node_repo.get_blocks().await.unwrap(),
         vec![(block_commit, block.to_hash256())]
@@ -96,10 +86,7 @@ async fn basic_1() {
         .sync(block_commit, &block_proof)
         .await
         .unwrap();
-    client_node_repo
-        .fetch(&network_config, &peers)
-        .await
-        .unwrap();
+    client_node_repo.fetch().await.unwrap();
     assert_eq!(
         client_node_repo
             .get_last_finalized_block_header()

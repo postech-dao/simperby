@@ -1,12 +1,8 @@
 use super::*;
 use utils::*;
 
-pub async fn fetch<T: RawRepository>(
-    this: &mut DistributedRepository<T>,
-    _network_config: &NetworkConfig,
-    known_peers: &[Peer],
-) -> Result<(), Error> {
-    add_remotes(this, known_peers).await?;
+pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Result<(), Error> {
+    add_remotes(this, &this.peers.read().await).await?;
     this.raw.fetch_all().await?;
 
     let remote_branches = this.raw.list_remote_tracking_branches().await?;

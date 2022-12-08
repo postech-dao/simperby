@@ -187,6 +187,7 @@ pub struct DistributedMessageSet<N, S> {
     storage: Arc<RwLock<S>>,
     config: Config,
     filter: Arc<dyn MessageFilter>,
+    peers: SharedKnownPeers,
     _marker: std::marker::PhantomData<N>,
 }
 
@@ -198,6 +199,7 @@ impl<N, S> std::fmt::Debug for DistributedMessageSet<N, S> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    pub network_config: NetworkConfig,
     /// The interval of the broadcasts.
     /// If none, it will broadcast only in `add_message()`, not in `serve()`.
     pub broadcast_interval: Option<Duration>,
@@ -226,7 +228,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Opens an existing storage with the given directory.
-    pub async fn open(storage: S, config: Config) -> Result<Self, Error>
+    pub async fn open(storage: S, config: Config, peers: SharedKnownPeers) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -234,6 +236,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             storage: Arc::new(RwLock::new(storage)),
             config,
             filter: Arc::new(DummyFilter),
+            peers,
             _marker: std::marker::PhantomData,
         })
     }
@@ -243,11 +246,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Fetches the unknown messages from the peers and updates the storage.
-    pub async fn fetch(
-        &mut self,
-        _network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error> {
+    pub async fn fetch(&mut self) -> Result<(), Error> {
         let mut tasks = Vec::new();
         let messages = self.read_messages().await?;
         let known_messages = messages
@@ -256,10 +255,10 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .collect::<Vec<_>>();
         let state = self.read_state().await?;
         let height = state.height;
-        for peer in known_peers {
+        for peer in self.peers.read().await {
             let storage = Arc::clone(&self.storage);
             let filter = Arc::clone(&self.filter);
-            let port_key = state.key.clone();
+            let port_key = format!("dms-{}", state.key);
             let known_messages_ = known_messages.clone();
             let task = async move {
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
@@ -287,7 +286,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             tasks.push(task);
         }
         let results = future::join_all(tasks).await;
-        for (result, peer) in results.into_iter().zip(known_peers.iter()) {
+        for (result, peer) in results.into_iter().zip(self.peers.read().await.iter()) {
             if let Err(e) = result {
                 log::warn!("failed to fetch from client {:?}: {}", peer, e);
             }
@@ -299,17 +298,12 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     ///
     /// Note that it is guaranteed that the message will not be broadcasted unless it
     /// is successfully added to the storage. (but it is not guaranteed for the other way around)
-    pub async fn add_message(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-        message: Message,
-    ) -> Result<(), Error> {
+    pub async fn add_message(&mut self, message: Message) -> Result<(), Error> {
         Self::add_message_but_not_broadcast(&mut *(self.storage.write().await), message.clone())
             .await?;
         N::broadcast(
-            network_config,
-            known_peers,
+            &self.config.network_config,
+            &self.peers.read().await,
             serde_json::to_vec(&message).unwrap(),
         )
         .await?;
@@ -317,11 +311,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Tries to broadcast all the message that this DMS instance has.
-    pub async fn broadcast_all(
-        &self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error> {
+    pub async fn broadcast_all(&self) -> Result<(), Error> {
         let mut tasks1 = Vec::new();
         let state = self.read_state().await?;
         let messages = self
@@ -332,8 +322,8 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .collect::<Vec<_>>();
         let height = state.height;
 
-        for peer in known_peers {
-            let port_key = state.key.clone();
+        for peer in self.peers.read().await {
+            let port_key = format!("dms-{}", state.key);
             let messages_ = messages.clone();
             let task = async move {
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
@@ -353,9 +343,10 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             };
             tasks1.push((task, format!("RPC message add to {}", peer.public_key)));
         }
+        let peers_ = self.peers.read().await;
         let tasks2 = messages.into_iter().map(|message| {
-            let network_config = network_config.clone();
-            let peers = known_peers.to_owned();
+            let network_config = self.config.network_config.clone();
+            let peers = peers_.clone();
             let message_hash = message.data.to_hash256();
             (
                 async move {
@@ -475,59 +466,40 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(())
     }
 
-    async fn serve_fetch(
-        this: Arc<RwLock<Self>>,
-        network_config: NetworkConfig,
-        peers: SharedKnownPeers,
-    ) -> Result<(), Error> {
+    async fn serve_fetch(this: Arc<RwLock<Self>>) -> Result<(), Error> {
         let interval = if let Some(x) = this.read().await.config.fetch_interval {
             x
         } else {
             return Result::<(), Error>::Ok(());
         };
         loop {
-            if let Err(e) = Self::fetch(
-                &mut *this.write().await,
-                &network_config,
-                &peers.read().await,
-            )
-            .await
-            {
+            if let Err(e) = Self::fetch(&mut *this.write().await).await {
                 log::warn!("failed to parse message from the gossip network: {}", e);
             }
             tokio::time::sleep(interval).await;
         }
     }
 
-    async fn serve_broadcast(
-        this: Arc<RwLock<Self>>,
-        network_config: NetworkConfig,
-        peers: SharedKnownPeers,
-    ) -> Result<(), Error> {
+    async fn serve_broadcast(this: Arc<RwLock<Self>>) -> Result<(), Error> {
         let interval = if let Some(x) = this.read().await.config.broadcast_interval {
             x
         } else {
             return Result::<(), Error>::Ok(());
         };
         loop {
-            if let Err(e) = this
-                .read()
-                .await
-                .broadcast_all(&network_config, &peers.read().await)
-                .await
-            {
+            if let Err(e) = this.read().await.broadcast_all().await {
                 log::warn!("failed to broadcast to the network: {}", e);
             }
             tokio::time::sleep(interval).await;
         }
     }
 
-    async fn serve_gossip(
-        this: Arc<RwLock<Self>>,
-        network_config: NetworkConfig,
-        peers: SharedKnownPeers,
-    ) -> Result<(), Error> {
-        let mut recv = N::serve(network_config.clone(), peers.clone()).await?;
+    async fn serve_gossip(this: Arc<RwLock<Self>>) -> Result<(), Error> {
+        let mut recv = N::serve(
+            this.read().await.config.network_config.clone(),
+            this.read().await.peers.clone(),
+        )
+        .await?;
         while let Some(m) = recv.0.recv().await {
             let result = async {
                 let message: RawMessage = serde_json::from_slice(&m)?;
@@ -553,26 +525,23 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Serves the gossip network node and the RPC server indefinitely, constantly updating the storage.
-    pub async fn serve(
-        self,
-        network_config: NetworkConfig,
-        rpc_port: u16,
-        peers: SharedKnownPeers,
-    ) -> Result<Serve<Self, Error>, Error> {
+    pub async fn serve(self) -> Result<Serve<Self, Error>, Error> {
+        let port_key = format!("dms-{}", self.read_state().await?.key);
         let this = Arc::new(RwLock::new(self));
-        let rpc_task = tokio::spawn(Self::serve_rpc(Arc::clone(&this), rpc_port));
-        let fetch_task = tokio::spawn(Self::serve_fetch(
+        let rpc_task = tokio::spawn(Self::serve_rpc(
             Arc::clone(&this),
-            network_config.clone(),
-            peers.clone(),
+            *this
+                .read()
+                .await
+                .config
+                .network_config
+                .ports
+                .get(&port_key)
+                .ok_or_else(|| anyhow!(format!("`ports` has no field of {}", port_key)))?,
         ));
-        let broadcast_task = tokio::spawn(Self::serve_broadcast(
-            Arc::clone(&this),
-            network_config.clone(),
-            peers.clone(),
-        ));
-        let gossip_task =
-            tokio::spawn(Self::serve_gossip(Arc::clone(&this), network_config, peers));
+        let fetch_task = tokio::spawn(Self::serve_fetch(Arc::clone(&this)));
+        let broadcast_task = tokio::spawn(Self::serve_broadcast(Arc::clone(&this)));
+        let gossip_task = tokio::spawn(Self::serve_gossip(Arc::clone(&this)));
         let (switch_send, switch_recv) = tokio::sync::oneshot::channel();
         let this_ = Arc::clone(&this);
         Ok(Serve::new(
@@ -650,7 +619,7 @@ mod tests {
         for i in 0..size - 1 {
             configs.push(NetworkConfig {
                 network_id: network_id.clone(),
-                port: None,
+                ports: Default::default(),
                 members: keys.iter().map(|(x, _)| x).cloned().collect(),
                 public_key: keys[i + 1].0.clone(),
                 private_key: keys[i + 1].1.clone(),
@@ -659,7 +628,10 @@ mod tests {
         (
             NetworkConfig {
                 network_id: network_id.clone(),
-                port: Some(serving_node_port),
+                ports: [(format!("dms-{}", network_id), serving_node_port)]
+                    .iter()
+                    .cloned()
+                    .collect(),
                 members: keys.iter().map(|(x, _)| x).cloned().collect(),
                 public_key: keys[0].0.clone(),
                 private_key: keys[0].1.clone(),
@@ -669,7 +641,7 @@ mod tests {
                 public_key: keys[0].0.clone(),
                 name: format!("{}", keys[0].0),
                 address: SocketAddrV4::new("127.0.0.1".parse().unwrap(), serving_node_port),
-                ports: [(format!("{}_dms", network_id), serving_node_port)]
+                ports: [(format!("dms-{}", network_id), serving_node_port)]
                     .iter()
                     .cloned()
                     .collect(),
@@ -679,36 +651,43 @@ mod tests {
         )
     }
 
-    async fn setup(network_id: String) -> Dms {
+    async fn setup(network_config: NetworkConfig, peers: SharedKnownPeers) -> Dms {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
         let storage = StorageImpl::open(&dir).await.unwrap();
-        Dms::create(storage, 0, format!("{}_dms", network_id))
+        Dms::create(storage, 0, network_config.network_id.clone())
             .await
             .unwrap();
         let storage = StorageImpl::open(&dir).await.unwrap();
         let config = Config {
+            network_config,
             fetch_interval: Some(Duration::from_millis(100)),
             broadcast_interval: None,
         };
-        Dms::open(storage, config).await.unwrap()
+        Dms::open(storage, config, peers).await.unwrap()
     }
 
     #[tokio::test]
     async fn single_1() {
-        let mut dms = setup("doesn't matter".to_owned()).await;
+        let mut dms = setup(
+            NetworkConfig {
+                network_id: "doesn't matter".to_owned(),
+                ports: Default::default(),
+                members: Default::default(),
+                public_key: PublicKey::zero(),
+                private_key: PrivateKey::zero(),
+            },
+            SharedKnownPeers::new(Default::default()),
+        )
+        .await;
         let network_config = generate_node_configs(4200, 1).0;
 
         for i in 0..10 {
             let msg = format!("{}", i);
-            dms.add_message(
-                &network_config,
-                &[],
-                Message {
-                    data: msg.clone(),
-                    signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
-                },
-            )
+            dms.add_message(Message {
+                data: msg.clone(),
+                signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
+            })
             .await
             .unwrap();
         }
@@ -732,19 +711,14 @@ mod tests {
         my_numbers: Vec<usize>,
         other_numbers: Vec<usize>,
         network_config: NetworkConfig,
-        server_peer: Peer,
     ) {
         // Add the assigned messages to the DMS
         for i in &my_numbers {
             let msg = format!("{}", i);
-            dms.add_message(
-                &network_config,
-                &[server_peer.clone()],
-                Message {
-                    data: msg.clone(),
-                    signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
-                },
-            )
+            dms.add_message(Message {
+                data: msg.clone(),
+                signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
+            })
             .await
             .unwrap();
         }
@@ -753,13 +727,9 @@ mod tests {
         let mut count = 0;
         loop {
             sleep(500).await;
-            dms.broadcast_all(&network_config, &[server_peer.clone()])
-                .await
-                .unwrap();
+            dms.broadcast_all().await.unwrap();
             sleep(500).await;
-            dms.fetch(&network_config, &[server_peer.clone()])
-                .await
-                .unwrap();
+            dms.fetch().await.unwrap();
             let messages = dms.read_messages().await.unwrap();
             println!(
                 "NODE #{} on trial #{}: {}%",
@@ -790,27 +760,26 @@ mod tests {
     /// Multi-node test assuming dummy gossip network and a single server node.
     #[tokio::test]
     async fn multi_dummy_gn_single_sn_1() {
+        env_logger::init();
         let rpc_port = 4201;
         let n = 6;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);
-        let serving_node_dms = setup(server_network_config.network_id.clone()).await;
-        let _server_node = serving_node_dms
-            .serve(
-                server_network_config.clone(),
-                rpc_port,
-                // Note that the server node doesn't need any peers
-                SharedKnownPeers {
-                    lock: Default::default(),
-                },
-            )
-            .await
-            .unwrap();
+        let serving_node_dms = setup(
+            server_network_config.clone(),
+            SharedKnownPeers::new(Default::default()),
+        )
+        .await;
+        let _server_node = serving_node_dms.serve().await.unwrap();
         let mut tasks = Vec::new();
         let k = 10;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
         for (i, network_config) in network_configs.iter().enumerate() {
-            let dms = setup(server_network_config.network_id.clone()).await;
+            let dms = setup(
+                server_network_config.clone(),
+                SharedKnownPeers::new_static(vec![server_peer.clone()]),
+            )
+            .await;
             let numbers = ((i * k)..(i * k + k)).into_iter().collect::<Vec<_>>();
             tasks.push(run_non_server_node_1(
                 i,
@@ -818,7 +787,6 @@ mod tests {
                 numbers,
                 all_numbers.clone(),
                 network_config.clone(),
-                server_peer.clone(),
             ));
         }
         join_all(tasks).await;
@@ -831,12 +799,20 @@ mod tests {
         let n = 6;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);
-        let serving_node_dms = setup(server_network_config.network_id.clone()).await;
+        let serving_node_dms = setup(
+            server_network_config.clone(),
+            SharedKnownPeers::new(Default::default()),
+        )
+        .await;
         let mut tasks = Vec::new();
         let k = 10;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
         for (i, network_config) in network_configs.iter().enumerate() {
-            let dms = setup(server_network_config.network_id.clone()).await;
+            let dms = setup(
+                server_network_config.clone(),
+                SharedKnownPeers::new(Arc::new(RwLock::new(vec![server_peer.clone()]))),
+            )
+            .await;
             let numbers = ((i * k)..(i * k + k)).into_iter().collect::<Vec<_>>();
             tasks.push(run_non_server_node_1(
                 i,
@@ -844,22 +820,11 @@ mod tests {
                 numbers,
                 all_numbers.clone(),
                 network_config.clone(),
-                server_peer.clone(),
             ));
         }
         tokio::spawn(async move {
             sleep(5000).await;
-            let _server_node = serving_node_dms
-                .serve(
-                    server_network_config.clone(),
-                    rpc_port,
-                    // Note that the server node doesn't need any peers
-                    SharedKnownPeers {
-                        lock: Default::default(),
-                    },
-                )
-                .await
-                .unwrap();
+            let _server_node = serving_node_dms.serve().await.unwrap();
             future::pending::<()>().await;
         });
         join_all(tasks).await;

@@ -3,7 +3,6 @@ use simperby_common::*;
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message},
     primitives::{GossipNetwork, Storage},
-    NetworkConfig, Peer, SharedKnownPeers,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -25,6 +24,7 @@ struct Vote {
 
 pub struct Governance<N: GossipNetwork, S: Storage> {
     pub dms: DMS<N, S>,
+    pub this_node_key: Option<PrivateKey>,
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
@@ -32,8 +32,8 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         Ok(())
     }
 
-    pub async fn open(dms: DMS<N, S>) -> Result<Self, Error> {
-        Ok(Self { dms })
+    pub async fn open(dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
+        Ok(Self { dms, this_node_key })
     }
 
     pub async fn read(&self) -> Result<GovernanceStatus, Error> {
@@ -56,27 +56,19 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         Ok(status)
     }
 
-    pub async fn vote(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-        agenda_hash: Hash256,
-        private_key: &PrivateKey,
-    ) -> Result<(), Error> {
+    pub async fn vote(&mut self, agenda_hash: Hash256) -> Result<(), Error> {
         let data = serde_json::to_string(&Vote {
             agenda_hash,
-            voter: private_key.public_key(),
-            signature: Signature::sign(agenda_hash, private_key)?,
+            voter: self.this_node_key.as_ref().unwrap().public_key(),
+            signature: Signature::sign(agenda_hash, self.this_node_key.as_ref().unwrap())?,
         })
         .unwrap();
         let message = Message::new(
             data.clone(),
-            TypedSignature::sign(&data, &network_config.private_key)?,
+            TypedSignature::sign(&data, self.this_node_key.as_ref().unwrap())?,
         )?;
 
-        self.dms
-            .add_message(network_config, known_peers, message)
-            .await?;
+        self.dms.add_message(message).await?;
         Ok(())
     }
 
@@ -94,21 +86,13 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         Ok(())
     }
 
-    pub async fn fetch(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error> {
-        self.dms.fetch(network_config, known_peers).await?;
+    pub async fn fetch(&mut self) -> Result<(), Error> {
+        self.dms.fetch().await?;
         Ok(())
     }
 
     /// Serves the governance protocol indefinitely.
-    pub async fn serve(
-        self,
-        _network_config: &NetworkConfig,
-        _peers: SharedKnownPeers,
-    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
+    pub async fn serve(self) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
         unimplemented!()
     }
 }
