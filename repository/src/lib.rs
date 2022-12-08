@@ -393,35 +393,11 @@ impl<T: RawRepository> DistributedRepository<T> {
                 FINALIZED_BRANCH_NAME
             ));
         }
-
-        // Construct a commit list starting from the next commit of the last finalized block
-        // to the `branch_commit`(the most recent commit of the branch)
-        let commits = self
-            .raw
-            .query_commit_path(last_header_commit, work_commit)
-            .await?;
-        let commits = stream::iter(commits.iter().cloned().map(|c| {
-            let raw = &self.raw;
-            async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
-        }))
-        .buffered(256)
-        .collect::<Vec<_>>()
-        .await;
-        let commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
-        let commits = commits
-            .into_iter()
-            .map(|(commit, hash)| {
-                from_semantic_commit(commit)
-                    .map_err(|e| (e, hash))
-                    .map(|x| (x, hash))
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|(error, hash)| anyhow!("failed to convert the commit {}: {}", hash, error))?;
-
         // Check the validity of the commit sequence
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
             .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
+        let commits = read_commits(self, last_header_commit, work_commit).await?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
