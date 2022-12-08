@@ -1,9 +1,14 @@
 //! A set of types and functions related to cryptography, that are widely used in the entire Simperby project.
-use secp256k1::{Message, Secp256k1};
+use secp256k1::{
+    ecdsa::{RecoverableSignature, RecoveryId},
+    Message, Secp256k1, SecretKey,
+};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use std::fmt;
 use thiserror::Error;
+
+const EVM_EC_RECOVERY_OFFSET: u8 = 27;
 
 #[derive(Error, Debug, Clone)]
 pub enum CryptoError {
@@ -115,13 +120,13 @@ impl fmt::Display for Hash256 {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Signature {
-    signature: HexSerializedBytes<64>,
+    signature: HexSerializedBytes<65>,
 }
 
 impl Signature {
     pub const fn zero() -> Self {
         Signature {
-            signature: HexSerializedBytes { data: [0; 64] },
+            signature: HexSerializedBytes { data: [0; 65] },
         }
     }
 
@@ -129,29 +134,58 @@ impl Signature {
     pub fn sign(data: Hash256, private_key: &PrivateKey) -> Result<Self, Error> {
         let private_key = secp256k1::SecretKey::from_slice(&private_key.key.data)
             .map_err(|_| Error::InvalidFormat("private key: [omitted]".to_owned()))?;
-        let secp = Secp256k1::new();
         let message = Message::from_slice(data.as_ref()).unwrap();
+        let (recovery_id, rs) = Secp256k1::signing_only()
+            .sign_ecdsa_recoverable(&message, &private_key)
+            .serialize_compact();
+        let v = recovery_id.to_i32() as u8;
+        let bytes: [u8; 65] = {
+            let mut whole: [u8; 65] = [0; 65];
+            let (left, right) = whole.split_at_mut(rs.len());
+            left.copy_from_slice(&rs);
+            right.copy_from_slice(&[v + EVM_EC_RECOVERY_OFFSET; 1]);
+            whole
+        };
         Ok(Signature {
-            signature: HexSerializedBytes {
-                data: secp.sign_ecdsa(&message, &private_key).serialize_compact(),
-            },
+            signature: HexSerializedBytes { data: bytes },
         })
     }
 
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: Hash256, public_key: &PublicKey) -> Result<(), Error> {
-        let secp = Secp256k1::new();
-        let signature = secp256k1::ecdsa::Signature::from_compact(&self.signature.data)
+        let signature = secp256k1::ecdsa::Signature::from_compact(&self.signature.data[0..64])
             .map_err(|_| Error::InvalidFormat(format!("signature: {}", self)))?;
         let public_key = secp256k1::PublicKey::from_slice(&public_key.key.data)
             .map_err(|_| Error::InvalidFormat(format!("public_key: {}", public_key)))?;
         let message = Message::from_slice(data.as_ref()).unwrap();
-        secp.verify_ecdsa(&message, &signature, &public_key)
+        Secp256k1::verification_only()
+            .verify_ecdsa(&message, &signature, &public_key)
             .map_err(|_| Error::VerificationFailed)
     }
 
+    /// Recover a public key from the given signature.
+    pub fn recover(&self, data: Hash256) -> Result<PublicKey, Error> {
+        let message = Message::from_slice(data.as_ref()).unwrap();
+        let recovery_id = RecoveryId::from_i32(
+            self.signature.data[64..65][0] as i32 - EVM_EC_RECOVERY_OFFSET as i32,
+        )
+        .unwrap();
+        if recovery_id.to_i32() != 0 && recovery_id.to_i32() != 1 {
+            println!("recid: {}", recovery_id.to_i32());
+            return Err(Error::VerificationFailed);
+        }
+        let signature =
+            RecoverableSignature::from_compact(&self.signature.data[0..64], recovery_id).unwrap();
+        let secp = Secp256k1::new();
+        let public_key = secp
+            .recover_ecdsa(&message, &signature)
+            .map_err(|_| Error::VerificationFailed)?
+            .serialize();
+        PublicKey::from_array(public_key)
+    }
+
     /// Constructs a signature from the given bytes, but does not verify its validity.
-    pub fn from_array(bytes: [u8; 64]) -> Self {
+    pub fn from_array(bytes: [u8; 65]) -> Self {
         Signature {
             signature: HexSerializedBytes { data: bytes },
         }
@@ -280,8 +314,7 @@ impl PrivateKey {
     }
 
     pub fn public_key(&self) -> PublicKey {
-        let private_key =
-            secp256k1::SecretKey::from_slice(&self.key.data).expect("invalid private key");
+        let private_key = SecretKey::from_slice(&self.key.data).expect("invalid private key");
         let secp = Secp256k1::new();
         let public_key = private_key.public_key(&secp);
         PublicKey::from_array(public_key.serialize()).expect("invalid public key")
@@ -324,7 +357,7 @@ mod tests {
         let (public_key, private_key) = generate_keypair("hello world");
         let signature = Signature::sign(hash, &private_key).unwrap();
         let encoded = serde_json::to_string(&signature).unwrap();
-        assert_eq!(encoded.len(), 130);
+        assert_eq!(encoded.len(), 132);
         let encoded = serde_json::to_string(&public_key).unwrap();
         assert_eq!(encoded.len(), 68);
         let encoded = serde_json::to_string(&private_key).unwrap();
@@ -399,5 +432,16 @@ mod tests {
         let private_key =
             PrivateKey::from_array(private_key.as_slice().try_into().unwrap()).unwrap();
         check_keypair_match(&public_key, &private_key).unwrap();
+    }
+
+    #[test]
+    fn recover_public_key() {
+        let (public_key, private_key) = generate_keypair("hello world");
+        let signature = Signature::sign(Hash256::hash("hello world2"), &private_key).unwrap();
+        let recovered = signature.recover(Hash256::hash("hello world2")).unwrap();
+        assert_eq!(
+            hex::encode(public_key.as_ref()),
+            hex::encode(recovered.as_ref())
+        );
     }
 }
