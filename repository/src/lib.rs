@@ -552,6 +552,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check the validity of the commit sequence
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
+        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
