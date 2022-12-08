@@ -7,7 +7,6 @@ use simperby_common::{
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
     primitives::{GossipNetwork, Storage},
-    *,
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -188,8 +187,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
     pub async fn set_proposal_candidate(
         &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
         block_hash: Hash256,
         timestamp: Timestamp,
     ) -> Result<Vec<ProgressResult>, Error> {
@@ -200,7 +197,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         };
         let responses = self.state.vetomint.progress(consensus_event, timestamp);
         let result = self
-            .process_multiple_responses(responses, network_config, known_peers, timestamp)
+            .process_multiple_responses(responses, timestamp)
             .await?;
         Ok(result)
     }
@@ -213,8 +210,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
     pub async fn veto_round(
         &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
         round: ConsensusRound,
         timestamp: Timestamp,
     ) -> Result<Vec<ProgressResult>, Error> {
@@ -224,7 +219,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         };
         let responses = self.state.vetomint.progress(consensus_event, timestamp);
         let result = self
-            .process_multiple_responses(responses, network_config, known_peers, timestamp)
+            .process_multiple_responses(responses, timestamp)
             .await?;
         Ok(result)
     }
@@ -238,12 +233,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     /// 4. finalize a block, return its proof, and mark `self` as finalized to prevent any state transition.
     ///
     /// For the case 4, storage cleanup and increase of height will be handled by the node.
-    pub async fn progress(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-        timestamp: Timestamp,
-    ) -> Result<Vec<ProgressResult>, Error> {
+    pub async fn progress(&mut self, timestamp: Timestamp) -> Result<Vec<ProgressResult>, Error> {
         self.abort_if_finalized()?;
         let messages = self
             .dms
@@ -269,7 +259,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             progress_responses.extend(vetomint_copy.progress(consensus_event, timestamp));
         }
         let final_result = self
-            .process_multiple_responses(progress_responses, network_config, known_peers, timestamp)
+            .process_multiple_responses(progress_responses, timestamp)
             .await?;
         // The change is applied here as we reached here without facing an error.
         self.state
@@ -281,12 +271,8 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(final_result)
     }
 
-    pub async fn fetch(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error> {
-        self.dms.fetch(network_config, known_peers).await
+    pub async fn fetch(&mut self) -> Result<(), Error> {
+        self.dms.fetch().await
     }
 
     /// Serves the consensus protocol indefinitely.
@@ -295,8 +281,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     /// 2. It does `Consensus::progress()` continuously.
     pub async fn serve(
         self,
-        _network_config: NetworkConfig,
-        _peers: SharedKnownPeers,
     ) -> Result<
         (
             tokio::sync::mpsc::Receiver<ProgressResult>,
@@ -335,30 +319,24 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
     async fn broadcast_consensus_message(
         &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
         consensus_message: &ConsensusMessage,
     ) -> Result<(), Error> {
         let serialized = serde_json::to_string(consensus_message).unwrap();
-        let signature = TypedSignature::sign(&serialized, &network_config.private_key)
+        let signature = TypedSignature::sign(&serialized, self.this_node_key.as_ref().unwrap())
             .expect("invalid(malformed) private key");
         let message = Message::new(serialized, signature).expect("signature just created");
-        self.dms
-            .add_message(network_config, known_peers, message)
-            .await
+        self.dms.add_message(message).await
     }
 
     async fn process_multiple_responses(
         &mut self,
         responses: Vec<ConsensusResponse>,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
         timestamp: Timestamp,
     ) -> Result<Vec<ProgressResult>, Error> {
         let mut final_result = Vec::new();
         for consensus_response in responses {
             let consensus_result = self
-                .process_single_response(consensus_response, network_config, known_peers, timestamp)
+                .process_single_response(consensus_response, timestamp)
                 .await?;
             final_result.push(consensus_result);
         }
@@ -431,8 +409,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     async fn process_single_response(
         &mut self,
         consensus_response: ConsensusResponse,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
         timestamp: Timestamp,
     ) -> Result<ProgressResult, Error> {
         match consensus_response {
@@ -456,8 +432,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     valid_round,
                     block_hash,
                 };
-                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
-                    .await?;
+                self.broadcast_consensus_message(&consensus_message).await?;
                 Ok(ProgressResult::Proposed(
                     round as u64,
                     block_hash,
@@ -484,8 +459,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     let result = ProgressResult::NilPreVoted(round as u64, timestamp);
                     (message, result)
                 };
-                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
-                    .await?;
+                self.broadcast_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
             ConsensusResponse::BroadcastPrecommit { proposal, round } => {
@@ -508,8 +482,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     let result = ProgressResult::NilPreCommitted(round as u64, timestamp);
                     (message, result)
                 };
-                self.broadcast_consensus_message(network_config, known_peers, &consensus_message)
-                    .await?;
+                self.broadcast_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
             ConsensusResponse::FinalizeBlock { proposal } => {

@@ -65,6 +65,7 @@ pub struct Config {
 pub struct DistributedRepository<T> {
     raw: T,
     config: Config,
+    peers: SharedKnownPeers,
 }
 
 fn get_timestamp() -> Timestamp {
@@ -78,8 +79,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self.raw
     }
 
-    pub async fn new(raw: T, config: Config) -> Result<Self, Error> {
-        Ok(Self { raw, config })
+    pub async fn new(raw: T, config: Config, peers: SharedKnownPeers) -> Result<Self, Error> {
+        Ok(Self { raw, config, peers })
     }
 
     /// Initializes the genesis repository, leaving a genesis header.
@@ -208,12 +209,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// It may leave some remote repository (representing each peer) after the operation.
     ///
     /// TODO: add fork detection logic considering the long range attack distance.
-    pub async fn fetch(
-        &mut self,
-        network_config: &NetworkConfig,
-        known_peers: &[Peer],
-    ) -> Result<(), Error> {
-        fetch::fetch(self, network_config, known_peers).await
+    pub async fn fetch(&mut self) -> Result<(), Error> {
+        fetch::fetch(self).await
     }
 
     /// Serves the distributed repository protocol indefinitely.

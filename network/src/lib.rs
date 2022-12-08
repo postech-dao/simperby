@@ -28,12 +28,14 @@ pub struct Peer {
     pub recently_seen_timestamp: Timestamp,
 }
 
+/// Configuration to access the Simperby P2P network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
     /// The unique id for distinguishing the network.
     pub network_id: String,
-    /// The port that will be used during a network operation.
-    pub port: Option<u16>,
+    /// The map of `identifier->port` where an `identifier` represent each network services
+    /// (.e.g, gossip-consensus, RPC-governance, discovery, ..)
+    pub ports: HashMap<String, u16>,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
     /// The public key of this node.
@@ -50,6 +52,17 @@ pub struct SharedKnownPeers {
 }
 
 impl SharedKnownPeers {
+    /// It is not constantly updated once created
+    pub fn new_static(peers: Vec<Peer>) -> Self {
+        Self {
+            lock: Arc::new(RwLock::new(peers)),
+        }
+    }
+
+    pub fn new(lock: Arc<RwLock<Vec<Peer>>>) -> Self {
+        Self { lock }
+    }
+
     pub async fn read(&self) -> Vec<Peer> {
         self.lock.read().await.clone()
     }

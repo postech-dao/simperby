@@ -2,7 +2,6 @@ use super::*;
 use anyhow::anyhow;
 use simperby_consensus::Consensus;
 use simperby_network::primitives::{GossipNetwork, Storage};
-use simperby_network::{NetworkConfig, Peer};
 use simperby_repository::raw::RawRepository;
 use simperby_repository::DistributedRepository;
 
@@ -23,19 +22,11 @@ impl SimperbyNode {
     }
 }
 
-fn create_network_config(_config: &Config) -> NetworkConfig {
-    unimplemented!()
-}
-
 fn get_timestamp() -> Timestamp {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as Timestamp
-}
-
-fn get_known_peers() -> Vec<Peer> {
-    todo!()
 }
 
 #[async_trait]
@@ -62,12 +53,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
             .register_verified_block_hash(header.to_hash256())
             .await?;
         self.consensus
-            .set_proposal_candidate(
-                &create_network_config(&self.config),
-                &get_known_peers(),
-                header.to_hash256(),
-                get_timestamp(),
-            )
+            .set_proposal_candidate(header.to_hash256(), get_timestamp())
             .await?;
         Ok(commit_hash)
     }
@@ -95,14 +81,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
             ));
         };
         self.repository.vote(agenda_commit).await?;
-        self.governance
-            .vote(
-                &create_network_config(&self.config),
-                &[],
-                agenda_hash,
-                &self.config.private_key,
-            )
-            .await?;
+        self.governance.vote(agenda_hash).await?;
         Ok(())
     }
 
@@ -123,10 +102,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     }
 
     async fn progress_for_consensus(&mut self) -> Result<String> {
-        let result = self
-            .consensus
-            .progress(&create_network_config(&self.config), &[], get_timestamp())
-            .await?;
+        let result = self.consensus.progress(get_timestamp()).await?;
         Ok(format!("{:?}", result))
     }
 
@@ -143,21 +119,9 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
     }
 
     async fn fetch(&mut self) -> Result<()> {
-        let t1 = async {
-            self.governance
-                .fetch(&create_network_config(&self.config), &[])
-                .await
-        };
-        let t2 = async {
-            self.consensus
-                .fetch(&create_network_config(&self.config), &[])
-                .await
-        };
-        let t3 = async {
-            self.repository
-                .fetch(&create_network_config(&self.config), &[])
-                .await
-        };
+        let t1 = async { self.governance.fetch().await };
+        let t2 = async { self.consensus.fetch().await };
+        let t3 = async { self.repository.fetch().await };
         futures::try_join!(t1, t2, t3)?;
         Ok(())
     }

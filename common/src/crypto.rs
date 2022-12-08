@@ -270,6 +270,12 @@ impl std::convert::AsRef<[u8]> for PrivateKey {
 }
 
 impl PrivateKey {
+    pub fn zero() -> Self {
+        Self {
+            key: HexSerializedBytes::zero(),
+        }
+    }
+
     pub fn from_array(array: [u8; 32]) -> Result<Self, Error> {
         let key = secp256k1::SecretKey::from_slice(&array)
             .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
