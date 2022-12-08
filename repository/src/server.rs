@@ -32,7 +32,7 @@ mod tests {
         tokio::spawn(async move {
             run_server(&path, port).await;
         });
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         let td2 = TempDir::new().unwrap();
         let path2 = td2.path().to_slash().unwrap().into_owned();
         run_command(format!("ls {}", path2)).await;
