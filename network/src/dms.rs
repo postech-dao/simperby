@@ -757,7 +757,9 @@ mod tests {
             SharedKnownPeers::new(Default::default()),
         )
         .await;
-        let _server_node = serving_node_dms.serve().await.unwrap();
+        tokio::spawn(async move {
+            let _server_node = serving_node_dms.serve().await.unwrap();
+        });
         let mut tasks = Vec::new();
         let k = 10;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
