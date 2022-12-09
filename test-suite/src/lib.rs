@@ -137,9 +137,8 @@ pub async fn create_test_dms(
     let path = create_temp_dir();
 
     StorageImpl::create(&path).await.unwrap();
-    let storage = StorageImpl::open(&path).await.unwrap();
-    Dms::create(storage, 0, dms_key).await.unwrap();
-    let storage = StorageImpl::open(&path).await.unwrap();
+    let mut storage = StorageImpl::open(&path).await.unwrap();
+    Dms::create(&mut storage, 0, dms_key).await.unwrap();
     let config = dms::Config {
         fetch_interval: Some(std::time::Duration::from_millis(500)),
         broadcast_interval: Some(std::time::Duration::from_millis(500)),
