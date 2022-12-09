@@ -779,9 +779,6 @@ mod tests {
             SharedKnownPeers::new(Default::default()),
         )
         .await;
-        tokio::spawn(async move {
-            let _server_node = serving_node_dms.serve().await.unwrap();
-        });
         let mut tasks = Vec::new();
         let k = 5;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
@@ -800,7 +797,11 @@ mod tests {
                 network_config.clone(),
             ));
         }
+        let handle = tokio::spawn(async move {
+            serving_node_dms.serve().await.unwrap();
+        });
         join_all(tasks).await;
+        handle.await.unwrap();
     }
 
     // Same, but the server node is not online from the beginning
@@ -833,11 +834,11 @@ mod tests {
                 network_config.clone(),
             ));
         }
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             sleep(5000).await;
             let _server_node = serving_node_dms.serve().await.unwrap();
-            future::pending::<()>().await;
         });
         join_all(tasks).await;
+        handle.await.unwrap();
     }
 }
