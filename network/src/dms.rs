@@ -549,8 +549,8 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
 
     /// Serves the gossip network node and the RPC server indefinitely, constantly updating the storage.
     ///
-    /// TODO: currently it just returns itself after some time.
-    pub async fn serve(self) -> Result<Self, Error> {
+    /// TODO: currently it just returns itself after the given time.
+    pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
         let port_key = format!("dms-{}", self.read_state().await?.key);
         let port = *self
             .config
@@ -574,7 +574,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             fetch_task.boxed(),
             broadcast_task.boxed(),
             gossip_task.boxed(),
-            tokio::time::sleep(std::time::Duration::from_secs(5))
+            tokio::time::sleep(std::time::Duration::from_millis(time_in_ms))
                 .map(|_| Ok(true))
                 .boxed(),
         ];
@@ -798,7 +798,7 @@ mod tests {
             ));
         }
         let handle = tokio::spawn(async move {
-            serving_node_dms.serve().await.unwrap();
+            serving_node_dms.serve(15000).await.unwrap();
         });
         join_all(tasks).await;
         handle.await.unwrap();
@@ -836,7 +836,7 @@ mod tests {
         }
         let handle = tokio::spawn(async move {
             sleep(5000).await;
-            let _server_node = serving_node_dms.serve().await.unwrap();
+            let _server_node = serving_node_dms.serve(15000).await.unwrap();
         });
         join_all(tasks).await;
         handle.await.unwrap();

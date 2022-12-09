@@ -39,7 +39,7 @@ async fn basic_1() {
     server_node.vote(agenda_hash).await.unwrap();
 
     tokio::spawn(async move {
-        let server_node = server_node.serve().await.unwrap();
+        let server_node = server_node.serve(5000).await.unwrap();
         assert_eq!(
             server_node.read().await.unwrap().votes[&agenda_hash].len(),
             4
