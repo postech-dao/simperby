@@ -673,7 +673,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -695,7 +695,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -717,7 +717,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -758,7 +758,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -799,7 +799,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -840,7 +840,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -881,7 +881,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -925,7 +925,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -969,7 +969,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1062,7 +1062,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1105,7 +1105,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1123,7 +1123,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1151,7 +1151,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: 0,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1173,7 +1173,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1192,7 +1192,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1210,7 +1210,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 0,
-            hash: Agenda::calculate_hash(&[]),
+            transactions_hash: Agenda::calculate_hash(&[]),
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1226,7 +1226,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1244,7 +1244,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1272,7 +1272,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1282,7 +1282,7 @@ mod test {
             &Agenda {
                 author: validator_keypair[1].0.clone(),
                 timestamp: 1,
-                hash: agenda_hash_value,
+                transactions_hash: agenda_hash_value,
                 height: 0,
             },
             agenda_hash_value,
@@ -1299,7 +1299,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1321,7 +1321,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1331,7 +1331,7 @@ mod test {
             &Agenda {
                 author: validator_keypair[1].0.clone(),
                 timestamp: 0,
-                hash: Hash256::zero(),
+                transactions_hash: Hash256::zero(),
                 height: csv.header.height + 1,
             },
             agenda_hash_value,
@@ -1348,7 +1348,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1380,7 +1380,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
@@ -1402,7 +1402,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            hash: agenda_hash_value,
+            transactions_hash: agenda_hash_value,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
