@@ -21,6 +21,7 @@ reqwest = "0.11"
 fs2 = { version = "0.4.3"}
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 ip_rfc = "0.1.0"
+parking_lot = "0.12.1"
 
 [dev-dependencies]
 rand = "0.8.5"
