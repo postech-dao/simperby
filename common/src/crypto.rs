@@ -317,6 +317,18 @@ pub fn generate_keypair(seed: impl AsRef<[u8]>) -> (PublicKey, PrivateKey) {
     )
 }
 
+/// Generates a new keypair randomly
+pub fn generate_keypair_random() -> (PublicKey, PrivateKey) {
+    use secp256k1::rand::SeedableRng;
+    let mut rng = secp256k1::rand::rngs::StdRng::from_entropy();
+    let secp = Secp256k1::new();
+    let (private_key, public_key) = secp.generate_keypair(&mut rng);
+    (
+        PublicKey::from_array(public_key.serialize()).expect("invalid public key"),
+        PrivateKey::from_array(private_key.secret_bytes()).expect("invalid private key"),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
