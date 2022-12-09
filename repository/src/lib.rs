@@ -247,7 +247,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn sync(
         &mut self,
         block_commit_hash: &CommitHash,
-        last_block_proof: &LastFinalizationProof,
+        last_block_proof: &FinalizationProof,
     ) -> Result<(), Error> {
         // Check if the given block commit is a descendant of the current finalized branch
         let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
@@ -279,10 +279,13 @@ impl<T: RawRepository> DistributedRepository<T> {
         let block_semantic_commit = self.raw.read_semantic_commit(*block_commit_hash).await?;
         let block_commit =
             format::from_semantic_commit(block_semantic_commit).map_err(|e| anyhow!(e))?;
-        if let Commit::Block(block_header) = block_commit {
-            verify::verify_finalization_proof(&block_header, &last_block_proof.proof)
-                .map_err(|e| anyhow!("invalid verify finalization proof: {}", e))?;
-        }
+        let last_block_header = if let Commit::Block(ref last_block_header) = block_commit {
+            last_block_header
+        } else {
+            return Err(anyhow!("invalid block commit hash"));
+        };
+        verify::verify_finalization_proof(last_block_header, last_block_proof)
+            .map_err(|e| anyhow!("invalid verify finalization proof: {}", e))?;
 
         // If commit sequence verification is done and the finalization proof is verified,
         // move the `finalized` branch to the given block commit hash.
@@ -295,7 +298,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
         let fp_commit_hash = self
             .raw
-            .create_semantic_commit(format::fp_to_semantic_commit(&last_block_proof))
+            .create_semantic_commit(format::fp_to_semantic_commit(&LastFinalizationProof {
+                height: last_block_header.height,
+                proof: last_block_proof.clone(),
+            }))
             .await?;
         self.raw
             .create_branch(FP_BRANCH_NAME.into(), fp_commit_hash)
