@@ -90,7 +90,8 @@ trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
 }
 
 struct DmsWrapper<N: GossipNetwork, S: Storage> {
-    dms: Arc<RwLock<DistributedMessageSet<N, S>>>,
+    #[allow(clippy::type_complexity)]
+    dms: Arc<parking_lot::RwLock<Option<Arc<RwLock<DistributedMessageSet<N, S>>>>>>,
 }
 
 #[async_trait]
@@ -100,15 +101,19 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
         height: BlockHeight,
         knowns: Vec<Hash256>,
     ) -> Result<Vec<RawMessage>, String> {
-        let mut messages = self
-            .dms
+        let dms = Arc::clone(
+            self.dms
+                .read()
+                .as_ref()
+                .ok_or_else(|| "server terminated".to_owned())?,
+        );
+        let mut messages = dms
             .read()
             .await
             .read_messages()
             .await
             .map_err(|e| e.to_string())?;
-        let height_ = self
-            .dms
+        let height_ = dms
             .read()
             .await
             .read_state()
@@ -135,8 +140,13 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
         height: BlockHeight,
         messages: Vec<RawMessage>,
     ) -> Result<(), String> {
-        let height_ = self
-            .dms
+        let dms = Arc::clone(
+            self.dms
+                .read()
+                .as_ref()
+                .ok_or_else(|| "server terminated".to_owned())?,
+        );
+        let height_ = dms
             .read()
             .await
             .read_state()
@@ -152,7 +162,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
         for message in messages {
             let message = message.into_message().map_err(|e| e.to_string())?;
             DistributedMessageSet::<N, S>::add_message_but_not_broadcast(
-                &mut (*self.dms.write().await.storage.write().await),
+                &mut (*dms.write().await.storage.write().await),
                 message,
             )
             .await
@@ -452,11 +462,23 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     async fn serve_rpc(this: Arc<RwLock<Self>>, rpc_port: u16) -> Result<(), Error> {
+        let wrapped_this = Arc::new(parking_lot::RwLock::new(Some(this)));
+        let wrapped_this_ = Arc::clone(&wrapped_this);
+
+        struct DropHelper<T> {
+            wrapped_this: Arc<parking_lot::RwLock<Option<Arc<RwLock<T>>>>>,
+        }
+        impl<T> Drop for DropHelper<T> {
+            fn drop(&mut self) {
+                self.wrapped_this.write().take().unwrap();
+            }
+        }
+        let _drop_helper = DropHelper { wrapped_this };
         run_server(
             rpc_port,
             [(
                 "dms".to_owned(),
-                create_http_object(Arc::new(DmsWrapper { dms: this })
+                create_http_object(Arc::new(DmsWrapper { dms: wrapped_this_ })
                     as Arc<dyn DistributedMessageSetRpcInterface>),
             )]
             .iter()
