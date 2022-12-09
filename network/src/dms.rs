@@ -771,7 +771,7 @@ mod tests {
     async fn multi_dummy_gn_single_sn_1() {
         env_logger::init();
         let rpc_port = 4201;
-        let n = 6;
+        let n = 5;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);
         let serving_node_dms = setup(
@@ -783,7 +783,7 @@ mod tests {
             let _server_node = serving_node_dms.serve().await.unwrap();
         });
         let mut tasks = Vec::new();
-        let k = 10;
+        let k = 5;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
         for (i, network_config) in network_configs.iter().enumerate() {
             let dms = setup(
@@ -807,7 +807,7 @@ mod tests {
     #[tokio::test]
     async fn multi_dummy_gn_single_sn_2() {
         let rpc_port = 4202;
-        let n = 6;
+        let n = 5;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);
         let serving_node_dms = setup(
@@ -816,7 +816,7 @@ mod tests {
         )
         .await;
         let mut tasks = Vec::new();
-        let k = 10;
+        let k = 5;
         let all_numbers = (0..k * n).into_iter().collect::<Vec<_>>();
         for (i, network_config) in network_configs.iter().enumerate() {
             let dms = setup(
