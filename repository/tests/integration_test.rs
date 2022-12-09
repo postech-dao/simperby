@@ -4,6 +4,7 @@ use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 
 #[tokio::test]
+#[ignore]
 async fn basic_1() {
     let port = 8801;
     let (rs, keys) = generate_standard_genesis(4);
