@@ -188,6 +188,7 @@ pub struct DistributedMessageSet<N, S> {
     config: Config,
     filter: Arc<dyn MessageFilter>,
     peers: SharedKnownPeers,
+    key: String,
     _marker: std::marker::PhantomData<N>,
 }
 
@@ -232,13 +233,19 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     where
         Self: Sized,
     {
+        let state: State = serde_json::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
         Ok(Self {
             storage: Arc::new(RwLock::new(storage)),
             config,
             filter: Arc::new(DummyFilter),
             peers,
+            key: state.key,
             _marker: std::marker::PhantomData,
         })
+    }
+
+    pub fn get_key(&self) -> String {
+        self.key.clone()
     }
 
     pub fn set_filter(&mut self, filter: Arc<dyn MessageFilter>) {
