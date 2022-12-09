@@ -107,19 +107,23 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&block_commit);
 
         self.raw.checkout_clean().await?;
+        self.raw
+            .create_branch(FINALIZED_BRANCH_NAME.into(), self.raw.get_head().await?)
+            .await?;
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         self.raw
+            .create_branch(WORK_BRANCH_NAME.into(), result)
+            .await?;
+        self.raw
             .create_branch(FP_BRANCH_NAME.into(), result)
             .await?;
+        self.raw.checkout(FP_BRANCH_NAME.into()).await?;
         self.raw
             .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
                 height: 0,
                 proof: reserved_state.genesis_info.genesis_proof.clone(),
             }))
-            .await?;
-        self.raw
-            .create_branch(WORK_BRANCH_NAME.into(), result)
             .await?;
         Ok(())
     }
