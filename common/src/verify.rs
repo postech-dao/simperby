@@ -250,10 +250,10 @@ impl CommitSequenceVerifier {
                     )));
                 }
                 // Verify agenda without transactions
-                if agenda.transactions_hash != Agenda::calculate_hash(&[]) {
+                if agenda.transactions_hash != Agenda::calculate_transactions_hash(&[]) {
                     return Err(Error::InvalidArgument(format!(
                         "invalid agenda transactions_hash: expected {}, got {}",
-                        Agenda::calculate_hash(&[]),
+                        Agenda::calculate_transactions_hash(&[]),
                         agenda.transactions_hash
                     )));
                 }
@@ -288,10 +288,10 @@ impl CommitSequenceVerifier {
                     vec![last_transaction.clone()],
                 ]
                 .concat();
-                if agenda.transactions_hash != Agenda::calculate_hash(&transactions) {
+                if agenda.transactions_hash != Agenda::calculate_transactions_hash(&transactions) {
                     return Err(Error::InvalidArgument(format!(
                         "invalid agenda transactions_hash: expected {}, got {}",
-                        Agenda::calculate_hash(&transactions),
+                        Agenda::calculate_transactions_hash(&transactions),
                         agenda.transactions_hash
                     )));
                 }
@@ -629,13 +629,13 @@ mod test {
         (validator_keypair, reserved_state, csv)
     }
 
-    fn calculate_agenda_hash(phase: Phase) -> Hash256 {
+    fn calculate_agenda_transactions_hash(phase: Phase) -> Hash256 {
         if let Phase::Transaction {
             ref last_transaction,
             ref preceding_transactions,
         } = phase
         {
-            Agenda::calculate_hash(
+            Agenda::calculate_transactions_hash(
                 &[
                     preceding_transactions.clone(),
                     vec![last_transaction.clone()],
@@ -643,7 +643,7 @@ mod test {
                 .concat(),
             )
         } else {
-            Agenda::calculate_hash(&[])
+            Agenda::calculate_transactions_hash(&[])
         }
     }
 
@@ -669,11 +669,11 @@ mod test {
         ))
         .unwrap();
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -681,7 +681,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
     }
@@ -691,11 +691,11 @@ mod test {
     fn correct_commit_sequence2() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -703,7 +703,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
     }
@@ -713,11 +713,11 @@ mod test {
     fn invalid_block_commit_with_invalid_height() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -725,7 +725,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid height
@@ -754,11 +754,11 @@ mod test {
     fn invalid_block_commit_with_invalid_previous_hash() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -766,7 +766,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid previous hash
@@ -795,11 +795,11 @@ mod test {
     fn invalid_block_commit_with_invalid_author() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -807,7 +807,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid author
@@ -836,11 +836,11 @@ mod test {
     fn invalid_block_commit_with_invalid_timestamp() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -848,7 +848,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid timestamp
@@ -877,11 +877,11 @@ mod test {
     fn invalid_block_commit_with_invalid_finalization_proof_for_invalid_signature() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -889,7 +889,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid finalization proof for invalid signature
@@ -921,11 +921,11 @@ mod test {
     fn invalid_block_commit_with_invalid_finalization_proof_for_low_voting_power() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -933,7 +933,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid finalization proof for low voting power
@@ -965,11 +965,11 @@ mod test {
     fn invalid_block_commit_with_invalid_commit_merkle_root() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -977,7 +977,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply block commit with invalid commit merkle root
@@ -1058,11 +1058,11 @@ mod test {
         ))
         .unwrap();
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 4,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1101,11 +1101,11 @@ mod test {
     fn phase_mismatch_for_transaction_commit1() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1119,11 +1119,11 @@ mod test {
     fn phase_mismatch_for_transaction_commit2() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1131,7 +1131,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply transaction commit at agenda proof phase
@@ -1147,11 +1147,11 @@ mod test {
     fn invalid_agenda_commit_with_invalid_height() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit with invalid height
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: 0,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1163,17 +1163,17 @@ mod test {
     fn invalid_agenda_commit_with_invalid_agenda_hash1() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit with invalid agenda hash
-        let agenda_hash_value = if let Commit::Transaction(transaction) =
+        let agenda_transactions_hash = if let Commit::Transaction(transaction) =
             generate_empty_transaction_commit(&validator_keypair, 0, 0)
         {
-            Agenda::calculate_hash(&[transaction])
+            Agenda::calculate_transactions_hash(&[transaction])
         } else {
             panic!("generate_empty_transaction_commit should return Commit::Transaction type value")
         };
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1188,11 +1188,11 @@ mod test {
         csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply agenda commit with invalid agenda hash
-        let agenda_hash_value = Agenda::calculate_hash(&[]);
+        let agenda_transactions_hash = Agenda::calculate_transactions_hash(&[]);
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1210,7 +1210,7 @@ mod test {
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 0,
-            transactions_hash: Agenda::calculate_hash(&[]),
+            transactions_hash: Agenda::calculate_transactions_hash(&[]),
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda))
@@ -1222,11 +1222,11 @@ mod test {
     fn phase_mismatch_for_agenda_commit1() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1240,11 +1240,11 @@ mod test {
     fn phase_mismatch_for_agenda_commit2() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1252,7 +1252,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply agenda commit at agenda proof phase
@@ -1268,11 +1268,11 @@ mod test {
     fn invalid_agenda_proof_commit_with_invalid_height() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1282,10 +1282,10 @@ mod test {
             &Agenda {
                 author: validator_keypair[1].0.clone(),
                 timestamp: 1,
-                transactions_hash: agenda_hash_value,
+                transactions_hash: agenda_transactions_hash,
                 height: 0,
             },
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap_err();
     }
@@ -1295,11 +1295,11 @@ mod test {
     fn invalid_agenda_proof_with_invalid_agenda_hash() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1317,11 +1317,11 @@ mod test {
     fn invalid_agenda_proof_with_invalid_signature() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1334,7 +1334,7 @@ mod test {
                 transactions_hash: Hash256::zero(),
                 height: csv.header.height + 1,
             },
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap_err();
     }
@@ -1344,11 +1344,11 @@ mod test {
     fn phase_mismatch_for_agenda_proof_commit1() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda commit
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
@@ -1356,14 +1356,14 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap();
         // Apply agenda-proof commit again
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap_err();
     }
@@ -1376,17 +1376,17 @@ mod test {
         csv.apply_commit(&generate_empty_transaction_commit(&validator_keypair, 0, 1))
             .unwrap();
         // Apply agenda-proof commit at transaction phase
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 2,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap_err();
     }
@@ -1398,17 +1398,17 @@ mod test {
     fn phase_mismatch_for_agenda_proof_commit3() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda-proof commit at block phase
-        let agenda_hash_value = calculate_agenda_hash(csv.phase.clone());
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: validator_keypair[0].0.clone(),
             timestamp: 1,
-            transactions_hash: agenda_hash_value,
+            transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
         };
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_hash_value,
+            agenda_transactions_hash,
         ))
         .unwrap_err();
     }

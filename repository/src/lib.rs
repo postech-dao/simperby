@@ -455,7 +455,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let agenda = Agenda {
             author,
             timestamp: get_timestamp(),
-            transactions_hash: Agenda::calculate_hash(&transactions),
+            transactions_hash: Agenda::calculate_transactions_hash(&transactions),
             height: last_header.height + 1,
         };
         let agenda_commit = Commit::Agenda(agenda.clone());
