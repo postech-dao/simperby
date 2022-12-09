@@ -399,7 +399,7 @@ impl CommitSequenceVerifier {
     }
 }
 
-#[cfg(never)]
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::merkle_tree::OneshotMerkleTree;
@@ -681,7 +681,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
     }
@@ -703,7 +703,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
     }
@@ -725,7 +725,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid height
@@ -766,7 +766,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid previous hash
@@ -807,7 +807,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid author
@@ -848,7 +848,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid timestamp
@@ -889,7 +889,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid finalization proof for invalid signature
@@ -933,7 +933,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid finalization proof for low voting power
@@ -977,7 +977,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply block commit with invalid commit merkle root
@@ -1131,7 +1131,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply transaction commit at agenda proof phase
@@ -1252,7 +1252,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply agenda commit at agenda proof phase
@@ -1285,7 +1285,7 @@ mod test {
                 transactions_hash: agenda_transactions_hash,
                 height: 0,
             },
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap_err();
     }
@@ -1334,7 +1334,7 @@ mod test {
                 transactions_hash: Hash256::zero(),
                 height: csv.header.height + 1,
             },
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap_err();
     }
@@ -1356,14 +1356,14 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap();
         // Apply agenda-proof commit again
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap_err();
     }
@@ -1386,7 +1386,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap_err();
     }
@@ -1408,7 +1408,7 @@ mod test {
         csv.apply_commit(&generate_agenda_proof_commit(
             &validator_keypair,
             &agenda,
-            agenda_transactions_hash,
+            agenda.to_hash256(),
         ))
         .unwrap_err();
     }
