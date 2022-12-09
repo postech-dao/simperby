@@ -261,31 +261,25 @@ impl<T: RawRepository> DistributedRepository<T> {
                 "block commit is not a descendant of the current finalized branch"
             ));
         }
+
         // Verify every commit along the way.
         let new_commits =
             utils::read_commits(self, current_finalized_commit, *block_commit_hash).await?;
-        let start_header = self.get_last_finalized_block_header().await?;
+        let last_finalized_block_header = self.get_last_finalized_block_header().await?;
         let reserved_state = self.get_reserved_state().await?;
-        let mut verifier =
-            CommitSequenceVerifier::new(start_header.clone(), reserved_state.clone())
-                .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
+        let mut verifier = CommitSequenceVerifier::new(
+            last_finalized_block_header.clone(),
+            reserved_state.clone(),
+        )
+        .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
         for (new_commit, new_commit_hash) in &new_commits {
             verifier
                 .apply_commit(new_commit)
                 .map_err(|e| anyhow!("verification error on commit {}: {}", new_commit_hash, e))?;
         }
-
-        // Verify finalization proof
-        let block_semantic_commit = self.raw.read_semantic_commit(*block_commit_hash).await?;
-        let block_commit =
-            format::from_semantic_commit(block_semantic_commit).map_err(|e| anyhow!(e))?;
-        let last_block_header = if let Commit::Block(ref last_block_header) = block_commit {
-            last_block_header
-        } else {
-            return Err(anyhow!("invalid block commit hash"));
-        };
-        verify::verify_finalization_proof(last_block_header, last_block_proof)
-            .map_err(|e| anyhow!("invalid verify finalization proof: {}", e))?;
+        verifier
+            .verify_last_header_finalization(last_block_proof)
+            .map_err(|e| anyhow!("verification error on the last block header: {}", e))?;
 
         // If commit sequence verification is done and the finalization proof is verified,
         // move the `finalized` branch to the given block commit hash.
@@ -296,6 +290,14 @@ impl<T: RawRepository> DistributedRepository<T> {
             .await?;
         self.raw.delete_branch(FP_BRANCH_NAME.into()).await?;
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
+        let last_block_semantic_commit = self.raw.read_semantic_commit(*block_commit_hash).await?;
+        let last_block_commit =
+            format::from_semantic_commit(last_block_semantic_commit).map_err(|e| anyhow!(e))?;
+        let last_block_header = if let Commit::Block(last_block_header) = last_block_commit {
+            last_block_header
+        } else {
+            return Err(anyhow!("the last commit is not a block commit"));
+        };
         let fp_commit_hash = self
             .raw
             .create_semantic_commit(format::fp_to_semantic_commit(&LastFinalizationProof {
