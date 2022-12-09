@@ -92,7 +92,14 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     /// Serves the governance protocol indefinitely.
-    pub async fn serve(self) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
-        unimplemented!()
+    ///
+    /// TODO: currently it just returns itself after some time.
+    pub async fn serve(self) -> Result<Self, Error> {
+        let dms = self.dms;
+        let dms = dms.serve().await?;
+        Ok(Self {
+            dms,
+            this_node_key: self.this_node_key,
+        })
     }
 }
