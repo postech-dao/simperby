@@ -107,7 +107,7 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
 // Public interface
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     pub async fn create(
-        mut storage: S,
+        storage: &mut S,
         validator_set: &[(PublicKey, VotingPower)],
         this_node_index: Option<usize>,
         timestamp: Timestamp,
