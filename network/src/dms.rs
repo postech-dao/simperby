@@ -214,10 +214,10 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     ///
     /// - `dms_key`: The unique key for distinguishing the DMS instance
     /// among the networks and among the types (e.g. governance, consensus, ...).
-    pub async fn create(mut storage: S, height: u64, dms_key: String) -> Result<(), Error> {
+    pub async fn create(storage: &mut S, height: u64, dms_key: String) -> Result<(), Error> {
         storage.remove_all_files().await?;
         Self::write_state(
-            &mut storage,
+            storage,
             State {
                 height,
                 key: dms_key,
@@ -641,11 +641,10 @@ mod tests {
     async fn setup(network_config: NetworkConfig, peers: SharedKnownPeers) -> Dms {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
-        let storage = StorageImpl::open(&dir).await.unwrap();
-        Dms::create(storage, 0, network_config.network_id.clone())
+        let mut storage = StorageImpl::open(&dir).await.unwrap();
+        Dms::create(&mut storage, 0, network_config.network_id.clone())
             .await
             .unwrap();
-        let storage = StorageImpl::open(&dir).await.unwrap();
         let config = Config {
             network_config,
             fetch_interval: Some(Duration::from_millis(100)),
