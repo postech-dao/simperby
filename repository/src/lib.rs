@@ -244,7 +244,11 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// Note that the last block will be verified by the finalization proof
     /// and the `fp` branch will be updated as well.
-    pub async fn sync(&mut self, block_commit_hash: &CommitHash) -> Result<(), Error> {
+    pub async fn sync(
+        &mut self,
+        block_commit_hash: &CommitHash,
+        last_block_proof: &LastFinalizationProof,
+    ) -> Result<(), Error> {
         // Check if the given block commit is a descendant of the current finalized branch
         let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         if self
@@ -272,14 +276,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
 
         // Verify finalization proof
-        let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
-        let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
-        let finalization_proof = fp_from_semantic_commit(fp_semantic_commit).unwrap();
         let block_semantic_commit = self.raw.read_semantic_commit(*block_commit_hash).await?;
         let block_commit =
             format::from_semantic_commit(block_semantic_commit).map_err(|e| anyhow!(e))?;
         if let Commit::Block(block_header) = block_commit {
-            verify::verify_finalization_proof(&block_header, &finalization_proof.proof)
+            verify::verify_finalization_proof(&block_header, &last_block_proof.proof)
                 .map_err(|e| anyhow!("invalid verify finalization proof: {}", e))?;
         }
 
@@ -294,7 +295,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
         let fp_commit_hash = self
             .raw
-            .create_semantic_commit(format::fp_to_semantic_commit(&finalization_proof))
+            .create_semantic_commit(format::fp_to_semantic_commit(&last_block_proof))
             .await?;
         self.raw
             .create_branch(FP_BRANCH_NAME.into(), fp_commit_hash)
