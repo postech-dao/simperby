@@ -114,7 +114,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn simple1() {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
@@ -131,7 +130,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn never_interrupted() {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
