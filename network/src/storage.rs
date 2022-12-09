@@ -58,6 +58,8 @@ impl Storage for StorageImpl {
     ) -> Result<(), StorageError> {
         let mut file = fs::File::create(format!("{}/{}", self.path, name)).await?;
         file.write_all(content.as_bytes()).await?;
+        // IMPORTANT!
+        file.flush().await?;
         Ok(())
     }
 
