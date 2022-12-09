@@ -17,3 +17,4 @@ simperby-node = { path = "../node" }
 rand = "0.8"
 path-slash = "0.2.1"
 tempfile = "3"
+once_cell = "1.16.0"

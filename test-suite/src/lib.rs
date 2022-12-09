@@ -1,6 +1,11 @@
 use path_slash::PathExt as _;
 use simperby_node::simperby_common::*;
+use simperby_node::simperby_network::primitives::Storage;
+use simperby_node::simperby_network::{
+    dms, storage::StorageImpl, Dms, NetworkConfig, Peer, SharedKnownPeers,
+};
 use tempfile::TempDir;
+use tokio::sync::RwLock;
 
 #[cfg(target_os = "windows")]
 pub async fn run_command(command: impl AsRef<str>) {
@@ -110,4 +115,78 @@ pub fn create_temp_dir() -> String {
     let path = td.path().to_slash().unwrap().into_owned();
     std::mem::forget(td);
     path
+}
+
+/// Provides an available port (ranged from 37000 to 37999) for the test.
+pub async fn dispense_port() -> u16 {
+    use once_cell::sync::OnceCell;
+    static PORTS: OnceCell<RwLock<Vec<u16>>> = OnceCell::new();
+    PORTS
+        .get_or_init(|| RwLock::new((37000..38000).into_iter().collect::<Vec<_>>()))
+        .write()
+        .await
+        .pop()
+        .expect("wtf did we have tests more than 1000?")
+}
+
+pub async fn create_test_dms(
+    network_config: NetworkConfig,
+    dms_key: String,
+    peers: SharedKnownPeers,
+) -> Dms {
+    let path = create_temp_dir();
+
+    StorageImpl::create(&path).await.unwrap();
+    let storage = StorageImpl::open(&path).await.unwrap();
+    Dms::create(storage, 0, dms_key).await.unwrap();
+    let storage = StorageImpl::open(&path).await.unwrap();
+    let config = dms::Config {
+        fetch_interval: Some(std::time::Duration::from_millis(500)),
+        broadcast_interval: Some(std::time::Duration::from_millis(500)),
+        network_config,
+    };
+    Dms::open(storage, config, peers).await.unwrap()
+}
+
+pub async fn setup_server_client_nodes(
+    network_id: String,
+    client_n: usize,
+) -> (NetworkConfig, Vec<NetworkConfig>, SharedKnownPeers) {
+    let (public_key, private_key) = generate_keypair_random();
+    let server = NetworkConfig {
+        network_id: network_id.clone(),
+        ports: vec![(format!("dms-{}", network_id), dispense_port().await)]
+            .into_iter()
+            .collect(),
+        members: Vec::new(),
+        public_key,
+        private_key: private_key.clone(),
+    };
+    let mut clients = Vec::new();
+    for _ in 0..client_n {
+        let (public_key, private_key) = generate_keypair_random();
+        let network_config = NetworkConfig {
+            network_id: network_id.clone(),
+            ports: vec![(format!("dms-{}", network_id), dispense_port().await)]
+                .into_iter()
+                .collect(),
+            members: Vec::new(),
+            public_key,
+            private_key: private_key.clone(),
+        };
+        clients.push(network_config);
+    }
+    let peer = SharedKnownPeers::new_static(vec![Peer {
+        public_key: server.public_key.clone(),
+        name: "server".to_owned(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        ports: server.ports.clone(),
+        message: "".to_owned(),
+        recently_seen_timestamp: 0,
+    }]);
+    (server, clients, peer)
+}
+
+pub async fn sleep_ms(ms: u64) {
+    tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
 }
