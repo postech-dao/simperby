@@ -27,6 +27,7 @@ parking_lot = "0.12.1"
 rand = "0.8.5"
 port_scanner = "0.1.5"
 env_logger = "0.10.0"
+simperby-test-suite = { path = "../test-suite" }
 
 [features]
 full = []

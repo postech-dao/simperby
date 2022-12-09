@@ -595,6 +595,7 @@ mod tests {
     use super::*;
     use crate::storage::StorageImpl;
     use rand::prelude::*;
+    use simperby_test_suite::*;
 
     use futures::future::join_all;
 
@@ -612,15 +613,6 @@ mod tests {
         Hash256::hash(format!("{}{}", s1, s2).as_bytes()).to_string()[0..16].to_owned()
     }
 
-    fn gerenate_random_storage_directory() -> String {
-        let temp_dir = std::env::temp_dir();
-        format!(
-            "{}/{}",
-            temp_dir.to_str().unwrap(),
-            generate_random_string()
-        )
-    }
-
     /// Returns the only-serving-node and the others, with the `Peer` info for the serving node.
     /// `size` includes the serving node.
     fn generate_node_configs(
@@ -630,7 +622,7 @@ mod tests {
         let mut configs = Vec::new();
         let mut keys = Vec::new();
         for _ in 0..size {
-            keys.push(generate_keypair(generate_random_string().as_bytes()));
+            keys.push(generate_keypair_random());
         }
         let network_id = generate_random_string();
 
@@ -670,7 +662,7 @@ mod tests {
     }
 
     async fn setup(network_config: NetworkConfig, peers: SharedKnownPeers) -> Dms {
-        let dir = gerenate_random_storage_directory();
+        let dir = create_temp_dir();
         StorageImpl::create(&dir).await.unwrap();
         let mut storage = StorageImpl::open(&dir).await.unwrap();
         Dms::create(&mut storage, 0, network_config.network_id.clone())
