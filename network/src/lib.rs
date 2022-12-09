@@ -13,6 +13,7 @@ use std::{net::SocketAddrV4, sync::Arc};
 use tokio::sync::RwLock;
 
 pub type Error = anyhow::Error;
+pub type Dms = dms::DistributedMessageSet<primitives::DummyGossipNetwork, storage::StorageImpl>;
 
 /// The information of a network peer that is discovered by the discovery protocol.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]

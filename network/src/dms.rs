@@ -3,7 +3,6 @@ use super::*;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use futures::prelude::*;
-use futures::select;
 use serde_tc::http::*;
 use serde_tc::{serde_tc_full, StubCall};
 use simperby_common::*;
@@ -308,12 +307,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     pub async fn add_message(&mut self, message: Message) -> Result<(), Error> {
         Self::add_message_but_not_broadcast(&mut *(self.storage.write().await), message.clone())
             .await?;
-        N::broadcast(
-            &self.config.network_config,
-            &self.peers.read().await,
-            serde_json::to_vec(&message).unwrap(),
-        )
-        .await?;
+        self.broadcast_all().await?;
         Ok(())
     }
 
@@ -532,7 +526,9 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     }
 
     /// Serves the gossip network node and the RPC server indefinitely, constantly updating the storage.
-    pub async fn serve(self) -> Result<Serve<Self, Error>, Error> {
+    ///
+    /// TODO: currently it just returns itself after some time.
+    pub async fn serve(self) -> Result<Self, Error> {
         let port_key = format!("dms-{}", self.read_state().await?.key);
         let this = Arc::new(RwLock::new(self));
         let rpc_task = tokio::spawn(Self::serve_rpc(
@@ -549,33 +545,17 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         let fetch_task = tokio::spawn(Self::serve_fetch(Arc::clone(&this)));
         let broadcast_task = tokio::spawn(Self::serve_broadcast(Arc::clone(&this)));
         let gossip_task = tokio::spawn(Self::serve_gossip(Arc::clone(&this)));
-        let (switch_send, switch_recv) = tokio::sync::oneshot::channel();
-        let this_ = Arc::clone(&this);
-        Ok(Serve::new(
-            tokio::spawn(async move {
-                let mut tasks =
-                    future::try_join4(rpc_task, fetch_task, broadcast_task, gossip_task).fuse();
-                let mut switch_recv = switch_recv.fuse();
-                select! {
-                    x = tasks => {
-                        // To wait the handle to drop the read only lock in `join()`.
-                        // In other words, this task will not be terminated until the handle
-                        // calls `join()`.
-                        let _ = switch_recv.await;
-                        match x.as_ref().unwrap() {
-                            (Ok(_), Ok(_), Ok(_), Ok(_)) => (),
-                            _ => return Err(anyhow!("{:?}", x)),
-                        }
-                    },
-                    _ = switch_recv => ()
-                }
-                Ok(Arc::try_unwrap(this)
-                    .expect("failed to unwrap serve object")
-                    .into_inner())
-            }),
-            switch_send,
-            this_,
-        ))
+
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        rpc_task.abort();
+        let _ = rpc_task.await;
+        fetch_task.abort();
+        let _ = fetch_task.await;
+        broadcast_task.abort();
+        let _ = broadcast_task.await;
+        gossip_task.abort();
+        let _ = gossip_task.await;
+        Ok(Arc::try_unwrap(this).unwrap().into_inner())
     }
 }
 
