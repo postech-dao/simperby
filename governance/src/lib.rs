@@ -93,10 +93,10 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
 
     /// Serves the governance protocol indefinitely.
     ///
-    /// TODO: currently it just returns itself after some time.
-    pub async fn serve(self) -> Result<Self, Error> {
+    /// TODO: currently it just returns itself after the given time.
+    pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
         let dms = self.dms;
-        let dms = dms.serve().await?;
+        let dms = dms.serve(time_in_ms).await?;
         Ok(Self {
             dms,
             this_node_key: self.this_node_key,
