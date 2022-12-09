@@ -249,8 +249,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         block_commit_hash: &CommitHash,
         last_block_proof: &FinalizationProof,
     ) -> Result<(), Error> {
-        // Check if the given block commit is a descendant of the current finalized branch
+        // Check if the last commit is a block commit.
         let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let new_commits =
+            utils::read_commits(self, current_finalized_commit, *block_commit_hash).await?;
+        let last_block_header =
+            if let Commit::Block(last_block_header) = &new_commits.last().unwrap().0 {
+                last_block_header
+            } else {
+                return Err(anyhow!("the last commit is not a block commit"));
+            };
+
+        // Check if the given block commit is a descendant of the current finalized branch
         if self
             .raw
             .find_merge_base(current_finalized_commit, *block_commit_hash)
@@ -263,8 +273,6 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
 
         // Verify every commit along the way.
-        let new_commits =
-            utils::read_commits(self, current_finalized_commit, *block_commit_hash).await?;
         let last_finalized_block_header = self.get_last_finalized_block_header().await?;
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(
@@ -288,25 +296,15 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw
             .move_branch(FINALIZED_BRANCH_NAME.to_string(), *block_commit_hash)
             .await?;
-        self.raw.delete_branch(FP_BRANCH_NAME.into()).await?;
-        self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
-        let last_block_semantic_commit = self.raw.read_semantic_commit(*block_commit_hash).await?;
-        let last_block_commit =
-            format::from_semantic_commit(last_block_semantic_commit).map_err(|e| anyhow!(e))?;
-        let last_block_header = if let Commit::Block(last_block_header) = last_block_commit {
-            last_block_header
-        } else {
-            return Err(anyhow!("the last commit is not a block commit"));
-        };
-        let fp_commit_hash = self
-            .raw
+        self.raw
+            .move_branch(FP_BRANCH_NAME.to_string(), *block_commit_hash)
+            .await?;
+        self.raw.checkout(FP_BRANCH_NAME.into()).await?;
+        self.raw
             .create_semantic_commit(format::fp_to_semantic_commit(&LastFinalizationProof {
                 height: last_block_header.height,
                 proof: last_block_proof.clone(),
             }))
-            .await?;
-        self.raw
-            .create_branch(FP_BRANCH_NAME.into(), fp_commit_hash)
             .await?;
         Ok(())
     }
