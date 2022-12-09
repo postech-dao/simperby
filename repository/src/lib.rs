@@ -591,7 +591,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let block_header = BlockHeader {
             author: author.clone(),
             prev_block_finalization_proof: finalization_proof,
-            previous_hash: Commit::Block(last_header.clone()).to_hash256(),
+            previous_hash: last_header.to_hash256(),
             height: last_header.height + 1,
             timestamp: get_timestamp(),
             commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
