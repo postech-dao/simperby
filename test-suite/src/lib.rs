@@ -91,17 +91,19 @@ pub fn generate_standard_genesis(
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
     run_command(format!(
-        "cd {} && mkdir repository && cd repository && git init",
+        "cd {} && mkdir repository && cd repository && mkdir repo && cd repo && git init",
         path
     ))
     .await;
+    let path = format!("{}/repository/repo", path);
     simperby_node::simperby_repository::raw::reserved_state::write_reserved_state(
-        path,
+        &path,
         &reserved_state,
     )
     .await
     .unwrap();
-    let path = format!("{}/repository", path);
+    println!("> Pre-genesis repository is created at {}", path);
+
     run_command(format!("cd {} && git add -A", path)).await;
     run_command(format!(
         "cd {} && git commit --author='TestAuthor <test@test.com>' -m 'genesis'",

@@ -3,7 +3,6 @@ use simperby_network::{Peer, SharedKnownPeers};
 use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 
-#[ignore]
 #[tokio::test]
 async fn basic_1() {
     let port = 8801;
@@ -24,8 +23,11 @@ async fn basic_1() {
 
     let server_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
+
     let mut server_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&server_node_dir).await.unwrap(),
+        RawRepositoryImpl::open(&format!("{}/repository/repo", server_node_dir))
+            .await
+            .unwrap(),
         config.clone(),
         peers.clone(),
     )
@@ -33,7 +35,9 @@ async fn basic_1() {
     .unwrap();
     server_node_repo.genesis().await.unwrap();
 
-    tokio::spawn(async move { server::run_server(&server_node_dir, 7301).await });
+    tokio::spawn(async move {
+        server::run_server(&format!("{}/repository", server_node_dir), 7301).await
+    });
 
     let client_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&client_node_dir, rs.clone()).await;

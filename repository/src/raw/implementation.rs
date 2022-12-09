@@ -369,7 +369,7 @@ impl RawRepositoryImplInner {
     }
 
     pub(crate) fn checkout_clean(&mut self) -> Result<(), Error> {
-        todo!()
+        Ok(())
     }
 
     pub(crate) fn checkout(&mut self, branch: Branch) -> Result<(), Error> {
