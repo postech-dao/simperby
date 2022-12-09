@@ -552,31 +552,40 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     /// TODO: currently it just returns itself after some time.
     pub async fn serve(self) -> Result<Self, Error> {
         let port_key = format!("dms-{}", self.read_state().await?.key);
-        let this = Arc::new(RwLock::new(self));
-        let rpc_task = tokio::spawn(Self::serve_rpc(
-            Arc::clone(&this),
-            *this
-                .read()
-                .await
-                .config
-                .network_config
-                .ports
-                .get(&port_key)
-                .ok_or_else(|| anyhow!(format!("`ports` has no field of {}", port_key)))?,
-        ));
-        let fetch_task = tokio::spawn(Self::serve_fetch(Arc::clone(&this)));
-        let broadcast_task = tokio::spawn(Self::serve_broadcast(Arc::clone(&this)));
-        let gossip_task = tokio::spawn(Self::serve_gossip(Arc::clone(&this)));
+        let port = *self
+            .config
+            .network_config
+            .ports
+            .get(&port_key)
+            .ok_or_else(|| anyhow!(format!("`ports` has no field of {}", port_key)))?;
 
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        rpc_task.abort();
-        let _ = rpc_task.await;
-        fetch_task.abort();
-        let _ = fetch_task.await;
-        broadcast_task.abort();
-        let _ = broadcast_task.await;
-        gossip_task.abort();
-        let _ = gossip_task.await;
+        let this = Arc::new(RwLock::new(self));
+        let this_ = Arc::clone(&this);
+        let rpc_task = async move { Self::serve_rpc(this_, port).await.map(|_| false) };
+        let this_ = Arc::clone(&this);
+        let fetch_task = async move { Self::serve_fetch(this_).await.map(|_| false) };
+        let this_ = Arc::clone(&this);
+        let broadcast_task = async move { Self::serve_broadcast(this_).await.map(|_| false) };
+        let this_ = Arc::clone(&this);
+        let gossip_task = async move { Self::serve_gossip(this_).await.map(|_| false) };
+
+        let mut tasks = vec![
+            rpc_task.boxed(),
+            fetch_task.boxed(),
+            broadcast_task.boxed(),
+            gossip_task.boxed(),
+            tokio::time::sleep(std::time::Duration::from_secs(5))
+                .map(|_| Ok(true))
+                .boxed(),
+        ];
+        loop {
+            let (result, _, remaining_futures) = future::select_all(tasks).await;
+            if result? {
+                // `remaining_futures` drops here.
+                break;
+            }
+            tasks = remaining_futures;
+        }
         Ok(Arc::try_unwrap(this).unwrap().into_inner())
     }
 }
