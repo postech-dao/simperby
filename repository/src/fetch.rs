@@ -94,34 +94,36 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             commits.last().unwrap().0.clone(),
         ));
 
-        // Store the block commits (including the currently finalized one)
-        let block_commit_hashes = std::iter::once(last_finalized_commit_hash)
-            .chain(
-                commits
-                    .iter()
-                    .filter_map(|(commit, hash)| matches!(commit, Commit::Block(_)).then(|| *hash)),
-            )
-            .collect::<Vec<_>>();
+        // If this branch provided any other block commits
+        if csv.get_block_headers().len() > 1 {
+            // Store the block commits (including the currently finalized one)
+            let block_commit_hashes =
+                std::iter::once(last_finalized_commit_hash)
+                    .chain(commits.iter().filter_map(|(commit, hash)| {
+                        matches!(commit, Commit::Block(_)).then(|| *hash)
+                    }))
+                    .collect::<Vec<_>>();
 
-        // Try to finalize the last block with the known finalization proofs.
-        let mut hit = false;
-        for proof in &finalization_proofs {
-            if csv.verify_last_header_finalization(&proof.proof).is_ok() {
-                last_finalization_proof = proof.clone();
-                last_finalized_commit_hash = *block_commit_hashes.last().unwrap();
-                hit = true;
-                break;
+            // Try to finalize the last block with the known finalization proofs.
+            let mut hit = false;
+            for proof in &finalization_proofs {
+                if csv.verify_last_header_finalization(&proof.proof).is_ok() {
+                    last_finalization_proof = proof.clone();
+                    last_finalized_commit_hash = *block_commit_hashes.last().unwrap();
+                    hit = true;
+                    break;
+                }
             }
-        }
 
-        // If failed, finalize the second to last block.
-        if !hit && block_commit_hashes.len() > 2 {
-            let last_block = csv.get_block_headers().last().unwrap().clone();
-            last_finalization_proof = LastFinalizationProof {
-                proof: last_block.prev_block_finalization_proof.clone(),
-                height: last_block.height - 1,
-            };
-            last_finalized_commit_hash = block_commit_hashes[block_commit_hashes.len() - 2];
+            // If failed, finalize the second to last block.
+            if !hit && block_commit_hashes.len() > 2 {
+                let last_block = csv.get_block_headers().last().unwrap().clone();
+                last_finalization_proof = LastFinalizationProof {
+                    proof: last_block.prev_block_finalization_proof.clone(),
+                    height: last_block.height - 1,
+                };
+                last_finalized_commit_hash = block_commit_hashes[block_commit_hashes.len() - 2];
+            }
         }
     }
 
