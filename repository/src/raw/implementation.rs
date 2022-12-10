@@ -524,9 +524,7 @@ impl RawRepositoryImplInner {
         descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
         if ancestor == descendant {
-            return Err(Error::InvalidRepository(
-                "ancestor and descendant are same".to_string(),
-            ));
+            return Ok(vec![]);
         }
 
         let merge_base = self.find_merge_base(ancestor, descendant)?;

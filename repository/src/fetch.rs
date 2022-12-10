@@ -24,7 +24,12 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
 
     // Step 1: update finalization
     'branch_loop: for (remote_name, branch_name, commit_hash) in remote_branches {
-        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!(
+            "{}/{}(at {})",
+            remote_name,
+            branch_name,
+            serde_json::to_string(&commit_hash).unwrap()
+        );
 
         // Skip if the branch is `fp`.
         if branch_name == FP_BRANCH_NAME {
