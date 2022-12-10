@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use vetomint2::*;
 
+pub type ConsensusParameters = ConsensusParams;
 pub type Error = eyre::Error;
 const STATE_FILE_NAME: &str = "state.json";
 pub type Nil = ();
@@ -49,8 +50,33 @@ pub fn generate_dms_key(header: &BlockHeader) -> String {
     )
 }
 
-fn generate_height_info_from_header(_header: &BlockHeader) -> Result<HeightInfo, Error> {
-    todo!()
+fn generate_height_info(
+    header: &BlockHeader,
+    consensus_params: ConsensusParams,
+    round_zero_timestamp: Timestamp,
+    this_node_key: Option<PrivateKey>,
+) -> Result<HeightInfo, Error> {
+    let this_node_index =
+        this_node_key
+            .map(|privkey| privkey.public_key())
+            .and_then(|this_node_pubkey| {
+                header
+                    .validator_set
+                    .iter()
+                    .position(|(pubkey, _)| *pubkey == this_node_pubkey)
+            });
+    let info = HeightInfo {
+        validators: header
+            .validator_set
+            .iter()
+            .map(|(_, power)| *power)
+            .collect(),
+        this_node_index,
+        timestamp: round_zero_timestamp,
+        consensus_params,
+        initial_block_candidate: 0 as BlockIdentifier,
+    };
+    Ok(info)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,13 +156,20 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         mut dms: DMS<N, S>,
         mut state_storage: S,
         block_header: BlockHeader,
+        consensus_parameters: ConsensusParams,
+        round_zero_timestamp: Timestamp,
         this_node_key: Option<PrivateKey>,
     ) -> Result<Self, Error> {
         let state = state_storage.read_file(STATE_FILE_NAME).await?;
         let state: State = serde_json::from_str(&state)?;
         // TODO: check if `this_node_key` is in the validator set. If not, error.
         if block_header != state.block_header {
-            let height_info = generate_height_info_from_header(&block_header)?;
+            let height_info = generate_height_info(
+                &block_header,
+                consensus_parameters,
+                round_zero_timestamp,
+                this_node_key.clone(),
+            )?;
             dms.clear(generate_dms_key(&block_header)).await?;
             let state = State {
                 vetomint: Vetomint::new(height_info),

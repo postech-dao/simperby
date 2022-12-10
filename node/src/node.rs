@@ -1,6 +1,6 @@
 use super::*;
 use eyre::eyre;
-use simperby_consensus::Consensus;
+use simperby_consensus::{Consensus, ConsensusParameters};
 use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_network::NetworkConfig;
 use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
@@ -97,6 +97,12 @@ impl SimperbyNode {
             dms,
             consensus_state_storage,
             last_finalized_header.clone(),
+            // TODO: replace params and timestamp with proper values
+            ConsensusParameters {
+                timeout_ms: 0,
+                repeat_round_for_first_leader: 0,
+            },
+            0,
             Some(config.private_key.clone()),
         )
         .await?;
