@@ -1,5 +1,5 @@
 use crate::raw::SemanticCommit;
-use anyhow::{anyhow, Error};
+use eyre::{eyre, Error};
 use regex::Regex;
 use simperby_common::*;
 
@@ -50,13 +50,13 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
     let captures = pattern.captures(&semantic_commit.title);
     if let Some(captures) = captures {
         let commit_type = captures.get(1).map(|m| m.as_str()).ok_or_else(|| {
-            anyhow!(
+            eyre!(
                 "Failed to parse commit type from commit title: {}",
                 semantic_commit.title
             )
         })?;
         let height = captures.get(5).map(|m| m.as_str()).ok_or_else(|| {
-            anyhow!(
+            eyre!(
                 "Failed to parse commit height from commit title: {}",
                 semantic_commit.title
             )
@@ -66,7 +66,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
             "agenda" => {
                 let agenda: Agenda = serde_json::from_str(&semantic_commit.body)?;
                 if height != agenda.height {
-                    return Err(anyhow!(
+                    return Err(eyre!(
                         "agenda height mismatch: expected {}, got {}",
                         agenda.height,
                         height
@@ -77,7 +77,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
             "block" => {
                 let block_header: BlockHeader = serde_json::from_str(&semantic_commit.body)?;
                 if height != block_header.height {
-                    return Err(anyhow!(
+                    return Err(eyre!(
                         "block height mismatch: expected {}, got {}",
                         block_header.height,
                         height
@@ -88,7 +88,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
             "agenda-proof" => {
                 let agenda_proof: AgendaProof = serde_json::from_str(&semantic_commit.body)?;
                 if height != agenda_proof.height {
-                    return Err(anyhow!(
+                    return Err(eyre!(
                         "agenda-proof height mismatch: expected {}, got {}",
                         agenda_proof.height,
                         height
@@ -96,7 +96,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                 }
                 Ok(Commit::AgendaProof(agenda_proof))
             }
-            _ => Err(anyhow!("unknown commit type: {}", commit_type)),
+            _ => Err(eyre!("unknown commit type: {}", commit_type)),
         }
     } else {
         Ok(Commit::Transaction(Transaction {
@@ -126,7 +126,7 @@ pub fn fp_from_semantic_commit(
     let captures = pattern.captures(&semantic_commit.title);
     if let Some(captures) = captures {
         let height = captures.get(1).map(|m| m.as_str()).ok_or_else(|| {
-            anyhow!(
+            eyre!(
                 "Failed to parse commit height from commit title: {}",
                 semantic_commit.title
             )
@@ -134,7 +134,7 @@ pub fn fp_from_semantic_commit(
         let height = height.parse::<u64>()?;
         let proof: LastFinalizationProof = serde_json::from_str(&semantic_commit.body)?;
         if height != proof.height {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "proof height mismatch: expected {}, got {}",
                 proof.height,
                 height
@@ -142,7 +142,7 @@ pub fn fp_from_semantic_commit(
         }
         Ok(proof)
     } else {
-        Err(anyhow!("unknown commit type: {}", semantic_commit.title))
+        Err(eyre!("unknown commit type: {}", semantic_commit.title))
     }
 }
 

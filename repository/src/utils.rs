@@ -71,7 +71,7 @@ pub enum CommitError {
     #[error("raw repo error: {0}")]
     Raw(#[from] raw::Error),
     #[error("failed to parse commit ({1}): {0}")]
-    Commit(anyhow::Error, CommitHash),
+    Commit(eyre::Error, CommitHash),
 }
 
 /// Reads the git commits to `Commit`s, from the very next commit of ancestor to descendant.

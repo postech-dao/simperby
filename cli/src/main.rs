@@ -4,7 +4,7 @@ use clap::Parser;
 use cli::*;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
     match args.command {
         Commands::Sync {
@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn show(_commit_hash: String) -> anyhow::Result<()> {
+async fn show(_commit_hash: String) -> eyre::Result<()> {
     // For every type of commit,
     // 1. Show the content.
     // 2. Show the hash of it.

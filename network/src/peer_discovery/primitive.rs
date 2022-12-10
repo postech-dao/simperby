@@ -3,9 +3,9 @@ use super::utils::{
     convert_keypair, convert_multiaddr_into_sockv4, convert_public_key, get_peer_id,
 };
 use crate::{primitives::PeerDiscoveryPrimitive, *};
-use anyhow::anyhow;
 use async_trait::async_trait;
 use chrono::Utc;
+use eyre::eyre;
 use futures::StreamExt;
 use ip_rfc::global_v4;
 use libp2p::{
@@ -155,7 +155,7 @@ impl PeerDiscoveryPrimitiveImpl {
             .iter()
             .filter_map(|multiaddr| convert_multiaddr_into_sockv4(multiaddr.to_owned()).ok())
             .find(|address| global_v4(address.ip()) || address.ip().is_loopback())
-            .ok_or_else(|| anyhow!("no public ip address found"))?;
+            .ok_or_else(|| eyre!("no public ip address found"))?;
         let (message, ports) = serde_json::from_str(&info.agent_version)?;
         let peer = Peer {
             public_key,

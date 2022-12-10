@@ -4,8 +4,8 @@ pub mod reserved_state;
 mod tests;
 
 use super::*;
-use anyhow::Result;
 use async_trait::async_trait;
+use eyre::Result;
 use git2::{BranchType, ObjectType, Oid, Repository, RepositoryInitOptions};
 use implementation::RawRepositoryImplInner;
 use simperby_common::reserved::ReservedState;

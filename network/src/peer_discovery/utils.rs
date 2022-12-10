@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::anyhow;
+use eyre::eyre;
 use libp2p::{
     identity::{self, ed25519},
     multiaddr::{Multiaddr, Protocol},
@@ -16,7 +16,7 @@ pub(crate) fn convert_keypair(
     if let Ok(keypair_inner) = ed25519::Keypair::decode(&mut keypair_bytes) {
         Ok(identity::Keypair::Ed25519(keypair_inner))
     } else {
-        Err(anyhow!("not an ed25519 keypair"))
+        Err(eyre!("not an ed25519 keypair"))
     }
 }
 
@@ -31,7 +31,7 @@ pub(crate) fn get_peer_id(peer: &Peer) -> Result<PeerId, Error> {
     if let Ok(libp2p_public_key) = ed25519::PublicKey::decode(peer.public_key.as_ref()) {
         Ok(identity::PublicKey::Ed25519(libp2p_public_key).to_peer_id())
     } else {
-        Err(anyhow!("not an ed25519 public key"))
+        Err(eyre!("not an ed25519 public key"))
     }
 }
 
@@ -42,7 +42,7 @@ pub(crate) fn convert_multiaddr_into_sockv4(
     let port = loop {
         if let Protocol::Tcp(port) = multiaddr
             .pop()
-            .ok_or_else(|| anyhow!("multiaddr does not contain a port"))?
+            .ok_or_else(|| eyre!("multiaddr does not contain a port"))?
         {
             break port;
         }
@@ -50,7 +50,7 @@ pub(crate) fn convert_multiaddr_into_sockv4(
     let ip = loop {
         if let Protocol::Ip4(ipv4_addr) = multiaddr
             .pop()
-            .ok_or_else(|| anyhow!("multiaddr does not contain an ipv4 address"))?
+            .ok_or_else(|| eyre!("multiaddr does not contain an ipv4 address"))?
         {
             break ipv4_addr;
         }

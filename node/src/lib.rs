@@ -4,8 +4,8 @@ pub use simperby_common;
 pub use simperby_network;
 pub use simperby_repository;
 
-use anyhow::Result;
 use async_trait::async_trait;
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;

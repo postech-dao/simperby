@@ -6,7 +6,7 @@ use simperby_network::{
 };
 use std::collections::{HashMap, HashSet};
 
-pub type Error = anyhow::Error;
+pub type Error = eyre::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {

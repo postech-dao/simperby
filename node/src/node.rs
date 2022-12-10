@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::anyhow;
+use eyre::eyre;
 use simperby_consensus::Consensus;
 use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_repository::raw::RawRepository;
@@ -75,7 +75,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
             x.1
         } else {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "the given commit hash {} is not one of the valid agendas",
                 agenda_commit
             ));
