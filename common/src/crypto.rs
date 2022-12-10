@@ -25,7 +25,7 @@ pub trait ToHash256 {
     fn to_hash256(&self) -> Hash256;
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct HexSerializedBytes<const N: usize> {
     data: [u8; N],
 }
@@ -42,6 +42,12 @@ impl<const N: usize> Serialize for HexSerializedBytes<N> {
         S: serde::ser::Serializer,
     {
         serializer.serialize_str(hex::encode(self.data).as_str())
+    }
+}
+
+impl<const N: usize> fmt::Debug for HexSerializedBytes<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.data).as_str())
     }
 }
 
