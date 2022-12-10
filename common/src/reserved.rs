@@ -14,23 +14,18 @@ pub struct ReservedState {
     /// The leader order of the consensus rounds.
     ///
     /// It MUST be sorted by the name of the members.
-    pub consensus_leader_order: Vec<usize>,
+    pub consensus_leader_order: Vec<MemberName>,
     /// The semantic version of Simperby protocol for this network.
     pub version: String,
 }
 
 impl ReservedState {
     pub fn create_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut validator_set = Vec::new();
-        for leader in &self.consensus_leader_order {
-            let member = &self.members.get(*leader).ok_or(format!(
-                "invalid 
-            consensus_leader_order: {}",
-                leader
-            ))?;
-            validator_set.push((member.public_key.clone(), member.consensus_voting_power));
-        }
-        Ok(validator_set)
+        todo!("implement this considering delegation")
+    }
+
+    pub fn get_governance_set(&self) -> Vec<(PublicKey, VotingPower)> {
+        todo!("implement this considering delegation")
     }
 
     pub fn apply_delegate(&mut self, _tx: &TxDelegate) -> Result<Self, String> {

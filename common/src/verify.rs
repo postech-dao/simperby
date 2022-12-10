@@ -483,7 +483,7 @@ mod test {
                 chain_name: "PDAO Chain".to_string(),
             },
             members: get_members(&genesis_header.validator_set), // TODO: fix to not use genesis header
-            consensus_leader_order: (0..validator_keypair.len()).collect(),
+            consensus_leader_order: todo!(),
             version: "0.0.0".to_string(),
         }
     }
@@ -537,7 +537,7 @@ mod test {
             governance_delegations: None,
             consensus_delegations: None,
         });
-        reserved_state.consensus_leader_order.push(3);
+        reserved_state.consensus_leader_order.push(todo!());
         Commit::Transaction(Transaction {
             author: validator_keypair[2].0.clone(),
             timestamp: time,

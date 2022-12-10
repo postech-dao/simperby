@@ -88,7 +88,10 @@ pub fn generate_standard_genesis(
         ReservedState {
             genesis_info,
             members,
-            consensus_leader_order: (0..member_number).into_iter().collect::<Vec<_>>(),
+            consensus_leader_order: (0..member_number)
+                .into_iter()
+                .map(|i| format!("member-{:04}", i))
+                .collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         },
         keys,
