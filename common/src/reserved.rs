@@ -40,4 +40,13 @@ impl ReservedState {
     pub fn apply_undelegate(&mut self, _tx: &TxUndelegate) -> Result<Self, String> {
         unimplemented!()
     }
+
+    pub fn query_name(&self, public_key: &PublicKey) -> Option<MemberName> {
+        for member in &self.members {
+            if &member.public_key == public_key {
+                return Some(member.name.clone());
+            }
+        }
+        None
+    }
 }

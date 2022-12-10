@@ -31,7 +31,7 @@ impl From<git2::Error> for Error {
 }
 
 /// A commit with abstracted diff.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SemanticCommit {
     pub title: String,
     pub body: String,
