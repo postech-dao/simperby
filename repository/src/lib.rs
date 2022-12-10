@@ -28,14 +28,39 @@ pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
 pub const TAG_NAME_HASH_DIGITS: usize = 8;
 pub const BRANCH_NAME_HASH_DIGITS: usize = 8;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
 pub struct CommitHash {
     pub hash: [u8; 20],
 }
 
+impl Serialize for CommitHash {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(hex::encode(self.hash).as_str())
+    }
+}
+
 impl fmt::Display for CommitHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "?")
+        write!(f, "{}", hex::encode(self.hash).as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for CommitHash {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let hash = hex::decode(s).map_err(serde::de::Error::custom)?;
+        if hash.len() != 20 {
+            return Err(serde::de::Error::custom("invalid length"));
+        }
+        let mut hash_array = [0; 20];
+        hash_array.copy_from_slice(&hash);
+        Ok(CommitHash { hash: hash_array })
     }
 }
 
