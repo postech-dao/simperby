@@ -126,37 +126,25 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
         match &commit {
             Commit::Agenda(agenda) => {
                 if agenda.height == last_finalization_proof.height + 1 {
-                    let branch_name = format!(
-                        "a-{:?}",
-                        commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(COMMIT_TITLE_HASH_DIGITS)
-                    );
+                    let mut branch_name = commit.to_hash256().to_string();
+                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+                    let branch_name = format!("a-{}", branch_name);
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
             Commit::AgendaProof(agenda_proof) => {
                 if agenda_proof.height == last_finalization_proof.height + 1 {
-                    let branch_name = format!(
-                        "a-{:?}",
-                        commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(COMMIT_TITLE_HASH_DIGITS)
-                    );
+                    let mut branch_name = commit.to_hash256().to_string();
+                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+                    let branch_name = format!("a-{}", branch_name);
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
             Commit::Block(block_header) => {
                 if block_header.height == last_finalization_proof.height + 1 {
-                    let branch_name = format!(
-                        "b-{:?}",
-                        commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(COMMIT_TITLE_HASH_DIGITS)
-                    );
+                    let mut branch_name = commit.to_hash256().to_string();
+                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+                    let branch_name = format!("b-{}", branch_name);
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
