@@ -7,6 +7,7 @@ Welcome to the Simperby CLI!
 #[clap(name = "git")]
 #[clap(about = "A Simperby client CLI", long_about = None)]
 pub struct Cli {
+    pub path: std::path::PathBuf,
     #[clap(subcommand)]
     pub command: Commands,
 }
@@ -44,7 +45,7 @@ pub enum SignCommands {
         target_height: u64,
     },
     Custom {
-        message: String,
+        hash: String,
     },
 }
 

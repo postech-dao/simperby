@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_governance::Governance;
+use simperby_repository::raw::SemanticCommit;
 use simperby_repository::CommitHash;
 
 pub const PROTOCOL_VERSION: &str = "0.0.0";
@@ -43,14 +44,30 @@ pub struct NetworkStatus {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CommitInfo {
     Block {
+        semantic_commit: SemanticCommit,
         block_header: BlockHeader,
         // TODO: block-specific consensus status
     },
     Agenda {
+        semantic_commit: SemanticCommit,
         agenda: Agenda,
         voters: Vec<(MemberName, Timestamp)>,
     },
-    // TODO
+    AgendaProof {
+        semantic_commit: SemanticCommit,
+        agenda_proof: AgendaProof,
+    },
+    Transaction {
+        semantic_commit: SemanticCommit,
+        transaction: Transaction,
+    },
+    PreGenesisCommit {
+        title: String,
+    },
+    Unknown {
+        semantic_commit: SemanticCommit,
+        msg: String,
+    }, // TODO
 }
 
 /// The API for the Simperby node.

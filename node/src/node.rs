@@ -12,6 +12,10 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     repository: DistributedRepository<R>,
     governance: Governance<N, S>,
     consensus: Consensus<N, S>,
+
+    last_reserved_state: ReservedState,
+    #[allow(dead_code)]
+    last_finalized_header: BlockHeader,
 }
 
 impl SimperbyNode {
@@ -101,6 +105,8 @@ impl SimperbyNode {
             repository,
             governance,
             consensus,
+            last_reserved_state: reserved_state,
+            last_finalized_header,
         })
     }
 
@@ -180,8 +186,46 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         unimplemented!()
     }
 
-    async fn show(&self, _commit: CommitHash) -> Result<CommitInfo> {
-        todo!()
+    async fn show(&self, commit_hash: CommitHash) -> Result<CommitInfo> {
+        let semantic_commit = self
+            .repository
+            .get_raw()
+            .read_semantic_commit(commit_hash)
+            .await?;
+        let commit = simperby_repository::format::from_semantic_commit(semantic_commit.clone())?;
+        let result = match commit {
+            Commit::Block(block_header) => CommitInfo::Block {
+                semantic_commit,
+                block_header,
+            },
+            Commit::Agenda(agenda) => CommitInfo::Agenda {
+                semantic_commit,
+                agenda: agenda.clone(),
+                voters: self
+                    .governance
+                    .read()
+                    .await?
+                    .votes
+                    .get(&agenda.to_hash256())
+                    .unwrap_or(&Default::default())
+                    .iter()
+                    .filter_map(|public_key| {
+                        self.last_reserved_state
+                            .query_name(public_key)
+                            .map(|x| (x, 0))
+                    })
+                    .collect(), // TODO
+            },
+            Commit::AgendaProof(agenda_proof) => CommitInfo::AgendaProof {
+                semantic_commit,
+                agenda_proof,
+            },
+            x => CommitInfo::Unknown {
+                semantic_commit,
+                msg: format!("{:?}", x),
+            },
+        };
+        Ok(result)
     }
 
     async fn run(self) -> Result<()> {

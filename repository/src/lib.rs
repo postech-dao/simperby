@@ -104,6 +104,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self.raw
     }
 
+    pub fn get_raw(&self) -> &T {
+        &self.raw
+    }
+
     pub async fn new(raw: T, config: Config, peers: SharedKnownPeers) -> Result<Self, Error> {
         Ok(Self { raw, config, peers })
     }
