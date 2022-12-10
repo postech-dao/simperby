@@ -25,7 +25,7 @@ const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     /// The vetomint core instance.
-    pub vetomint: Vetomint,
+    pub vetomint: VetomintWrapper,
 
     /// The block header that this consensus is performing on.
     pub block_header: BlockHeader,
@@ -81,13 +81,30 @@ async fn commit_state(state_storage: &mut impl Storage, state: &State) -> Result
     Ok(())
 }
 
-fn run_vetomint(vetomint: &mut Vetomint, events: Vec<ConsensusEvent>, timestamp: Timestamp) -> Result<Vec<ConsensusResponse>, Error> {
-    let mut result = Vec::new();
-    let timer = ConsensusEvent::Timer;
-    for event in vec![timer].into_iter().chain(events) {
-        result.extend(vetomint.progress(event, timestamp));
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VetomintWrapper {
+    pub vetomint: Vetomint,
+    pub is_started: bool,
+}
+
+impl VetomintWrapper {
+    fn progress(
+        &mut self,
+        events: Vec<ConsensusEvent>,
+        timestamp: Timestamp,
+    ) -> Result<Vec<ConsensusResponse>, Error> {
+        let mut result = Vec::new();
+        let mut pre_events = Vec::new();
+        if !self.is_started {
+            pre_events.push(ConsensusEvent::Start);
+            self.is_started = true;
+        }
+        pre_events.push(ConsensusEvent::Timer);
+        for event in pre_events.into_iter().chain(events) {
+            result.extend(self.vetomint.progress(event, timestamp));
+        }
+        Ok(result)
     }
-    Ok(result)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,7 +211,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             commit_state(&mut state_storage, &new_state).await?;
             new_state
         };
-        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
+        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::from_iter(
+            state.verified_block_hashes.iter().cloned(),
+        )));
         dms.set_filter(Arc::new(ConsensusMessageFilter {
             verified_block_hashes: Arc::clone(&verified_block_hashes),
             validator_set: state
@@ -238,7 +257,10 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let consensus_event = ConsensusEvent::BlockCandidateUpdated {
             proposal: block_index,
         };
-        let responses = run_vetomint(&mut self.state.vetomint, vec![consensus_event], timestamp)?;
+        let responses = self
+            .state
+            .vetomint
+            .progress(vec![consensus_event], timestamp)?;
         let result = self
             .process_multiple_responses(responses, timestamp)
             .await?;
@@ -260,7 +282,10 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let consensus_event = ConsensusEvent::SkipRound {
             round: round as usize,
         };
-        let responses = run_vetomint(&mut self.state.vetomint, vec![consensus_event], timestamp)?;
+        let responses = self
+            .state
+            .vetomint
+            .progress(vec![consensus_event], timestamp)?;
         let result = self
             .process_multiple_responses(responses, timestamp)
             .await?;
@@ -288,19 +313,22 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         // Save a copy of the vetomint FSM to recover from possible DMS errors.
         // Changes are applied to the other copy, and then it is saved to the state when all messages are processed.
         let mut vetomint_copy = self.state.vetomint.clone();
-        let events: Vec<ConsensusEvent> = messages.iter().map(|message| {
-            let signer = self
-                .state
-                .block_header
-                .validator_set
-                .iter()
-                .position(|(pubkey, _)| pubkey == message.signature().signer())
-                .expect("this must be already verified by the message filter");
-            let consensus_message = serde_json::from_str::<ConsensusMessage>(message.data())
-                .expect("this must be already verified by the message filter");
-            self.consensus_message_to_event(&consensus_message, signer)
-        }).collect();
-        let progress_responses = run_vetomint(&mut vetomint_copy, events, timestamp)?;
+        let events: Vec<ConsensusEvent> = messages
+            .iter()
+            .map(|message| {
+                let signer = self
+                    .state
+                    .block_header
+                    .validator_set
+                    .iter()
+                    .position(|(pubkey, _)| pubkey == message.signature().signer())
+                    .expect("this must be already verified by the message filter");
+                let consensus_message = serde_json::from_str::<ConsensusMessage>(message.data())
+                    .expect("this must be already verified by the message filter");
+                self.consensus_message_to_event(&consensus_message, signer)
+            })
+            .collect();
+        let progress_responses = vetomint_copy.progress(events, timestamp)?;
         let final_result = self
             .process_multiple_responses(progress_responses, timestamp)
             .await?;
@@ -349,8 +377,12 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             round_zero_timestamp,
             this_node_key,
         )?;
-        let state = State {
+        let vetomint = VetomintWrapper {
             vetomint: Vetomint::new(height_info),
+            is_started: false,
+        };
+        let state = State {
+            vetomint,
             block_header: block_header.clone(),
             updated_messages: BTreeSet::new(),
             verified_block_hashes: vec![],
