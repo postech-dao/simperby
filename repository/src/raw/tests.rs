@@ -470,3 +470,19 @@ async fn reserved_state() {
 
     assert_eq!(rs_after, rs);
 }
+
+#[tokio::test]
+async fn clone() {
+    let td = TempDir::new().unwrap();
+    let path = td.path();
+
+    let repo = RawRepositoryImpl::clone(
+        path.to_str().unwrap(),
+        "https://github.com/JeongHunP/cosmos.git",
+    )
+    .await
+    .unwrap();
+
+    let branch_list = repo.list_branches().await.unwrap();
+    assert_eq!(branch_list, vec![MAIN.to_owned()]);
+}

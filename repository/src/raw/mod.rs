@@ -51,8 +51,15 @@ pub trait RawRepository: Send + Sync + 'static {
     where
         Self: Sized;
 
-    // Loads an exisitng repository.
+    /// Loads an exisitng repository.
     async fn open(directory: &str) -> Result<Self, Error>
+    where
+        Self: Sized;
+
+    /// Clones an exisitng repository.
+    ///
+    /// Fails if there is no repository with url.
+    async fn clone(directory: &str, url: &str) -> Result<Self, Error>
     where
         Self: Sized;
 
@@ -339,6 +346,16 @@ impl RawRepository for RawRepositoryImpl {
         Self: Sized,
     {
         let repo = RawRepositoryImplInner::open(directory)?;
+        let inner = tokio::sync::Mutex::new(Some(repo));
+
+        Ok(Self { inner })
+    }
+
+    async fn clone(directory: &str, url: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let repo = RawRepositoryImplInner::clone(directory, url)?;
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
