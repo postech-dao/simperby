@@ -1,46 +1,48 @@
+use log::info;
 use path_slash::PathExt as _;
 
 pub struct GitServer {
-    child: tokio::process::Child,
+    child: std::process::Child,
     daemon_pid: u32,
 }
 
-impl GitServer {
-    pub async fn join(mut self) -> Result<(), eyre::Error> {
-        self.child.kill().await?;
-        self.child.wait().await?;
+impl Drop for GitServer {
+    fn drop(&mut self) {
+        info!("killing git daemon ({})..", self.daemon_pid);
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+
         #[cfg(target_os = "windows")]
         {
-            let mut child = tokio::process::Command::new("C:/Program Files/Git/bin/sh.exe")
+            let mut child = std::process::Command::new("C:/Program Files/Git/bin/sh.exe")
                 .arg("--login")
                 .arg("-c")
                 .arg(format!("kill {}", self.daemon_pid))
                 .spawn()
                 .expect("failed to kill git daemon");
-            let _ = child.wait().await.expect("failed to wait on child");
+            let _ = child.wait().expect("failed to wait on child");
         }
         #[cfg(not(target_os = "windows"))]
         {
-            let mut child = tokio::process::Command::new("kill")
+            let mut child = std::process::Command::new("kill")
                 .arg(format!("{}", self.daemon_pid))
                 .spawn()
                 .expect("failed to kill git daemon");
-            let _ = child.wait().await.expect("failed to wait on child");
+            let _ = child.wait().expect("failed to wait on child");
         }
-        Ok(())
+        info!("killed git daemon ({})!", self.daemon_pid)
     }
 }
 
 pub async fn run_server(path: &str, port: u16) -> GitServer {
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
-    let child = tokio::process::Command::new("git")
+    let child = std::process::Command::new("git")
         .arg("daemon")
         .arg(format!("--base-path={}", path))
         .arg("--export-all")
         .arg(format!("--port={}", port))
         .arg(format!("--pid-file={}", pid_path))
-        .kill_on_drop(true)
         .spawn()
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
