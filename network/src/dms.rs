@@ -729,8 +729,8 @@ mod tests {
     /// Multi-node test assuming dummy gossip network and a single server node.
     #[tokio::test]
     async fn multi_dummy_gn_single_sn_1() {
-        env_logger::init();
-        let rpc_port = 4201;
+        setup_test();
+        let rpc_port = dispense_port();
         let n = 5;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);
@@ -767,7 +767,8 @@ mod tests {
     // Same, but the server node is not online from the beginning
     #[tokio::test]
     async fn multi_dummy_gn_single_sn_2() {
-        let rpc_port = 4202;
+        setup_test();
+        let rpc_port = dispense_port();
         let n = 5;
         let (server_network_config, network_configs, server_peer) =
             generate_node_configs(rpc_port, n + 1);

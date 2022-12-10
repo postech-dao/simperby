@@ -59,7 +59,9 @@ mod tests {
 
     #[tokio::test]
     async fn git_server_basic1() {
-        let port = 1234;
+        setup_test();
+        let port = dispense_port();
+
         let td = TempDir::new().unwrap();
         let path = td.path().to_slash().unwrap().into_owned();
         run_command(format!("cd {} && mkdir repo && cd repo && git init", path)).await;
@@ -72,9 +74,8 @@ mod tests {
         .await;
         run_command(format!("cd {}/repo && git commit -m 'hello'", path)).await;
         let server_task = tokio::spawn(async move {
-            let x = run_server(&path, port).await;
+            let _x = run_server(&path, port).await;
             sleep_ms(6000).await;
-            x.join().await.unwrap();
         });
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         let td2 = TempDir::new().unwrap();

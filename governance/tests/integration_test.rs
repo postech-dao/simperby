@@ -5,7 +5,8 @@ use simperby_test_suite::*;
 
 #[tokio::test]
 async fn basic_1() {
-    env_logger::init();
+    setup_test();
+
     let network_id = "governance-basic-1".to_string();
     let (server_network_config, client_network_configs, peer) =
         setup_server_client_nodes(network_id.clone(), 3).await;
