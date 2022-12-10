@@ -1,7 +1,7 @@
 use super::Storage;
 use super::*;
-use anyhow::anyhow;
 use async_trait::async_trait;
+use eyre::eyre;
 use futures::prelude::*;
 use serde_tc::http::*;
 use serde_tc::{serde_tc_full, StubCall};
@@ -54,8 +54,8 @@ pub struct RawMessage {
 }
 
 impl RawMessage {
-    pub fn into_message(self) -> anyhow::Result<Message> {
-        Message::new(self.data, self.signature).map_err(|e| anyhow!(e))
+    pub fn into_message(self) -> eyre::Result<Message> {
+        Message::new(self.data, self.signature).map_err(|e| eyre!(e))
     }
 
     pub fn from_message(message: Message) -> Self {
@@ -269,18 +269,19 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                         peer.address.ip(),
                         peer.ports
                             .get(&port_key)
-                            .ok_or_else(|| anyhow!("can't find port key: {}", port_key))?
+                            .ok_or_else(|| eyre!("can't find port key: {}", port_key))?
                     ),
                     reqwest::Client::new(),
                 )));
                 let raw_messages = stub
                     .get_message(key, known_messages_)
-                    .await?
-                    .map_err(|e| anyhow!(e))?;
+                    .await
+                    .map_err(|e| eyre!("{}", e))?
+                    .map_err(|e| eyre!(e))?;
                 let mut storage = storage.write().await;
                 for raw_message in raw_messages {
                     let message = raw_message.into_message()?;
-                    filter.filter(&message).map_err(|e| anyhow!("{}", e))?;
+                    filter.filter(&message).map_err(|e| eyre!("{}", e))?;
                     Self::add_message_but_not_broadcast(&mut *storage, message).await?;
                 }
                 Result::<(), Error>::Ok(())
@@ -326,13 +327,14 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                         peer.address.ip(),
                         peer.ports
                             .get(&port_key)
-                            .ok_or_else(|| anyhow!("can't find port key: {}", port_key))?
+                            .ok_or_else(|| eyre!("can't find port key: {}", port_key))?
                     ),
                     reqwest::Client::new(),
                 )));
                 stub.add_messages(self.key.clone(), messages_.clone())
-                    .await?
-                    .map_err(|e| anyhow!(e))?;
+                    .await
+                    .map_err(|e| eyre!(e))?
+                    .map_err(|e| eyre!(e))?;
                 Result::<(), Error>::Ok(())
             };
             tasks1.push((task, format!("RPC message add to {}", peer.public_key)));
@@ -486,13 +488,13 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                     .await
                     .filter
                     .filter(&message)
-                    .map_err(|e| anyhow!("{}", e))?;
+                    .map_err(|e| eyre!("{}", e))?;
                 Self::add_message_but_not_broadcast(
                     &mut *this.read().await.storage.write().await,
                     message,
                 )
                 .await?;
-                Result::<(), anyhow::Error>::Ok(())
+                Result::<(), eyre::Error>::Ok(())
             }
             .await;
             if let Err(e) = result {
@@ -512,7 +514,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .network_config
             .ports
             .get(&port_key)
-            .ok_or_else(|| anyhow!(format!("`ports` has no field of {}", port_key)))?;
+            .ok_or_else(|| eyre!(format!("`ports` has no field of {}", port_key)))?;
 
         let this = Arc::new(RwLock::new(self));
         let this_ = Arc::clone(&this);

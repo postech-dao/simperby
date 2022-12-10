@@ -5,7 +5,7 @@ mod utils;
 // TODO: integrate the server feature with `DistributedRepository`
 pub mod server;
 
-use anyhow::anyhow;
+use eyre::eyre;
 use format::*;
 use futures::prelude::*;
 use log::{info, warn};
@@ -39,7 +39,7 @@ impl fmt::Display for CommitHash {
     }
 }
 
-pub type Error = anyhow::Error;
+pub type Error = eyre::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -132,11 +132,11 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
         let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         if let Commit::Block(block_header) = commit {
             Ok(block_header)
         } else {
-            Err(anyhow!(
+            Err(eyre!(
                 "repository integrity broken; `finalized` branch is not on a block"
             ))
         }
@@ -144,12 +144,12 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<Commit, Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))
+        format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))
     }
 
     /// Returns the reserved state from the `finalized` branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
-        self.raw.read_reserved_state().await.map_err(|e| anyhow!(e))
+        self.raw.read_reserved_state().await.map_err(|e| eyre!(e))
     }
 
     /// Cleans all the outdated commits, remote repositories and branches.
@@ -261,7 +261,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             if let Commit::Block(last_block_header) = &new_commits.last().unwrap().0 {
                 last_block_header
             } else {
-                return Err(anyhow!("the last commit is not a block commit"));
+                return Err(eyre!("the last commit is not a block commit"));
             };
 
         // Check if the given block commit is a descendant of the current finalized branch
@@ -271,7 +271,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             .await?
             != current_finalized_commit
         {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "block commit is not a descendant of the current finalized branch"
             ));
         }
@@ -283,15 +283,15 @@ impl<T: RawRepository> DistributedRepository<T> {
             last_finalized_block_header.clone(),
             reserved_state.clone(),
         )
-        .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
+        .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         for (new_commit, new_commit_hash) in &new_commits {
             verifier
                 .apply_commit(new_commit)
-                .map_err(|e| anyhow!("verification error on commit {}: {}", new_commit_hash, e))?;
+                .map_err(|e| eyre!("verification error on commit {}: {}", new_commit_hash, e))?;
         }
         verifier
             .verify_last_header_finalization(last_block_proof)
-            .map_err(|e| anyhow!("verification error on the last block header: {}", e))?;
+            .map_err(|e| eyre!("verification error on the last block header: {}", e))?;
 
         // If commit sequence verification is done and the finalization proof is verified,
         // move the `finalized` branch to the given block commit hash.
@@ -406,14 +406,14 @@ impl<T: RawRepository> DistributedRepository<T> {
         let agenda_branch_name = self.raw.get_branches(*agenda_commit_hash).await?;
         let agenda_branch_name = agenda_branch_name
             .get(0)
-            .ok_or_else(|| anyhow::anyhow!("cannot get valid agenda branch name"))?;
+            .ok_or_else(|| eyre::eyre!("cannot get valid agenda branch name"))?;
         if self
             .raw
             .find_merge_base(last_header_commit, *agenda_commit_hash)
             .await?
             != last_header_commit
         {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "branch {} should be rebased on {}",
                 agenda_branch_name,
                 FINALIZED_BRANCH_NAME
@@ -426,17 +426,17 @@ impl<T: RawRepository> DistributedRepository<T> {
         let finalized_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let commits = utils::read_commits(self, finalized_commit_hash, *agenda_commit_hash).await?;
         let mut verifier = CommitSequenceVerifier::new(finalized_header.clone(), reserved_state)
-            .map_err(|e| anyhow!("failed to create a verifier: {}", e))?;
+            .map_err(|e| eyre!("failed to create a verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
-                .map_err(|e| anyhow!("verification error on commit {}: {}", hash, e))?;
+                .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
         // Verify agenda with agenda proof
         let agenda_commit = commits.iter().map(|(commit, _)| commit).last().unwrap();
         let agenda = match agenda_commit {
             Commit::Agenda(agenda) => agenda,
-            _ => return Err(anyhow::anyhow!("not an agenda commit")),
+            _ => return Err(eyre::eyre!("not an agenda commit")),
         };
         // Delete past `a-(trimmed agenda hash)` branch and create new `a-(trimmed agenda proof hash)` branch
         self.raw.delete_branch(agenda_branch_name.clone()).await?;
@@ -477,7 +477,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             .await?
             != last_header_commit
         {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "branch {} should be rebased on {}",
                 WORK_BRANCH_NAME,
                 FINALIZED_BRANCH_NAME
@@ -486,12 +486,12 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check the validity of the commit sequence
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
-            .map_err(|e| anyhow!("failed to create a commit sequence verifier: {}", e))?;
+            .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
-                .map_err(|e| anyhow!("verification error on commit {}: {}", hash, e))?;
+                .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
 
         // Check whether the commit sequence is in the transaction phase.
@@ -501,7 +501,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             if let Commit::Transaction(t) = commit {
                 transactions.push(t.clone());
             } else {
-                return Err(anyhow!(
+                return Err(eyre!(
                     "branch {} is not in the transaction phase",
                     WORK_BRANCH_NAME
                 ));
@@ -530,7 +530,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Puts a 'vote' tag on the commit.
     pub async fn vote(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
             let mut vote_tag_name = commit.to_hash256().to_string();
@@ -539,14 +539,14 @@ impl<T: RawRepository> DistributedRepository<T> {
             self.raw.create_tag(vote_tag_name, commit_hash).await?;
             Ok(())
         } else {
-            Err(anyhow!("commit {} is not an agenda commit", commit_hash))
+            Err(eyre!("commit {} is not an agenda commit", commit_hash))
         }
     }
 
     /// Puts a 'veto' tag on the commit.
     pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();
@@ -555,7 +555,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             self.raw.create_tag(veto_tag_name, commit_hash).await?;
             Ok(())
         } else {
-            Err(anyhow!("commit {} is not a block commit", commit_hash))
+            Err(eyre!("commit {} is not a block commit", commit_hash))
         }
     }
 
@@ -574,7 +574,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             .await?
             != last_header_commit
         {
-            return Err(anyhow!(
+            return Err(eyre!(
                 "branch {} should be rebased on {}",
                 WORK_BRANCH_NAME,
                 FINALIZED_BRANCH_NAME
@@ -587,11 +587,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
-            .map_err(|e| anyhow!("verification error on commit {}: {}", last_header_commit, e))?;
+            .map_err(|e| eyre!("verification error on commit {}: {}", last_header_commit, e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
-                .map_err(|e| anyhow!("verification error on commit {}: {}", hash, e))?;
+                .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
 
         // Check whether the commit sequence is in the agenda proof phase or
@@ -606,7 +606,7 @@ impl<T: RawRepository> DistributedRepository<T> {
                 Commit::ExtraAgendaTransaction(_) => {}
                 Commit::ChatLog(_) => {}
                 _ => {
-                    return Err(anyhow!(
+                    return Err(eyre!(
                     "branch {} is not in the agenda proof phase or extra-agenda transaction phase",
                     WORK_BRANCH_NAME
                 ))

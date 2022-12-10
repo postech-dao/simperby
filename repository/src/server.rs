@@ -6,7 +6,7 @@ pub struct GitServer {
 }
 
 impl GitServer {
-    pub async fn join(mut self) -> Result<(), anyhow::Error> {
+    pub async fn join(mut self) -> Result<(), eyre::Error> {
         self.child.kill().await?;
         self.child.wait().await?;
         #[cfg(target_os = "windows")]

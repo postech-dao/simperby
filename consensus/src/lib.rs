@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use anyhow::anyhow;
+use eyre::eyre;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
@@ -16,7 +16,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use vetomint2::*;
 
-pub type Error = anyhow::Error;
+pub type Error = eyre::Error;
 const STATE_FILE_NAME: &str = "state.json";
 pub type Nil = ();
 const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
@@ -296,12 +296,12 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .verified_block_hashes
             .iter()
             .position(|h| h == block_hash)
-            .ok_or_else(|| anyhow!("block not verified"))
+            .ok_or_else(|| eyre!("block not verified"))
     }
 
     fn abort_if_finalized(&self) -> Result<(), Error> {
         if self.state.finalized {
-            Err(anyhow!("operation on finalized state"))
+            Err(eyre!("operation on finalized state"))
         } else {
             Ok(())
         }
@@ -311,7 +311,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         self.state_storage
             .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
             .await
-            .map_err(|_| anyhow!("failed to commit consensus state to the storage"))
+            .map_err(|_| eyre!("failed to commit consensus state to the storage"))
     }
 
     async fn broadcast_consensus_message(
@@ -417,7 +417,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 let _ = self
                     .this_node_key
                     .as_ref()
-                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                    .ok_or_else(|| eyre!("this node is not a validator"))?;
                 let valid_round = valid_round.map(|r| r as u64);
                 let block_hash = *self
                     .state
@@ -440,7 +440,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 let _ = self
                     .this_node_key
                     .as_ref()
-                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                    .ok_or_else(|| eyre!("this node is not a validator"))?;
                 let (consensus_message, progress_result) = if let Some(block_index) = proposal {
                     let block_hash = *self
                         .state
@@ -463,7 +463,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 let _ = self
                     .this_node_key
                     .as_ref()
-                    .ok_or_else(|| anyhow!("this node is not a validator"))?;
+                    .ok_or_else(|| eyre!("this node is not a validator"))?;
                 let (consensus_message, progress_result) = if let Some(block_index) = proposal {
                     let block_hash = *self
                         .state
