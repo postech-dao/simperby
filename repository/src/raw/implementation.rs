@@ -58,6 +58,15 @@ impl RawRepositoryImplInner {
         Ok(Self { repo })
     }
 
+    pub(crate) fn clone(directory: &str, url: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let repo = Repository::clone(url, directory)?;
+
+        Ok(Self { repo })
+    }
+
     pub(crate) fn list_branches(&self) -> Result<Vec<Branch>, Error> {
         let branches = self.repo.branches(Option::Some(BranchType::Local))?;
 
