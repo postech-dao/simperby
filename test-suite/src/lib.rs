@@ -122,10 +122,11 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
 
     run_command(format!("cd {} && git add -A", path)).await;
     run_command(format!(
-        "cd {} && git commit --author='TestAuthor <test@test.com>' -m 'genesis'",
+        "cd {} && git config user.name 'Test' && git config user.email 'test@test.com'",
         path
     ))
     .await;
+    run_command(format!("cd {} && git commit -m 'genesis'", path)).await;
 }
 
 pub async fn copy_repository(source_path: &str, dest_path: &str) {
