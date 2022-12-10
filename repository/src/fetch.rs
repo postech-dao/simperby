@@ -31,8 +31,8 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             serde_json::to_string(&commit_hash).unwrap()
         );
 
-        // Skip if the branch is `fp`.
-        if branch_name == FP_BRANCH_NAME {
+        // Skip if the branch is `fp` or `work`.
+        if branch_name == FP_BRANCH_NAME || branch_name == WORK_BRANCH_NAME {
             continue;
         }
 
@@ -126,25 +126,49 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
         match &commit {
             Commit::Agenda(agenda) => {
                 if agenda.height == last_finalization_proof.height + 1 {
-                    let mut branch_name = commit.to_hash256().to_string();
-                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-                    let branch_name = format!("a-{}", branch_name);
+                    let calculated_branch_name = format!(
+                        "a-{}",
+                        &agenda.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+                    );
+                    if calculated_branch_name != branch_name {
+                        warn!(
+                            "agenda branch name mismatch {}: should be {}",
+                            branch_displayed, calculated_branch_name
+                        );
+                        continue;
+                    }
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
             Commit::AgendaProof(agenda_proof) => {
                 if agenda_proof.height == last_finalization_proof.height + 1 {
-                    let mut branch_name = commit.to_hash256().to_string();
-                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-                    let branch_name = format!("a-{}", branch_name);
+                    let calculated_branch_name = format!(
+                        "a-{}",
+                        &agenda_proof.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+                    );
+                    if calculated_branch_name != branch_name {
+                        warn!(
+                            "agenda-proof branch name mismatch {}: should be {}",
+                            branch_displayed, calculated_branch_name
+                        );
+                        continue;
+                    }
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
             Commit::Block(block_header) => {
                 if block_header.height == last_finalization_proof.height + 1 {
-                    let mut branch_name = commit.to_hash256().to_string();
-                    branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-                    let branch_name = format!("b-{}", branch_name);
+                    let calculated_branch_name = format!(
+                        "b-{}",
+                        &block_header.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+                    );
+                    if calculated_branch_name != branch_name {
+                        warn!(
+                            "block branch name mismatch {}: should be {}",
+                            branch_displayed, calculated_branch_name
+                        );
+                        continue;
+                    }
                     this.raw.create_branch(branch_name, commit_hash).await?;
                 }
             }
