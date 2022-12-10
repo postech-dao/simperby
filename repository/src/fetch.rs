@@ -203,7 +203,7 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
         }
     }
 
-    // Step 3: update finalization
+    // Step 3: apply the final finalization result
     this.raw.checkout_clean().await?;
     this.raw
         .move_branch(FINALIZED_BRANCH_NAME.into(), last_finalized_commit_hash)
