@@ -117,18 +117,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Note that `genesis` can be called on any commit.
     pub async fn genesis(&mut self) -> Result<(), Error> {
         let reserved_state = self.get_reserved_state().await?;
-        let block_header = BlockHeader {
-            author: PublicKey::zero(),
-            prev_block_finalization_proof: vec![],
-            previous_hash: Hash256::zero(),
-            height: 0,
-            timestamp: get_timestamp(),
-            commit_merkle_root: Hash256::zero(),
-            repository_merkle_root: Hash256::zero(),
-            validator_set: reserved_state.create_validator_set().unwrap(),
-            version: "0.1.0".to_owned(),
-        };
-        let block_commit = Commit::Block(block_header);
+        let block_commit = Commit::Block(reserved_state.genesis_info.header.clone());
         let semantic_commit = to_semantic_commit(&block_commit);
 
         self.raw.checkout_clean().await?;
