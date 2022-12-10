@@ -36,8 +36,9 @@ async fn basic_1() {
     .unwrap();
     server_node_repo.genesis().await.unwrap();
 
-    tokio::spawn(async move {
-        server::run_server(&format!("{}/repository", server_node_dir), 7301).await
+    let git_server = tokio::spawn(async move {
+        let _server = server::run_server(&format!("{}/repository", server_node_dir), port).await;
+        sleep_ms(12000).await;
     });
 
     let client_node_dir = create_temp_dir();
@@ -101,4 +102,6 @@ async fn basic_1() {
             .unwrap(),
         block
     );
+
+    git_server.await.unwrap();
 }
