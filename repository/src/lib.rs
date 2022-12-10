@@ -452,17 +452,11 @@ impl<T: RawRepository> DistributedRepository<T> {
             .raw
             .create_semantic_commit(agenda_proof_semantic_commit)
             .await?;
+        let mut agenda_proof_branch_name = agenda_proof_commit.to_hash256().to_string();
+        agenda_proof_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+        let agenda_proof_branch_name = format!("a-{}", agenda_proof_branch_name);
         self.raw
-            .create_branch(
-                format!(
-                    "a-{:?}",
-                    agenda_proof_commit
-                        .to_hash256()
-                        .to_string()
-                        .truncate(COMMIT_TITLE_HASH_DIGITS)
-                ),
-                agenda_proof_commit_hash,
-            )
+            .create_branch(agenda_proof_branch_name, agenda_proof_commit_hash)
             .await?;
         Ok(agenda_proof_commit_hash)
     }
@@ -526,18 +520,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
-        self.raw
-            .create_branch(
-                format!(
-                    "a-{:?}",
-                    agenda_commit
-                        .to_hash256()
-                        .to_string()
-                        .truncate(COMMIT_TITLE_HASH_DIGITS)
-                ),
-                result,
-            )
-            .await?;
+        let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
+        agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+        let agenda_branch_name = format!("a-{}", agenda_branch_name);
+        self.raw.create_branch(agenda_branch_name, result).await?;
         Ok((agenda, result))
     }
 
@@ -547,18 +533,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
-            self.raw
-                .create_tag(
-                    format!(
-                        "vote-{:?}",
-                        commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(TAG_NAME_HASH_DIGITS)
-                    ),
-                    commit_hash,
-                )
-                .await?;
+            let mut vote_tag_name = commit.to_hash256().to_string();
+            vote_tag_name.truncate(TAG_NAME_HASH_DIGITS);
+            let vote_tag_name = format!("vote-{}", vote_tag_name);
+            self.raw.create_tag(vote_tag_name, commit_hash).await?;
             Ok(())
         } else {
             Err(anyhow!("commit {} is not an agenda commit", commit_hash))
@@ -571,18 +549,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| anyhow!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Block(_) = commit {
-            self.raw
-                .create_tag(
-                    format!(
-                        "veto-{:?}",
-                        commit
-                            .to_hash256()
-                            .to_string()
-                            .truncate(TAG_NAME_HASH_DIGITS)
-                    ),
-                    commit_hash,
-                )
-                .await?;
+            let mut veto_tag_name = commit.to_hash256().to_string();
+            veto_tag_name.truncate(TAG_NAME_HASH_DIGITS);
+            let veto_tag_name = format!("veto-{}", veto_tag_name);
+            self.raw.create_tag(veto_tag_name, commit_hash).await?;
             Ok(())
         } else {
             Err(anyhow!("commit {} is not a block commit", commit_hash))
@@ -672,18 +642,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
-        self.raw
-            .create_branch(
-                format!(
-                    "b-{:?}",
-                    block_commit
-                        .to_hash256()
-                        .to_string()
-                        .truncate(COMMIT_TITLE_HASH_DIGITS)
-                ),
-                result,
-            )
-            .await?;
+        let mut block_branch_name = block_commit.to_hash256().to_string();
+        block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+        let block_branch_name = format!("b-{}", block_branch_name);
+        self.raw.create_branch(block_branch_name, result).await?;
         Ok((block_header, result))
     }
 
