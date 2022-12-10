@@ -147,7 +147,7 @@ impl CommitSequenceVerifier {
     ///
     /// It returns `[start_header]` if no block header has been received.
     pub fn get_block_headers(&self) -> Vec<BlockHeader> {
-        self.next_block_commits
+        self.total_commits
             .iter()
             .filter_map(|commit| match commit {
                 Commit::Block(header) => Some(header.clone()),
