@@ -1,8 +1,12 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
-    ConsensusRound, PrivateKey, Timestamp, ToHash256, TypedSignature, VotingPower,
+    BlockHeader, BlockHeight, ConsensusRound, PrivateKey, Timestamp, ToHash256, TypedSignature,
+    VotingPower,
 };
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
@@ -20,20 +24,25 @@ const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     /// The vetomint core instance.
-    vetomint: Vetomint,
+    pub vetomint: Vetomint,
+
+    /// The block header that this consensus is performing on.
+    pub block_header: BlockHeader,
+
     /// The set of messages that have been already updated to the Vetomint state machine.
     pub updated_messages: BTreeSet<Hash256>,
     /// The set of the block hashes that have been verified.
     pub verified_block_hashes: Vec<Hash256>,
     /// The set of the block hashes that are rejected by the user.
     pub vetoed_block_hashes: Vec<Hash256>,
-    /// The validator set eligible for this block
-    pub validator_set: Vec<(PublicKey, VotingPower)>,
-    /// If this node is a participant, the index of this node.
-    pub this_node_index: Option<usize>,
+
     /// If true, any operation on this instance will fail; the user must
-    /// run `create()` to create a new instance.
+    /// run `new()` with the next height info.
     pub finalized: bool,
+}
+
+fn generate_height_info_from_header(_header: &BlockHeader) -> Result<HeightInfo, Error> {
+    todo!()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +102,7 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
     /// The distributed consensus message set.
     dms: DMS<N, S>,
     /// The local storage for the consensus state.
-    storage: S,
+    state_storage: S,
     /// The cache of the consensus state.
     state: State,
     /// The set of the block hashes that have been verified, shared by the message filter.
@@ -104,58 +113,45 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
     this_node_key: Option<PrivateKey>,
 }
 
-// Public interface
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
-    pub async fn create(
-        storage: &mut S,
-        validator_set: &[(PublicKey, VotingPower)],
-        this_node_index: Option<usize>,
-        timestamp: Timestamp,
-        consensus_params: ConsensusParams,
-    ) -> Result<(), Error> {
-        let height_info = HeightInfo {
-            validators: validator_set.iter().map(|(_, v)| *v).collect(),
-            this_node_index,
-            timestamp,
-            consensus_params,
-            initial_block_candidate: NIL_BLOCK_PROPOSAL_INDEX,
-        };
-        let state = State {
-            vetomint: Vetomint::new(height_info),
-            updated_messages: BTreeSet::new(),
-            verified_block_hashes: vec![],
-            vetoed_block_hashes: vec![],
-            validator_set: validator_set.to_vec(),
-            finalized: false,
-            this_node_index,
-        };
-        storage
-            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&state).unwrap())
-            .await?;
-        Ok(())
-    }
-
+    /// Creates a consensus instance.
+    ///
+    /// It clears and re-initializes the DMS and the stroage
+    /// if the block header is different from the last one.
     pub async fn new(
         mut dms: DMS<N, S>,
-        storage: S,
+        mut state_storage: S,
+        block_header: BlockHeader,
         this_node_key: Option<PrivateKey>,
     ) -> Result<Self, Error> {
-        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
-        let state = storage.read_file(STATE_FILE_NAME).await?;
+        let state = state_storage.read_file(STATE_FILE_NAME).await?;
         let state: State = serde_json::from_str(&state)?;
-        if let Some(index) = state.this_node_index {
-            if state.validator_set[index].0
-                != this_node_key
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("private key is required"))?
-                    .public_key()
-            {
-                anyhow::bail!("private key does not match");
-            }
+        // TODO: check if `this_node_key` is in the validator set. If not, error.
+        if block_header != state.block_header {
+            let height_info = generate_height_info_from_header(&block_header)?;
+            dms.clear(format!(
+                "consensus-{}-{}",
+                block_header.height,
+                &block_header.to_hash256().to_string()[0..8]
+            ))
+            .await?;
+            let state = State {
+                vetomint: Vetomint::new(height_info),
+                block_header,
+                updated_messages: BTreeSet::new(),
+                verified_block_hashes: vec![],
+                vetoed_block_hashes: vec![],
+                finalized: false,
+            };
+            state_storage
+                .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&state).unwrap())
+                .await?;
         }
+        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
         dms.set_filter(Arc::new(ConsensusMessageFilter {
             verified_block_hashes: Arc::clone(&verified_block_hashes),
             validator_set: state
+                .block_header
                 .validator_set
                 .iter()
                 .map(|(pk, _)| pk.clone())
@@ -163,7 +159,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         }));
         Ok(Self {
             dms,
-            storage,
+            state_storage,
             state,
             verified_block_hashes,
             this_node_key,
@@ -174,7 +170,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         self.abort_if_finalized()?;
         self.state.verified_block_hashes.push(hash);
         self.verified_block_hashes.write().insert(hash);
-        self.storage
+        self.state_storage
             .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
             .await?;
         Ok(())
@@ -249,6 +245,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         for message in &messages {
             let signer = self
                 .state
+                .block_header
                 .validator_set
                 .iter()
                 .position(|(pubkey, _)| pubkey == message.signature().signer())
@@ -311,7 +308,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 
     async fn commit_state_to_storage(&mut self) -> Result<(), Error> {
-        self.storage
+        self.state_storage
             .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
             .await
             .map_err(|_| anyhow!("failed to commit consensus state to the storage"))
@@ -500,6 +497,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             } => {
                 let pubkey = self
                     .state
+                    .block_header
                     .validator_set
                     .get(violator)
                     .expect("oob access to validators")
