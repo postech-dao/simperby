@@ -162,7 +162,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         round_zero_timestamp: Timestamp,
         this_node_key: Option<PrivateKey>,
     ) -> Result<Self, Error> {
-        // Do a pre-calculation for prettier code.
+        // Prepare new state in case of storage reset.
         let new_state = Self::construct_new_state(
             &block_header,
             consensus_parameters,
@@ -173,6 +173,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             let state: State = serde_json::from_str(&raw_state)?;
             if block_header != state.block_header {
                 dms.clear(generate_dms_key(&block_header)).await?;
+                state_storage.remove_all_files().await?;
                 commit_state(&mut state_storage, &new_state).await?;
                 new_state
             } else {
@@ -180,6 +181,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             }
         } else {
             dms.clear(generate_dms_key(&block_header)).await?;
+            state_storage.remove_all_files().await?;
             commit_state(&mut state_storage, &new_state).await?;
             new_state
         };
