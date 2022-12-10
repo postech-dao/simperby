@@ -31,8 +31,8 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             serde_json::to_string(&commit_hash).unwrap()
         );
 
-        // Skip if the branch is `fp`.
-        if branch_name == FP_BRANCH_NAME {
+        // Skip if the branch is `fp` or `work`.
+        if branch_name == FP_BRANCH_NAME || branch_name == WORK_BRANCH_NAME {
             continue;
         }
 
