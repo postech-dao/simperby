@@ -8,6 +8,13 @@ use std::collections::{HashMap, HashSet};
 
 pub type Error = eyre::Error;
 
+pub fn generate_dms_key(header: &BlockHeader) -> String {
+    format!(
+        "governance-{}-{}",
+        header.height,
+        &header.to_hash256().to_string()[0..8]
+    )
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {
     /// Agenda hashes and their voters.

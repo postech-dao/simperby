@@ -20,3 +20,7 @@ simperby-consensus = { version = "0.0.0", path = "../consensus" }
 simperby-repository = { version = "0.0.0", path = "../repository" }
 thiserror = "1.0.32"
 semver = "1.0.0"
+
+[dev-dependencies]
+rand = "0.8.5"
+simperby-test-suite = { path = "../test-suite" }

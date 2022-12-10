@@ -41,6 +41,14 @@ pub struct State {
     pub finalized: bool,
 }
 
+pub fn generate_dms_key(header: &BlockHeader) -> String {
+    format!(
+        "consensus-{}-{}",
+        header.height,
+        &header.to_hash256().to_string()[0..8]
+    )
+}
+
 fn generate_height_info_from_header(_header: &BlockHeader) -> Result<HeightInfo, Error> {
     todo!()
 }
@@ -129,12 +137,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         // TODO: check if `this_node_key` is in the validator set. If not, error.
         if block_header != state.block_header {
             let height_info = generate_height_info_from_header(&block_header)?;
-            dms.clear(format!(
-                "consensus-{}-{}",
-                block_header.height,
-                &block_header.to_hash256().to_string()[0..8]
-            ))
-            .await?;
+            dms.clear(generate_dms_key(&block_header)).await?;
             let state = State {
                 vetomint: Vetomint::new(height_info),
                 block_header,

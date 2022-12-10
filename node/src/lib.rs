@@ -21,11 +21,6 @@ pub struct Config {
     pub public_key: PublicKey,
     pub private_key: PrivateKey,
 
-    pub peer_directory: String,
-    pub governance_directory: String,
-    pub consensus_directory: String,
-    pub repository_directory: String,
-
     pub broadcast_interval_ms: Option<u64>,
     pub fetch_interval_ms: Option<u64>,
 
@@ -107,7 +102,9 @@ pub trait SimperbyApi {
     async fn get_network_status(&self) -> Result<NetworkStatus>;
 
     /// Serves indefinitely the p2p network.
-    async fn serve(self) -> Result<()>;
+    async fn serve(self) -> Result<Self>
+    where
+        Self: Sized;
 
     /// Fetch the data from the network and apply to the repository, the governance, and the consensus.
     async fn fetch(&mut self) -> Result<()>;
@@ -122,6 +119,6 @@ pub type SimperbyNode = node::Node<
     simperby_repository::raw::RawRepositoryImpl,
 >;
 
-pub async fn initialize(_config: Config) -> Result<SimperbyNode> {
-    todo!()
+pub async fn initialize(config: Config, path: &str) -> Result<SimperbyNode> {
+    SimperbyNode::initialize(config, path).await
 }
