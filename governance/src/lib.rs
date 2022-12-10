@@ -12,7 +12,6 @@ pub type Error = anyhow::Error;
 pub struct GovernanceStatus {
     /// Agenda hashes and their voters.
     pub votes: HashMap<Hash256, HashSet<PublicKey>>,
-    pub height: BlockHeight,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -28,11 +27,7 @@ pub struct Governance<N: GossipNetwork, S: Storage> {
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
-    pub async fn create(_dms: DMS<N, S>, _height: BlockHeight) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub async fn open(dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
+    pub async fn new(dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
         Ok(Self { dms, this_node_key })
     }
 
@@ -51,8 +46,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
                     .insert(voter);
                 votes
             });
-        let height = self.dms.read_height().await?;
-        let status = GovernanceStatus { votes, height };
+        let status = GovernanceStatus { votes };
         Ok(status)
     }
 
@@ -69,20 +63,6 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         )?;
 
         self.dms.add_message(message).await?;
-        Ok(())
-    }
-
-    /// Advances the block height, discarding all the votes.
-    pub async fn advance(&mut self, height_to_assert: BlockHeight) -> Result<(), Error> {
-        let height: BlockHeight = self.dms.read_height().await?;
-        if height != height_to_assert {
-            return Err(anyhow::anyhow!(
-                "the height of the governance status is not the expected one: {} != {}",
-                height,
-                height_to_assert
-            ));
-        }
-        self.dms.advance().await?;
         Ok(())
     }
 

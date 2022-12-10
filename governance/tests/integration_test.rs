@@ -10,7 +10,7 @@ async fn basic_1() {
     let (server_network_config, client_network_configs, peer) =
         setup_server_client_nodes(network_id.clone(), 3).await;
 
-    let mut server_node = Governance::open(
+    let mut server_node = Governance::new(
         create_test_dms(
             server_network_config.clone(),
             network_id.clone(),
@@ -25,7 +25,7 @@ async fn basic_1() {
     let mut client_nodes = Vec::new();
     for network_config in client_network_configs.iter() {
         client_nodes.push((
-            Governance::open(
+            Governance::new(
                 create_test_dms(network_config.clone(), network_id.clone(), peer.clone()).await,
                 Some(network_config.private_key.clone()),
             )
