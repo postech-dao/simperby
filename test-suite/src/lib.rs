@@ -137,16 +137,20 @@ pub async fn create_test_dms(
     peers: SharedKnownPeers,
 ) -> Dms {
     let path = create_temp_dir();
-
     StorageImpl::create(&path).await.unwrap();
-    let mut storage = StorageImpl::open(&path).await.unwrap();
-    Dms::create(&mut storage, 0, dms_key).await.unwrap();
-    let config = dms::Config {
-        fetch_interval: Some(std::time::Duration::from_millis(500)),
-        broadcast_interval: Some(std::time::Duration::from_millis(500)),
-        network_config,
-    };
-    Dms::open(storage, config, peers).await.unwrap()
+    let storage = StorageImpl::open(&path).await.unwrap();
+    Dms::new(
+        storage,
+        dms_key,
+        dms::Config {
+            fetch_interval: Some(std::time::Duration::from_millis(500)),
+            broadcast_interval: Some(std::time::Duration::from_millis(500)),
+            network_config,
+        },
+        peers,
+    )
+    .await
+    .unwrap()
 }
 
 pub async fn setup_server_client_nodes(
