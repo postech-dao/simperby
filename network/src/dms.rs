@@ -12,6 +12,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 
 const STATE_FILE_PATH: &str = "_state.json";
+type DmsKey = String;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Message {
@@ -67,8 +68,7 @@ impl RawMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
-    pub height: BlockHeight,
-    pub key: String,
+    pub dms_key: DmsKey,
 }
 
 /// The interface that will be wrapped into an HTTP RPC server for the peers.
@@ -77,16 +77,12 @@ trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
     /// Returns the messages except `knowns`.
     async fn get_message(
         &self,
-        height: BlockHeight,
+        dms_key: DmsKey,
         knowns: Vec<Hash256>,
     ) -> Result<Vec<RawMessage>, String>;
 
     /// Requests this node to accept a new message.
-    async fn add_messages(
-        &self,
-        height: BlockHeight,
-        messages: Vec<RawMessage>,
-    ) -> Result<(), String>;
+    async fn add_messages(&self, dms_key: DmsKey, messages: Vec<RawMessage>) -> Result<(), String>;
 }
 
 struct DmsWrapper<N: GossipNetwork, S: Storage> {
@@ -98,7 +94,7 @@ struct DmsWrapper<N: GossipNetwork, S: Storage> {
 impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrapper<N, S> {
     async fn get_message(
         &self,
-        height: BlockHeight,
+        dms_key: DmsKey,
         knowns: Vec<Hash256>,
     ) -> Result<Vec<RawMessage>, String> {
         let dms = Arc::clone(
@@ -113,17 +109,11 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
             .read_messages()
             .await
             .map_err(|e| e.to_string())?;
-        let height_ = dms
-            .read()
-            .await
-            .read_state()
-            .await
-            .map_err(|e| e.to_string())?
-            .height;
-        if height != height_ {
+        let dms_key_ = dms.read().await.key.clone();
+        if dms_key != dms.read().await.key {
             return Err(format!(
-                "height mismatch: requested {}, but {}",
-                height, height_
+                "key mismatch: requested {}, but {}",
+                dms_key, dms_key_
             ));
         }
         let knowns: HashSet<_> = knowns.into_iter().collect();
@@ -135,28 +125,18 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
         Ok(messages)
     }
 
-    async fn add_messages(
-        &self,
-        height: BlockHeight,
-        messages: Vec<RawMessage>,
-    ) -> Result<(), String> {
+    async fn add_messages(&self, dms_key: DmsKey, messages: Vec<RawMessage>) -> Result<(), String> {
         let dms = Arc::clone(
             self.dms
                 .read()
                 .as_ref()
                 .ok_or_else(|| "server terminated".to_owned())?,
         );
-        let height_ = dms
-            .read()
-            .await
-            .read_state()
-            .await
-            .map_err(|e| e.to_string())?
-            .height;
-        if height != height_ {
+        let dms_key_ = dms.read().await.key.clone();
+        if dms_key != dms.read().await.key {
             return Err(format!(
-                "height mismatch: requested {}, but {}",
-                height, height_
+                "key mismatch: requested {}, but {}",
+                dms_key, dms_key_
             ));
         }
         for message in messages {
@@ -197,7 +177,7 @@ pub struct DistributedMessageSet<N, S> {
     config: Config,
     filter: Arc<dyn MessageFilter>,
     peers: SharedKnownPeers,
-    key: String,
+    key: DmsKey,
     _marker: std::marker::PhantomData<N>,
 }
 
@@ -218,39 +198,45 @@ pub struct Config {
 }
 
 impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
-    /// Creates a new and empty storage with the given directory.
-    /// If there is already a directory, it discards everything and creates a new one.
-    /// You should try `open()` first!
+    /// Creates a DMS instnace.
     ///
-    /// - `dms_key`: The unique key for distinguishing the DMS instance
-    /// among the networks and among the types (e.g. governance, consensus, ...).
-    pub async fn create(storage: &mut S, height: u64, dms_key: String) -> Result<(), Error> {
-        storage.remove_all_files().await?;
-        Self::write_state(
-            storage,
-            State {
-                height,
-                key: dms_key,
-            },
-        )
-        .await?;
-        Ok(())
-    }
-
-    /// Opens an existing storage with the given directory.
-    pub async fn open(storage: S, config: Config, peers: SharedKnownPeers) -> Result<Self, Error>
-    where
-        Self: Sized,
-    {
-        let state: State = serde_json::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
+    /// If the storage is empty, it creates a new one.
+    /// If not, check the `dms_key` with the stored one.
+    /// It loads the storage if the `dms_key` is the same.
+    /// It clears all and initializes a new one if not.
+    ///
+    /// - `dms_key`: The unique key for distinguishing the DMS instance.
+    /// Note that it will be further extended with the height.
+    pub async fn new(
+        mut storage: S,
+        dms_key: String,
+        config: Config,
+        peers: SharedKnownPeers,
+    ) -> Result<Self, Error> {
+        let dms_key_ = dms_key.clone();
+        if storage.list_files().await?.is_empty() {
+            Self::write_state(&mut storage, State { dms_key }).await?;
+        } else {
+            let state: State = serde_json::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
+            if state.dms_key != dms_key {
+                storage.remove_all_files().await?;
+                Self::write_state(&mut storage, State { dms_key }).await?;
+            }
+        };
         Ok(Self {
             storage: Arc::new(RwLock::new(storage)),
             config,
             filter: Arc::new(DummyFilter),
             peers,
-            key: state.key,
+            key: dms_key_,
             _marker: std::marker::PhantomData,
         })
+    }
+
+    pub async fn clear(&mut self, dms_key: DmsKey) -> Result<(), Error> {
+        self.storage.write().await.remove_all_files().await?;
+        Self::write_state(&mut (*self.storage.write().await), State { dms_key }).await?;
+        Ok(())
     }
 
     pub fn get_key(&self) -> String {
@@ -269,13 +255,13 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .into_iter()
             .map(|m| m.to_hash256())
             .collect::<Vec<_>>();
-        let state = self.read_state().await?;
-        let height = state.height;
+
         for peer in self.peers.read().await {
             let storage = Arc::clone(&self.storage);
             let filter = Arc::clone(&self.filter);
-            let port_key = format!("dms-{}", state.key);
+            let port_key = format!("dms-{}", self.key);
             let known_messages_ = known_messages.clone();
+            let key = self.key.clone();
             let task = async move {
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
                     format!(
@@ -288,7 +274,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                     reqwest::Client::new(),
                 )));
                 let raw_messages = stub
-                    .get_message(height, known_messages_)
+                    .get_message(key, known_messages_)
                     .await?
                     .map_err(|e| anyhow!(e))?;
                 let mut storage = storage.write().await;
@@ -324,17 +310,14 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     /// Tries to broadcast all the message that this DMS instance has.
     pub async fn broadcast_all(&self) -> Result<(), Error> {
         let mut tasks1 = Vec::new();
-        let state = self.read_state().await?;
         let messages = self
             .read_messages()
             .await?
             .into_iter()
             .map(RawMessage::from_message)
             .collect::<Vec<_>>();
-        let height = state.height;
-
         for peer in self.peers.read().await {
-            let port_key = format!("dms-{}", state.key);
+            let port_key = format!("dms-{}", self.key);
             let messages_ = messages.clone();
             let task = async move {
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
@@ -347,7 +330,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                     ),
                     reqwest::Client::new(),
                 )));
-                stub.add_messages(height, messages_.clone())
+                stub.add_messages(self.key.clone(), messages_.clone())
                     .await?
                     .map_err(|e| anyhow!(e))?;
                 Result::<(), Error>::Ok(())
@@ -413,28 +396,6 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         Ok(messages)
     }
 
-    /// Reads the height from the storage.
-    pub async fn read_height(&self) -> Result<BlockHeight, Error> {
-        let state = self.read_state().await?;
-        Ok(state.height)
-    }
-
-    /// Advances the height of the message set, discarding all the messages.
-    pub async fn advance(&mut self) -> Result<(), Error> {
-        let state = self.read_state().await?;
-        let mut storage = self.storage.write().await;
-        storage.remove_all_files().await?;
-        Self::write_state(
-            &mut *self.storage.write().await,
-            State {
-                height: state.height + 1,
-                key: state.key,
-            },
-        )
-        .await?;
-        Ok(())
-    }
-
     async fn add_message_but_not_broadcast(
         storage: &mut impl Storage,
         message: Message,
@@ -446,12 +407,6 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             )
             .await?;
         Ok(())
-    }
-
-    async fn read_state(&self) -> Result<State, Error> {
-        let state: State =
-            serde_json::from_str(&self.storage.read().await.read_file(STATE_FILE_PATH).await?)?;
-        Ok(state)
     }
 
     async fn write_state(storage: &mut impl Storage, state: State) -> Result<(), Error> {
@@ -551,7 +506,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     ///
     /// TODO: currently it just returns itself after the given time.
     pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
-        let port_key = format!("dms-{}", self.read_state().await?.key);
+        let port_key = format!("dms-{}", self.key);
         let port = *self
             .config
             .network_config
@@ -662,18 +617,21 @@ mod tests {
     }
 
     async fn setup(network_config: NetworkConfig, peers: SharedKnownPeers) -> Dms {
-        let dir = create_temp_dir();
-        StorageImpl::create(&dir).await.unwrap();
-        let mut storage = StorageImpl::open(&dir).await.unwrap();
-        Dms::create(&mut storage, 0, network_config.network_id.clone())
-            .await
-            .unwrap();
-        let config = Config {
-            network_config,
-            fetch_interval: Some(Duration::from_millis(100)),
-            broadcast_interval: None,
-        };
-        Dms::open(storage, config, peers).await.unwrap()
+        let path = create_temp_dir();
+        StorageImpl::create(&path).await.unwrap();
+        let storage = StorageImpl::open(&path).await.unwrap();
+        Dms::new(
+            storage,
+            network_config.network_id.clone(),
+            dms::Config {
+                fetch_interval: Some(std::time::Duration::from_millis(500)),
+                broadcast_interval: Some(std::time::Duration::from_millis(500)),
+                network_config,
+            },
+            peers,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
