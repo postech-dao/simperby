@@ -6,7 +6,9 @@ use simperby_test_suite::*;
 #[tokio::test]
 #[ignore]
 async fn basic_1() {
-    let port = 8801;
+    setup_test();
+    let port = dispense_port();
+
     let (rs, keys) = generate_standard_genesis(4);
     let config = Config {
         mirrors: Vec::new(),

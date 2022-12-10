@@ -5,7 +5,15 @@ use simperby_node::simperby_network::{
     dms, storage::StorageImpl, Dms, NetworkConfig, Peer, SharedKnownPeers,
 };
 use tempfile::TempDir;
-use tokio::sync::RwLock;
+
+pub fn setup_test() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        env_logger::init();
+        color_eyre::install().unwrap();
+    });
+}
 
 #[cfg(target_os = "windows")]
 pub async fn run_command(command: impl AsRef<str>) {
@@ -129,13 +137,20 @@ pub fn create_temp_dir() -> String {
 }
 
 /// Provides an available port (ranged from 37000 to 37999) for the test.
-pub async fn dispense_port() -> u16 {
+pub fn dispense_port() -> u16 {
     use once_cell::sync::OnceCell;
-    static PORTS: OnceCell<RwLock<Vec<u16>>> = OnceCell::new();
+    static PORTS: OnceCell<parking_lot::RwLock<Vec<u16>>> = OnceCell::new();
     PORTS
-        .get_or_init(|| RwLock::new((37000..38000).into_iter().collect::<Vec<_>>()))
+        .get_or_init(|| {
+            parking_lot::RwLock::new({
+                use rand::seq::SliceRandom;
+                use rand::thread_rng;
+                let mut v = (37000..38000).into_iter().collect::<Vec<_>>();
+                v.shuffle(&mut thread_rng());
+                v
+            })
+        })
         .write()
-        .await
         .pop()
         .expect("wtf did we have tests more than 1000?")
 }
@@ -169,19 +184,19 @@ pub async fn setup_server_client_nodes(
     let (public_key, private_key) = generate_keypair_random();
     let server = NetworkConfig {
         network_id: network_id.clone(),
-        ports: vec![(format!("dms-{}", network_id), dispense_port().await)]
+        ports: vec![(format!("dms-{}", network_id), dispense_port())]
             .into_iter()
             .collect(),
         members: Vec::new(),
         public_key,
-        private_key: private_key.clone(),
+        private_key,
     };
     let mut clients = Vec::new();
     for _ in 0..client_n {
         let (public_key, private_key) = generate_keypair_random();
         let network_config = NetworkConfig {
             network_id: network_id.clone(),
-            ports: vec![(format!("dms-{}", network_id), dispense_port().await)]
+            ports: vec![(format!("dms-{}", network_id), dispense_port())]
                 .into_iter()
                 .collect(),
             members: Vec::new(),
