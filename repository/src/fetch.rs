@@ -36,6 +36,11 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             continue;
         }
 
+        // Skip if the branch is already finalized by this node.
+        if commit_hash == last_finalized_commit_hash {
+            continue;
+        }
+
         // Check if the branch is already in the local repo.
         if local_branches
             .iter()
