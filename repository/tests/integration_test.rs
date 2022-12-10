@@ -4,7 +4,6 @@ use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 
 #[tokio::test]
-#[ignore]
 async fn basic_1() {
     setup_test();
     let port = dispense_port();

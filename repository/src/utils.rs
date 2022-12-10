@@ -103,3 +103,12 @@ pub async fn read_commits<T: RawRepository>(
         .map_err(|(e, c)| CommitError::Commit(e, c))?;
     Ok(commits)
 }
+
+/// Reads a single commit.
+pub async fn read_commit<T: RawRepository>(
+    this: &DistributedRepository<T>,
+    commit: CommitHash,
+) -> Result<Commit, Error> {
+    let commit = this.raw.read_semantic_commit(commit).await?;
+    from_semantic_commit(commit)
+}

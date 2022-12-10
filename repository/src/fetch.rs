@@ -22,6 +22,26 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
 
     let mut next_step_branches = Vec::new();
 
+    // Step 0: try finalization with already tracked `b-` branches
+    'branch_loop: for branch in this.raw.list_branches().await? {
+        if branch.as_str().starts_with("b-") {
+            let branch_commit_hash = this.raw.locate_branch(branch.clone()).await?;
+            let header =
+                if let Commit::Block(header) = read_commit(this, branch_commit_hash).await? {
+                    header
+                } else {
+                    panic!("b- branch is not a block");
+                };
+            for proof in &finalization_proofs {
+                if verify::verify_finalization_proof(&header, &proof.proof).is_ok() {
+                    last_finalization_proof = proof.clone();
+                    last_finalized_commit_hash = branch_commit_hash;
+                    break 'branch_loop;
+                }
+            }
+        }
+    }
+
     // Step 1: update finalization
     'branch_loop: for (remote_name, branch_name, commit_hash) in remote_branches {
         let branch_displayed = format!(
