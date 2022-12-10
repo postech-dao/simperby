@@ -54,17 +54,12 @@ fn generate_height_info(
     header: &BlockHeader,
     consensus_params: ConsensusParams,
     round_zero_timestamp: Timestamp,
-    this_node_key: Option<PrivateKey>,
+    this_node_key: PrivateKey,
 ) -> Result<HeightInfo, Error> {
-    let this_node_index =
-        this_node_key
-            .map(|privkey| privkey.public_key())
-            .and_then(|this_node_pubkey| {
-                header
-                    .validator_set
-                    .iter()
-                    .position(|(pubkey, _)| *pubkey == this_node_pubkey)
-            });
+    let this_node_index = header
+        .validator_set
+        .iter()
+        .position(|(pubkey, _)| *pubkey == this_node_key.public_key());
     let info = HeightInfo {
         validators: header
             .validator_set
@@ -77,6 +72,13 @@ fn generate_height_info(
         initial_block_candidate: 0 as BlockIdentifier,
     };
     Ok(info)
+}
+
+async fn commit_state(state_storage: &mut impl Storage, state: &State) -> Result<(), Error> {
+    state_storage
+        .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(state).unwrap())
+        .await?;
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,29 +162,27 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         round_zero_timestamp: Timestamp,
         this_node_key: Option<PrivateKey>,
     ) -> Result<Self, Error> {
-        let state = state_storage.read_file(STATE_FILE_NAME).await?;
-        let state: State = serde_json::from_str(&state)?;
-        // TODO: check if `this_node_key` is in the validator set. If not, error.
-        if block_header != state.block_header {
-            let height_info = generate_height_info(
-                &block_header,
-                consensus_parameters,
-                round_zero_timestamp,
-                this_node_key.clone(),
-            )?;
+        // Do a pre-calculation for prettier code.
+        let new_state = Self::construct_new_state(
+            &block_header,
+            consensus_parameters,
+            round_zero_timestamp,
+            this_node_key.clone().unwrap(),
+        )?;
+        let state = if let Ok(raw_state) = state_storage.read_file(STATE_FILE_NAME).await {
+            let state: State = serde_json::from_str(&raw_state)?;
+            if block_header != state.block_header {
+                dms.clear(generate_dms_key(&block_header)).await?;
+                commit_state(&mut state_storage, &new_state).await?;
+                new_state
+            } else {
+                state
+            }
+        } else {
             dms.clear(generate_dms_key(&block_header)).await?;
-            let state = State {
-                vetomint: Vetomint::new(height_info),
-                block_header,
-                updated_messages: BTreeSet::new(),
-                verified_block_hashes: vec![],
-                vetoed_block_hashes: vec![],
-                finalized: false,
-            };
-            state_storage
-                .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&state).unwrap())
-                .await?;
-        }
+            commit_state(&mut state_storage, &new_state).await?;
+            new_state
+        };
         let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
         dms.set_filter(Arc::new(ConsensusMessageFilter {
             verified_block_hashes: Arc::clone(&verified_block_hashes),
@@ -327,6 +327,29 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
 // Private methods
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+    fn construct_new_state(
+        block_header: &BlockHeader,
+        consensus_parameters: ConsensusParams,
+        round_zero_timestamp: Timestamp,
+        this_node_key: PrivateKey,
+    ) -> Result<State, Error> {
+        let height_info = generate_height_info(
+            block_header,
+            consensus_parameters,
+            round_zero_timestamp,
+            this_node_key,
+        )?;
+        let state = State {
+            vetomint: Vetomint::new(height_info),
+            block_header: block_header.clone(),
+            updated_messages: BTreeSet::new(),
+            verified_block_hashes: vec![],
+            vetoed_block_hashes: vec![],
+            finalized: false,
+        };
+        Ok(state)
+    }
+
     fn get_block_index(&self, block_hash: &Hash256) -> Result<usize, Error> {
         self.state
             .verified_block_hashes
