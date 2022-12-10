@@ -120,6 +120,10 @@ impl Vetomint {
         }
     }
 
+    pub fn get_height_info(&self) -> &HeightInfo {
+        &self.state.height_info
+    }
+
     pub fn progress(
         &mut self,
         event: ConsensusEvent,
