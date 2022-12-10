@@ -23,6 +23,7 @@ async fn basic_1() {
     let peers = SharedKnownPeers::new_static(peers);
 
     let server_node_dir = create_temp_dir();
+    let server_node_dir_clone = server_node_dir.clone();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
 
     let mut server_node_repo = DistributedRepository::new(
@@ -42,7 +43,11 @@ async fn basic_1() {
     });
 
     let client_node_dir = create_temp_dir();
-    setup_pre_genesis_repository(&client_node_dir, rs.clone()).await;
+    run_command(format!(
+        "cd {} && mkdir repository && cd repository && cp -r {}/repository/repo {}/repository",
+        client_node_dir, server_node_dir_clone, client_node_dir
+    ))
+    .await;
     let mut client_node_repo = DistributedRepository::new(
         RawRepositoryImpl::open(&format!("{}/repository/repo", client_node_dir))
             .await
@@ -52,7 +57,6 @@ async fn basic_1() {
     )
     .await
     .unwrap();
-    client_node_repo.genesis().await.unwrap();
 
     // Step 0: create an agenda and let the client update that
     let (agenda, agenda_commit) = server_node_repo
