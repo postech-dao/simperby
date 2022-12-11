@@ -17,6 +17,7 @@ use simperby_test_suite as test_suite;
 use std::fmt::Debug;
 use std::iter::once;
 use test_suite::*;
+use tokio::time::sleep;
 use vetomint2::ConsensusParams;
 
 fn get_initial_block_header(validator_set: Vec<(PublicKey, VotingPower)>) -> BlockHeader {
@@ -167,19 +168,19 @@ async fn single_server_propose_1() {
 
     // Action: Non-server nodes fetch messages from the server and make progress.
     // Expected: Node 0, 1 will prevote, node 2, 3 will precommit.
-    let serve_task = tokio::spawn(async { server_node.serve(3_000).await });
+    let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
         println!("Checking node #{}", i);
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
+        sleep(Duration::from_millis(200)).await;
         let mut expected = vec![ProgressResult::NonNilPreVoted(
             0,
             dummy_block_hash,
             timestamp,
         )];
         // The nodes will broadcast precommits as well if they see prevotes over 2/3.
-        // Plus-ones for the server and the node itself.
         if i == 2 || i == 3 {
             expected.push(ProgressResult::NonNilPreCommitted(
                 0,
@@ -247,13 +248,14 @@ async fn single_server_propose_1() {
 
     // Action: Non-server nodes fetch and progress.
     // Expected: Node 0, 1 will precommit and finalize, node 2, 3 will only finalize.
-    let serve_task = tokio::spawn(async { server_node.serve(3_000).await });
+    let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     let mut finalization_proofs = Vec::new();
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
         println!("Checking node #{}", i);
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
+        sleep(Duration::from_millis(200)).await;
         for r in &result {
             debug!("{:?}", r);
         }
