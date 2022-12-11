@@ -367,7 +367,7 @@ impl RawRepositoryImplInner {
 
         let commit_message = commit.message().unwrap().split('\n').collect::<Vec<_>>();
         let title = commit_message[0].to_string();
-        let body = commit_message[1].to_string();
+        let body = commit_message[1..].join("\n");
         let semantic_commit = SemanticCommit { title, body, diff };
 
         Ok(semantic_commit)
