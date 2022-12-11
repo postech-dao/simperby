@@ -348,18 +348,16 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
     /// Serves the consensus protocol indefinitely.
     ///
+    /// Note: currently it just returns itself after the given time.
+    /// Todo: Implement the following:
     /// 1. It does `DistributedMessageSet::serve()`.
     /// 2. It does `Consensus::progress()` continuously.
-    pub async fn serve(
-        self,
-    ) -> Result<
-        (
-            tokio::sync::mpsc::Receiver<ProgressResult>,
-            tokio::task::JoinHandle<Result<(), Error>>,
-        ),
-        Error,
-    > {
-        unimplemented!()
+    ///
+    /// Note: Step 2 is likely to be changed because it does not notify the user
+    ///       and automatically progresses.
+    pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
+        let dms = self.dms.serve(time_in_ms).await?;
+        Ok(Self { dms, ..self })
     }
 }
 
