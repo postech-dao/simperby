@@ -11,7 +11,7 @@ async-trait = "0.1.42"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 futures = "0.3"
 log = "0.4"
 simperby-common = { version = "0.0.0", path = "../common" }
