@@ -13,7 +13,7 @@ pub struct StorageImpl {
 impl Storage for StorageImpl {
     async fn create(storage_directory: &str) -> Result<(), StorageError> {
         let _ = fs::remove_dir_all(storage_directory).await;
-        fs::create_dir(storage_directory).await?;
+        fs::create_dir_all(storage_directory).await?;
         fs::File::create(format!("{}/lock", storage_directory)).await?;
         Ok(())
     }
