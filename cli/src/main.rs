@@ -1,4 +1,5 @@
 mod cli;
+mod genesis;
 
 use clap::Parser;
 use cli::*;
@@ -18,7 +19,7 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> eyre::Result<()> {
-    color_eyre::install()?;
+    color_eyre::install().unwrap();
     env_logger::init();
 
     let args = cli::Cli::parse();
@@ -48,6 +49,12 @@ async fn main() -> eyre::Result<()> {
                 "{}",
                 Signature::sign(hash, &config.private_key).map_err(|_| eyre!("failed to sign"))?
             );
+        }
+        Commands::GenesisNonProposer => {
+            genesis::run_genesis_non_proposer(config, &path).await;
+        }
+        Commands::GenesisProposer => {
+            genesis::run_genesis_proposer(config, &path).await;
         }
         _ => unimplemented!(),
     }
