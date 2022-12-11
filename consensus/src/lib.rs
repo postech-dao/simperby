@@ -395,6 +395,31 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
 // Private methods
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+    /// Reads all consensus messages with its signer in the dms.
+    async fn read_messages(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
+        let raw_messages = self.dms.read_messages().await?;
+        let messages = raw_messages
+            .into_iter()
+            .map(|m| {
+                (
+                    serde_json::from_str::<ConsensusMessage>(m.data()),
+                    m.signature().signer().clone(),
+                )
+            })
+            .filter_map(|(cm, pk)| cm.ok().map(|cm| (cm, pk)))
+            .collect();
+        Ok(messages)
+    }
+
+    async fn read_precommits(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
+        Ok(self
+            .read_messages()
+            .await?
+            .into_iter()
+            .filter(|(cm, _)| matches!(cm, ConsensusMessage::NonNilPreCommitted(..)))
+            .collect())
+    }
+
     fn construct_new_state(
         block_header: &BlockHeader,
         consensus_parameters: ConsensusParams,
@@ -627,14 +652,35 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 self.broadcast_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
-            ConsensusResponse::FinalizeBlock { proposal, .. } => {
+            ConsensusResponse::FinalizeBlock { proposal, proof } => {
                 let block_hash = *self
                     .state
                     .verified_block_hashes
                     .get(proposal)
                     .expect("oob access to verified_block_hashes");
+                if proof.iter().any(|&validator_index| {
+                    validator_index >= self.state.block_header.validator_set.len()
+                }) {
+                    return Err(eyre!("oob access to validator_set"));
+                }
+                let pubkeys_for_proof: Vec<_> = proof
+                    .iter()
+                    .map(|&index| self.state.block_header.validator_set[index].0.clone())
+                    .collect();
+                let received_precommits = self.read_precommits().await?;
+                let precommits_for_proof = received_precommits
+                    .iter()
+                    .filter(|(_, pk)| pubkeys_for_proof.contains(pk))
+                    .map(|(cm, _)| cm);
+                let proof = precommits_for_proof
+                    .map(|cm| match cm {
+                        ConsensusMessage::NonNilPreCommitted(_, _, precommit) => precommit.clone(),
+                        _ => panic!(
+                            "consensus::read_precommits should return only `NonNilPreCommitted`"
+                        ),
+                    })
+                    .collect();
                 self.state.finalized = true;
-                let proof = Vec::new(); // TODO
                 Ok(ProgressResult::Finalized(block_hash, timestamp, proof))
             }
             ConsensusResponse::ViolationReport {
