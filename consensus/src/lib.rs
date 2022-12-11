@@ -492,6 +492,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 .process_single_response(consensus_response, timestamp)
                 .await?;
             final_result.push(consensus_result);
+            if self.state.finalized {
+                break;
+            }
         }
         Ok(final_result)
     }
