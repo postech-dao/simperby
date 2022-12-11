@@ -278,6 +278,16 @@ impl<T: RawRepository> DistributedRepository<T> {
             format!("b-{}", &block_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
         let block_commit_hash = self.raw.locate_branch(block_branch_name.clone()).await?;
 
+        if block_commit_hash
+            == self
+                .raw
+                .locate_branch(FINALIZED_BRANCH_NAME.to_owned())
+                .await?
+        {
+            info!("already finalized");
+            return Ok(());
+        }
+
         // Check if the last commit is a block commit.
         let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let new_commits =
@@ -470,12 +480,25 @@ impl<T: RawRepository> DistributedRepository<T> {
             agenda_hash: agenda_commit.to_hash256(),
             proof,
         };
+
         let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
         let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit);
         let agenda_proof_branch_name = format!(
             "a-{}",
             &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
         );
+        // Check if it is already approved.
+        if self
+            .raw
+            .list_branches()
+            .await?
+            .contains(&agenda_proof_branch_name)
+        {
+            return Ok(self
+                .raw
+                .locate_branch(agenda_proof_branch_name.clone())
+                .await?);
+        }
         self.raw
             .create_branch(agenda_proof_branch_name.clone(), agenda_commit_hash)
             .await?;
@@ -623,6 +646,17 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         // Check whether the commit sequence is in the agenda proof phase or
         // extra-agenda transaction phase.
+        // TODO: WHAT THE FUCK ARE YOU DOING HERE???
+        let (last_commit, _) = commits
+            .last()
+            .ok_or_else(|| eyre!("branch doesn't contain any commit"))?
+            .clone();
+        match last_commit {
+            Commit::AgendaProof(_) => (),
+            Commit::ExtraAgendaTransaction(_) => (),
+            x => return Err(eyre!("a block can't be made on top of a commit {:?}", x)),
+        }
+
         let mut transactions = Vec::new();
 
         for (commit, _) in commits.clone() {
