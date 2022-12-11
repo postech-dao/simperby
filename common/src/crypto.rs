@@ -237,6 +237,10 @@ impl<T: ToHash256> TypedSignature<T> {
         let data = data.to_hash256();
         self.signature.verify(data, &self.signer)
     }
+
+    pub fn get_raw_signature(&self) -> Signature {
+        self.signature.clone()
+    }
 }
 
 impl std::convert::AsRef<[u8]> for Signature {
