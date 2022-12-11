@@ -82,7 +82,7 @@ pub fn generate_standard_genesis(
             .iter()
             .map(|member| (member.public_key.clone(), member.consensus_voting_power))
             .collect::<Vec<_>>(),
-        version: "0.1.0".to_string(),
+        version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
     };
     let genesis_info = GenesisInfo {
         header: genesis_header.clone(),
@@ -100,7 +100,7 @@ pub fn generate_standard_genesis(
                 .into_iter()
                 .map(|i| format!("member-{:04}", i))
                 .collect::<Vec<_>>(),
-            version: "0.1.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         },
         keys,
     )

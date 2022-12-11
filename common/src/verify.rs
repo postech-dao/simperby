@@ -435,7 +435,7 @@ mod test {
             commit_merkle_root: commit_merkle_root_value,
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_set.to_vec(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }
     }
 
@@ -471,7 +471,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         };
         let members = get_members(&genesis_header.validator_set);
         let mut consensus_leader_order: Vec<MemberName> =
@@ -488,7 +488,7 @@ mod test {
             },
             members, // TODO: fix to not use genesis header
             consensus_leader_order,
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }
     }
 
@@ -608,7 +608,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         })
     }
 
@@ -751,7 +751,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }
@@ -792,7 +792,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }
@@ -833,7 +833,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }
@@ -874,7 +874,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }
@@ -962,7 +962,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }
@@ -1003,7 +1003,7 @@ mod test {
                 .iter()
                 .map(|(public_key, _)| (public_key.clone(), 1))
                 .collect(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         }))
         .unwrap_err();
     }

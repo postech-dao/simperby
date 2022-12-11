@@ -9,3 +9,5 @@ pub mod verify;
 pub use crypto::*;
 pub use reserved::*;
 pub use types::*;
+
+pub const SIMPERBY_CORE_PROTOCOL_VERSION: &str = "0.1.0";
