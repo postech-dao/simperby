@@ -20,10 +20,10 @@ pub struct Member {
     pub consensus_voting_power: VotingPower,
     /// If this member delegated its governance voting power to another member,
     /// the delegatee.
-    pub governance_delegations: Option<PublicKey>,
+    pub governance_delegations: Option<MemberName>,
     /// If this member delegated its governance consensus power to another member,
     /// the delegatee.
-    pub consensus_delegations: Option<PublicKey>,
+    pub consensus_delegations: Option<MemberName>,
     // TODO: add various conditions for each delegation.
     // - Unlock-Automatically-After-N-Blocks
     // - Unlock-Automatically-After-T-Seconds
