@@ -16,8 +16,11 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
     Ok(CommitHash { hash })
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> eyre::Result<()> {
+    color_eyre::install()?;
+    env_logger::init();
+
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();
     let config: Config =
