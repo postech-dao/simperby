@@ -17,7 +17,6 @@ use simperby_test_suite as test_suite;
 use std::fmt::Debug;
 use std::iter::once;
 use test_suite::*;
-use tokio::time::sleep;
 use vetomint2::ConsensusParams;
 
 fn get_initial_block_header(validator_set: Vec<(PublicKey, VotingPower)>) -> BlockHeader {
@@ -174,7 +173,7 @@ async fn single_server_propose_1() {
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
-        sleep(Duration::from_millis(200)).await;
+        sleep_ms(200).await;
         let mut expected = vec![ProgressResult::NonNilPreVoted(
             0,
             dummy_block_hash,
@@ -255,7 +254,7 @@ async fn single_server_propose_1() {
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
-        sleep(Duration::from_millis(200)).await;
+        sleep_ms(200).await;
         for r in &result {
             debug!("{:?}", r);
         }
