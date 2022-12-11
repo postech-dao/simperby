@@ -25,7 +25,8 @@ pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
         path, "reserved/consensus_leader_order.json"
     ))
     .await?;
-    let consensus_leader_order: Vec<usize> = serde_json::from_str(consensus_leader_order.as_str())?;
+    let consensus_leader_order: Vec<MemberName> =
+        serde_json::from_str(consensus_leader_order.as_str())?;
 
     let version = fs::read_to_string(format!("{}/{}", path, "reserved/version")).await?;
     let version: String = serde_json::from_str(version.as_str())?;

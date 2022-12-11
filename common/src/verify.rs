@@ -473,6 +473,10 @@ mod test {
                 .collect(),
             version: "0.0.0".to_string(),
         };
+        let members = get_members(&genesis_header.validator_set);
+        let mut consensus_leader_order: Vec<MemberName> =
+            members.iter().map(|member| member.name.clone()).collect();
+        consensus_leader_order.sort();
         ReservedState {
             genesis_info: GenesisInfo {
                 header: genesis_header.clone(),
@@ -482,8 +486,8 @@ mod test {
                 ),
                 chain_name: "PDAO Chain".to_string(),
             },
-            members: get_members(&genesis_header.validator_set), // TODO: fix to not use genesis header
-            consensus_leader_order: (0..validator_keypair.len()).collect(),
+            members, // TODO: fix to not use genesis header
+            consensus_leader_order,
             version: "0.0.0".to_string(),
         }
     }
@@ -537,7 +541,10 @@ mod test {
             governance_delegations: None,
             consensus_delegations: None,
         });
-        reserved_state.consensus_leader_order.push(3);
+        reserved_state
+            .consensus_leader_order
+            .push("Dave".to_string());
+        reserved_state.consensus_leader_order.sort();
         Commit::Transaction(Transaction {
             author: validator_keypair[2].0.clone(),
             timestamp: time,

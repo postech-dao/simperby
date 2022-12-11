@@ -651,7 +651,7 @@ impl<T: RawRepository> DistributedRepository<T> {
                     .collect::<Vec<_>>(),
             ),
             repository_merkle_root: Hash256::zero(), // TODO
-            validator_set: reserved_state.create_validator_set().unwrap(),
+            validator_set: reserved_state.get_validator_set().unwrap(),
             version: "0.0.0".to_string(),
         };
         let block_commit = Commit::Block(block_header.clone());
