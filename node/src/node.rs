@@ -116,6 +116,10 @@ impl SimperbyNode {
         })
     }
 
+    pub fn get_raw_repo(&self) -> &impl RawRepository {
+        self.repository.get_raw()
+    }
+
     pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
         self.repository.get_raw_mut()
     }
