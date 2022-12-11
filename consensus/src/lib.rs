@@ -113,7 +113,7 @@ impl VetomintWrapper {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConsensusMessage {
     Proposal {
         round: ConsensusRound,
@@ -126,7 +126,7 @@ pub enum ConsensusMessage {
     NilPreCommitted(ConsensusRound),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProgressResult {
     Proposed(ConsensusRound, Hash256, Timestamp),
     NonNilPreVoted(ConsensusRound, Hash256, Timestamp),

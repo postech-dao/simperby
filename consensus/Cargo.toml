@@ -16,3 +16,6 @@ simperby-common = { version = "0.0.0", path = "../common" }
 simperby-network = { version = "0.0.0", path = "../network" }
 vetomint2 = { version = "0.0.0", path = "../vetomint2" }
 parking_lot = "0.12.1"
+
+[dev-dependencies]
+simperby-test-suite = { version = "0.0.0", path = "../test-suite" }
