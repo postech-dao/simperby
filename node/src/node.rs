@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::*;
 use eyre::eyre;
 use simperby_consensus::{Consensus, ConsensusParameters};
@@ -219,7 +221,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
                     .get(&agenda.to_hash256())
                     .unwrap_or(&Default::default())
                     .iter()
-                    .filter_map(|public_key| {
+                    .filter_map(|(public_key, _)| {
                         self.last_reserved_state
                             .query_name(public_key)
                             .map(|x| (x, 0))
@@ -264,6 +266,41 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         let t2 = async { self.consensus.fetch().await };
         let t3 = async { self.repository.fetch().await };
         futures::try_join!(t1, t2, t3)?;
+
+        let governance_set = self
+            .last_reserved_state
+            .get_governance_set()
+            .unwrap()
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+        let governance_state = self.governance.read().await?;
+        let votes: Vec<(Hash256, VotingPower)> = governance_state
+            .votes
+            .iter()
+            .map(|(agenda, votes)| {
+                (
+                    *agenda,
+                    votes
+                        .keys()
+                        .map(|voter| governance_set.get(voter).unwrap())
+                        .sum(),
+                )
+            })
+            .collect();
+        let total_voting_power = governance_set.values().sum::<VotingPower>();
+        for (agenda, voted_power) in votes {
+            if voted_power * 2 > total_voting_power {
+                self.repository
+                    .approve(
+                        &agenda,
+                        governance_state.votes[&agenda]
+                            .iter()
+                            .map(|(k, s)| TypedSignature::new(s.clone(), k.clone()))
+                            .collect(),
+                    )
+                    .await?;
+            }
+        }
         Ok(())
     }
 }
