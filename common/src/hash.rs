@@ -8,55 +8,55 @@ impl ToHash256 for String {
 
 impl ToHash256 for Member {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for BlockHeader {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for Diff {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for Transaction {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for Agenda {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for AgendaProof {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for ExtraAgendaTransaction {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for ChatLog {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
 impl ToHash256 for GenesisInfo {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 

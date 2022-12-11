@@ -25,7 +25,7 @@ async fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();
     let config: Config =
-        serde_json::from_str(&tokio::fs::read_to_string(&format!("{}/config.json", path)).await?)?;
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/config.json", path)).await?)?;
 
     match args.command {
         Commands::Sync {

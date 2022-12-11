@@ -5,8 +5,8 @@ use eyre::eyre;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
-    BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Signature, Timestamp,
-    ToHash256, TypedSignature, VotingPower,
+    serde_spb, BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Signature,
+    Timestamp, ToHash256, TypedSignature, VotingPower,
 };
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
@@ -82,7 +82,7 @@ fn generate_height_info(
 
 async fn commit_state(state_storage: &mut impl Storage, state: &State) -> Result<(), Error> {
     state_storage
-        .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(state).unwrap())
+        .add_or_overwrite_file(STATE_FILE_NAME, serde_spb::to_string(state).unwrap())
         .await?;
     Ok(())
 }
@@ -151,7 +151,7 @@ impl MessageFilter for ConsensusMessageFilter {
             return Err("the signer is not in the validator set".to_string());
         }
         let consensus_message =
-            serde_json::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
+            serde_spb::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
         match consensus_message {
             ConsensusMessage::Proposal { block_hash, .. } => self.verify_block_hash(block_hash),
             ConsensusMessage::NonNilPreVoted(_, block_hash, prevote) => {
@@ -228,7 +228,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             this_node_key.clone().unwrap(),
         )?;
         let state = if let Ok(raw_state) = state_storage.read_file(STATE_FILE_NAME).await {
-            let state: State = serde_json::from_str(&raw_state)?;
+            let state: State = serde_spb::from_str(&raw_state)?;
             if block_header != state.block_header {
                 dms.clear(generate_dms_key(&block_header)).await?;
                 state_storage.remove_all_files().await?;
@@ -269,7 +269,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         self.state.verified_block_hashes.push(hash);
         self.verified_block_hashes.write().insert(hash);
         self.state_storage
-            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
+            .add_or_overwrite_file(STATE_FILE_NAME, serde_spb::to_string(&self.state).unwrap())
             .await?;
         Ok(())
     }
@@ -355,7 +355,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     .iter()
                     .position(|(pubkey, _)| pubkey == message.signature().signer())
                     .expect("this must be already verified by the message filter");
-                let consensus_message = serde_json::from_str::<ConsensusMessage>(message.data())
+                let consensus_message = serde_spb::from_str::<ConsensusMessage>(message.data())
                     .expect("this must be already verified by the message filter");
                 self.consensus_message_to_event(&consensus_message, signer)
             })
@@ -402,7 +402,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .into_iter()
             .map(|m| {
                 (
-                    serde_json::from_str::<ConsensusMessage>(m.data()),
+                    serde_spb::from_str::<ConsensusMessage>(m.data()),
                     m.signature().signer().clone(),
                 )
             })
@@ -465,7 +465,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
     async fn commit_state_to_storage(&mut self) -> Result<(), Error> {
         self.state_storage
-            .add_or_overwrite_file(STATE_FILE_NAME, serde_json::to_string(&self.state).unwrap())
+            .add_or_overwrite_file(STATE_FILE_NAME, serde_spb::to_string(&self.state).unwrap())
             .await
             .map_err(|_| eyre!("failed to commit consensus state to the storage"))
     }
@@ -474,7 +474,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         &mut self,
         consensus_message: &ConsensusMessage,
     ) -> Result<(), Error> {
-        let serialized = serde_json::to_string(consensus_message).unwrap();
+        let serialized = serde_spb::to_string(consensus_message).unwrap();
         let signature = TypedSignature::sign(&serialized, self.this_node_key.as_ref().unwrap())
             .expect("invalid(malformed) private key");
         let message = Message::new(serialized, signature).expect("signature just created");

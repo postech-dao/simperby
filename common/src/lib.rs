@@ -3,6 +3,7 @@ pub mod hash;
 pub mod light_client;
 pub mod merkle_tree;
 pub mod reserved;
+pub mod serde_spb;
 pub mod types;
 pub mod verify;
 

@@ -80,7 +80,7 @@ impl PeerDiscoveryPrimitiveImpl {
         message: String,
         port_map: HashMap<String, u16>,
     ) -> Result<DiscoveryBehaviour, Error> {
-        let message = serde_json::to_string(&(message, port_map))?;
+        let message = serde_spb::to_string(&(message, port_map))?;
         Ok(DiscoveryBehaviour::new(libp2p_keypair.public(), message))
     }
 
@@ -156,7 +156,7 @@ impl PeerDiscoveryPrimitiveImpl {
             .filter_map(|multiaddr| convert_multiaddr_into_sockv4(multiaddr.to_owned()).ok())
             .find(|address| global_v4(address.ip()) || address.ip().is_loopback())
             .ok_or_else(|| eyre!("no public ip address found"))?;
-        let (message, ports) = serde_json::from_str(&info.agent_version)?;
+        let (message, ports) = serde_spb::from_str(&info.agent_version)?;
         let peer = Peer {
             public_key,
             address: public_ip_addr,
