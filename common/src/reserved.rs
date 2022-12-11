@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use crate::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// The partial set of the blockchain state which is reserved and protected.
 ///
