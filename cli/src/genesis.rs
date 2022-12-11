@@ -34,7 +34,7 @@ pub async fn run_genesis_proposer(config: Config, path: &str) {
     println!("PRESS ENTER TO RUN SERVER -------- [A]");
     get_input();
     println!("SERVE STARTED -------- [A]");
-    let mut node = node.serve().await.unwrap();
+    let mut node = node.serve(15000).await.unwrap();
     println!("SERVE FINISHED");
 
     println!("STEP 1");
@@ -43,26 +43,26 @@ pub async fn run_genesis_proposer(config: Config, path: &str) {
     println!("PRESS ENTER TO RUN SERVER -------- [B]");
     get_input();
     println!("SERVE STARTED -------- [B]");
-    let mut node = node.serve().await.unwrap();
+    let mut node = node.serve(15000).await.unwrap();
     println!("SERVE FINISHED");
 
     println!("STEP 2");
-    node.progress_for_consensus().await.unwrap();
+    let _ = node.progress_for_consensus().await;
     println!("PRESS ENTER TO RUN SERVER -------- [C]");
     get_input();
     println!("SERVE STARTED -------- [C]");
-    let mut node = node.serve().await.unwrap();
+    let mut node = node.serve(15000).await.unwrap();
     println!("SERVE FINISHED");
 
     println!("STEP 3");
-    node.progress_for_consensus().await.unwrap();
+    let _ = node.progress_for_consensus().await;
     println!("PRESS ENTER TO RUN SERVER -------- [D]");
     get_input();
     println!("SERVE STARTED -------- [D]");
-    let node = node.serve().await.unwrap();
+    let node = node.serve(15000).await.unwrap();
     println!("SERVE FINISHED");
 
-    let result = node.get_consensus_status().await.unwrap();
+    let result = node.get_consensus_status().await;
     println!("{:?}", result);
 }
 
@@ -76,18 +76,18 @@ pub async fn run_genesis_non_proposer(config: Config, path: &str) {
     println!("PRESS ENTER AFTER THE [B] FLAG");
     get_input();
     node.fetch().await.unwrap();
-    node.progress_for_consensus().await.unwrap();
+    let _ = node.progress_for_consensus().await;
 
     println!("PRESS ENTER AFTER THE [C] FLAG");
     get_input();
     node.fetch().await.unwrap();
-    node.progress_for_consensus().await.unwrap();
+    let _ = node.progress_for_consensus().await;
 
     println!("PRESS ENTER AFTER THE [D] FLAG");
     get_input();
     node.fetch().await.unwrap();
-    node.progress_for_consensus().await.unwrap();
+    let _ = node.progress_for_consensus().await;
 
-    let result = node.get_consensus_status().await.unwrap();
+    let result = node.get_consensus_status().await;
     println!("{:?}", result);
 }
