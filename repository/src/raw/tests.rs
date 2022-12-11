@@ -1,7 +1,8 @@
 use super::SemanticCommit;
 use crate::raw::Error;
 use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
-use simperby_common::Diff;
+
+use simperby_common::{Diff, ToHash256};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -459,14 +460,16 @@ async fn reserved_state() {
     let (rs, _) = simperby_test_suite::generate_standard_genesis(10);
 
     repo.checkout(MAIN.into()).await.unwrap();
-    repo.create_semantic_commit(SemanticCommit {
-        title: "test".to_owned(),
-        body: "test-body".to_owned(),
-        diff: Diff::Reserved(Box::new(rs.clone())),
-    })
-    .await
-    .unwrap();
+    let commit_hash = repo
+        .create_semantic_commit(SemanticCommit {
+            title: "test".to_owned(),
+            body: "test-body".to_owned(),
+            diff: Diff::Reserved(Box::new(rs.clone())),
+        })
+        .await
+        .unwrap();
     let rs_after = repo.read_reserved_state().await.unwrap();
+    let _semantic_commit = repo.read_semantic_commit(commit_hash).await.unwrap();
 
     assert_eq!(rs_after, rs);
 }
@@ -485,4 +488,23 @@ async fn clone() {
 
     let branch_list = repo.list_branches().await.unwrap();
     assert_eq!(branch_list, vec![MAIN.to_owned()]);
+}
+
+#[tokio::test]
+async fn semantic_commit() {
+    let td = TempDir::new().unwrap();
+    let path = td.path();
+    let mut repo = init_repository_with_initial_commit(path).await.unwrap();
+
+    let commit_file = repo
+        .create_commit("add a file".to_string(), None)
+        .await
+        .unwrap();
+
+    let semantic_commit_nonreserved = repo.read_semantic_commit(commit_file).await.unwrap();
+
+    let patch = repo.show_commit(commit_file).await.unwrap();
+    let hash = patch.to_hash256();
+
+    assert_eq!(semantic_commit_nonreserved.diff, Diff::NonReserved(hash));
 }

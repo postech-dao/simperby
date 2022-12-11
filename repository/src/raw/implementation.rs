@@ -250,8 +250,16 @@ impl RawRepositoryImplInner {
         commit_message: String,
         _diff: Option<String>,
     ) -> Result<CommitHash, Error> {
+        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
+        let p = format!("{}/{}", workdir, "test");
+        fs::File::create(p.as_str())
+            .map_err(|_| Error::Unknown("full directory path does not exist".to_string()))?;
+        fs::write(p.as_str(), "test")
+            .map_err(|_| Error::Unknown("full directory path does not exist".to_string()))?;
+
         let sig = self.repo.signature()?;
         let mut index = self.repo.index()?;
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
         let tree = self.repo.find_tree(id)?;
         let head = self.get_head()?;
@@ -266,6 +274,9 @@ impl RawRepositoryImplInner {
             &tree,
             &[&parent_commit],
         )?;
+
+        let obj = self.repo.find_object(oid, None)?;
+        self.repo.reset(&obj, git2::ResetType::Hard, None)?;
 
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
@@ -358,16 +369,29 @@ impl RawRepositoryImplInner {
         let diff = self
             .repo
             .diff_tree_to_tree(Some(&tree), Some(&parent_tree), None)?;
+
         let diff = if diff.deltas().len() == 0 {
             Diff::None
         } else {
-            let reserved_state = self.read_reserved_state()?;
-            Diff::Reserved(Box::new(reserved_state))
+            let patch = self.show_commit(commit_hash)?;
+            let hash = patch.to_hash256();
+            Diff::NonReserved(hash)
         };
+        /* TODO: If reserved state
+        let reserved_state = self.read_reserved_state()?;
+        Diff::Reserved(Box::new(reserved_state))*/
 
-        let commit_message = commit.message().unwrap().split('\n').collect::<Vec<_>>();
+        let commit_message = commit
+            .message()
+            .ok_or_else(|| Error::Unknown("the message is not valid utf-8".to_string()))?
+            .split('\n')
+            .collect::<Vec<_>>();
         let title = commit_message[0].to_string();
-        let body = commit_message[1..].join("\n");
+        let body = if commit_message.len() == 1 {
+            "".to_string()
+        } else {
+            commit_message[1..].join("\n")
+        };
         let semantic_commit = SemanticCommit { title, body, diff };
 
         Ok(semantic_commit)
@@ -590,6 +614,7 @@ impl RawRepositoryImplInner {
                 async move { reserved_state::read_reserved_state(&format!("{}/", path)).await },
             )
             .map_err(|e| Error::Unknown(e.to_string()))?;
+
         Ok(reserved_state)
     }
 
