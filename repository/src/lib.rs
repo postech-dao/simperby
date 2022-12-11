@@ -125,15 +125,21 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&block_commit);
 
         self.raw.checkout_clean().await?;
-        self.raw
+        // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
+        let _ = self
+            .raw
             .create_branch(FINALIZED_BRANCH_NAME.into(), self.raw.get_head().await?)
             .await?;
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
-        self.raw
+        // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
+        let _ = self
+            .raw
             .create_branch(WORK_BRANCH_NAME.into(), result)
             .await?;
-        self.raw
+        // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
+        let _ = self
+            .raw
             .create_branch(FP_BRANCH_NAME.into(), result)
             .await?;
         self.raw.checkout(FP_BRANCH_NAME.into()).await?;
