@@ -268,13 +268,17 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// and the `fp` branch will be updated as well.
     pub async fn sync(
         &mut self,
-        block_commit_hash: &CommitHash,
+        block_hash: &Hash256,
         last_block_proof: &FinalizationProof,
     ) -> Result<(), Error> {
+        let block_branch_name =
+            format!("b-{}", &block_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
+        let block_commit_hash = self.raw.locate_branch(block_branch_name.clone()).await?;
+
         // Check if the last commit is a block commit.
         let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let new_commits =
-            utils::read_commits(self, current_finalized_commit, *block_commit_hash).await?;
+            utils::read_commits(self, current_finalized_commit, block_commit_hash).await?;
         let last_block_header =
             if let Commit::Block(last_block_header) = &new_commits.last().unwrap().0 {
                 last_block_header
@@ -285,7 +289,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check if the given block commit is a descendant of the current finalized branch
         if self
             .raw
-            .find_merge_base(current_finalized_commit, *block_commit_hash)
+            .find_merge_base(current_finalized_commit, block_commit_hash)
             .await?
             != current_finalized_commit
         {
@@ -316,10 +320,10 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Then we update the `fp` branch.
         self.raw.checkout_clean().await?;
         self.raw
-            .move_branch(FINALIZED_BRANCH_NAME.to_string(), *block_commit_hash)
+            .move_branch(FINALIZED_BRANCH_NAME.to_string(), block_commit_hash)
             .await?;
         self.raw
-            .move_branch(FP_BRANCH_NAME.to_string(), *block_commit_hash)
+            .move_branch(FP_BRANCH_NAME.to_string(), block_commit_hash)
             .await?;
         self.raw.checkout(FP_BRANCH_NAME.into()).await?;
         self.raw

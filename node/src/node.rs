@@ -1,6 +1,6 @@
 use super::*;
 use eyre::eyre;
-use simperby_consensus::{Consensus, ConsensusParameters};
+use simperby_consensus::{Consensus, ConsensusParameters, ProgressResult};
 use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_network::NetworkConfig;
 use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
@@ -245,6 +245,11 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
 
     async fn progress_for_consensus(&mut self) -> Result<String> {
         let result = self.consensus.progress(get_timestamp()).await?;
+        for result in result.iter() {
+            if let ProgressResult::Finalized(hash, _, proof) = result {
+                self.repository.sync(hash, proof).await?;
+            }
+        }
         Ok(format!("{:?}", result))
     }
 
