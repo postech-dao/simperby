@@ -144,18 +144,25 @@ pub struct ConsensusMessageFilter {
 
 impl MessageFilter for ConsensusMessageFilter {
     fn filter(&self, message: &Message) -> Result<(), String> {
-        serde_json::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
         if !self.validator_set.contains(message.signature().signer()) {
             return Err("the signer is not in the validator set".to_string());
         }
-        if self
-            .verified_block_hashes
-            .read()
-            .contains(&message.to_hash256())
-        {
-            Ok(())
-        } else {
-            Err("the block hash is not verified yet.".to_string())
+        let consensus_message =
+            serde_json::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
+        match consensus_message {
+            ConsensusMessage::Proposal { block_hash, .. }
+            | ConsensusMessage::NonNilPreVoted(_, block_hash)
+            | ConsensusMessage::NonNilPreCommitted(_, block_hash) => {
+                if self.verified_block_hashes.read().contains(&block_hash) {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "the block hash is not verified yet: {}",
+                        block_hash
+                    ))
+                }
+            }
+            _ => Ok(()),
         }
     }
 }
