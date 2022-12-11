@@ -370,6 +370,16 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
 // Private methods
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+    /// Reads all consensusmessages in its dms.
+    pub async fn read_messages(&self) -> Result<Vec<ConsensusMessage>, Error> {
+        let raw_messages = self.dms.read_messages().await?;
+        let messages = raw_messages
+            .into_iter()
+            .filter_map(|m| serde_json::from_str::<ConsensusMessage>(m.data()).ok())
+            .collect();
+        Ok(messages)
+    }
+
     fn construct_new_state(
         block_header: &BlockHeader,
         consensus_parameters: ConsensusParams,
