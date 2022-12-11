@@ -41,7 +41,12 @@ impl ReservedState {
             .iter()
             .map(|(public_key, voting_power)| (public_key.clone(), *voting_power))
             .collect();
-        validator_set.sort_by_key(|(public_key, _)| self.query_name(public_key).unwrap());
+        validator_set.sort_by_key(|(public_key, _)| {
+            self.consensus_leader_order
+                .iter()
+                .position(|member_name| *member_name == self.query_name(public_key).unwrap())
+                .unwrap()
+        });
         Ok(validator_set)
     }
 
