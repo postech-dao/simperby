@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::*;
 use serde::{Deserialize, Serialize};
 
@@ -14,22 +16,32 @@ pub struct ReservedState {
     /// The leader order of the consensus rounds.
     ///
     /// It MUST be sorted by the name of the members.
-    pub consensus_leader_order: Vec<usize>,
+    pub consensus_leader_order: Vec<MemberName>,
     /// The semantic version of Simperby protocol for this network.
     pub version: String,
 }
 
 impl ReservedState {
-    pub fn create_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut validator_set = Vec::new();
-        for leader in &self.consensus_leader_order {
-            let member = &self.members.get(*leader).ok_or(format!(
-                "invalid 
-            consensus_leader_order: {}",
-                leader
-            ))?;
-            validator_set.push((member.public_key.clone(), member.consensus_voting_power));
+    pub fn get_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
+        let mut validator_set = HashMap::new();
+        for member in &self.members {
+            if let Some(delegatee) = &member.consensus_delegations {
+                validator_set
+                    .entry(delegatee.clone())
+                    .and_modify(|v| *v += member.consensus_voting_power)
+                    .or_insert(member.consensus_voting_power);
+            } else {
+                validator_set
+                    .entry(member.public_key.clone())
+                    .and_modify(|v| *v += member.consensus_voting_power)
+                    .or_insert(member.consensus_voting_power);
+            }
         }
+        let mut validator_set: Vec<(PublicKey, u64)> = validator_set
+            .iter()
+            .map(|(public_key, voting_power)| (public_key.clone(), *voting_power))
+            .collect();
+        validator_set.sort_by_key(|(public_key, _)| self.query_name(public_key).unwrap());
         Ok(validator_set)
     }
 
