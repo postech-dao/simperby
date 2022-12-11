@@ -338,9 +338,10 @@ impl CommitSequenceVerifier {
                         if let Some(weight) = governance_set.get(s.signer()) {
                             Ok(*weight)
                         } else {
-                            Err(Error::InvalidArgument(
-                                "invalid agenda proof: invalid signer".to_string(),
-                            ))
+                            Err(Error::InvalidArgument(format!(
+                                "invalid agenda proof: invalid signer {}",
+                                s.signer()
+                            )))
                         }
                     })
                     .collect::<Result<Vec<_>, Error>>()?
