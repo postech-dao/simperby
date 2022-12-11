@@ -1,7 +1,10 @@
+#![cfg(never)]
+
 use simperby_common::*;
 use simperby_node::*;
 use simperby_repository::raw::RawRepository;
 use simperby_test_suite::*;
+use tokio::io::AsyncWriteExt;
 
 fn generate_config(key: PrivateKey, chain_name: String) -> Config {
     Config {
@@ -16,6 +19,16 @@ fn generate_config(key: PrivateKey, chain_name: String) -> Config {
 
 #[tokio::test]
 #[ignore]
+async fn setup_peer(path: &str, peers: &[Peer]) {
+    let mut file = tokio::fs::File::create(format!("{}/peers.json", path))
+        .await
+        .unwrap();
+    file.write_all(&serde_spb::to_vec(&peers).unwrap())
+        .await
+        .unwrap();
+    file.flush().await.unwrap();
+}
+
 async fn normal_1() {
     let (rs, keys) = generate_standard_genesis(4);
     let chain_name = "normal_1".to_owned();
@@ -27,12 +40,24 @@ async fn normal_1() {
 
     // Step 0: initialize each's repo
     let server_dir = create_temp_dir();
+    setup_peer(&server_dir, &[]).await;
     setup_pre_genesis_repository(&server_dir, rs.clone()).await;
     let mut proposer_node = initialize(configs[0].clone(), &server_dir).await.unwrap();
     let mut other_nodes = Vec::new();
     for config in configs[1..=3].iter() {
         let dir = create_temp_dir();
-        copy_repository(&server_dir, &dir).await;
+        setup_peer(
+            &dir,
+            &[Peer {
+                public_key: configs[0].public_key.clone(),
+                name: "proposer".to_owned(),
+                address: "127.0.0.1:1".parse().unwrap(),
+                ports: todo!(),
+                message: "123".to_owned(),
+                recently_seen_timestamp: 0,
+            }],
+        )
+        .await;
         other_nodes.push(initialize(config.clone(), &dir).await.unwrap());
     }
 

@@ -17,6 +17,8 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     last_reserved_state: ReservedState,
     #[allow(dead_code)]
     last_finalized_header: BlockHeader,
+
+    path: String,
 }
 
 impl SimperbyNode {
@@ -261,8 +263,38 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         unimplemented!()
     }
 
-    async fn serve(self) -> Result<Self> {
-        todo!()
+    async fn serve(self, ms: u64) -> Result<Self> {
+        let repository_port = self.config.repository_port;
+        let governance_port = self.config.governance_port;
+        let consensus_port = self.config.consensus_port;
+
+        let t1 =
+            tokio::spawn(async move { self.governance.serve(ms, governance_port).await.unwrap() });
+        let t2 =
+            tokio::spawn(async move { self.consensus.serve(ms, consensus_port).await.unwrap() });
+        let path = self.path.clone();
+        tokio::spawn(async move {
+            let server = simperby_repository::server::run_server(
+                &format!("{}/repository", path),
+                repository_port,
+            )
+            .await;
+            tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+            drop(server);
+        });
+
+        let governance = t1.await?;
+        let consensus = t2.await?;
+
+        Ok(Self {
+            governance,
+            consensus,
+            config: self.config,
+            repository: self.repository,
+            last_reserved_state: self.last_reserved_state,
+            last_finalized_header: self.last_finalized_header,
+            path: self.path,
+        })
     }
 
     async fn fetch(&mut self) -> Result<()> {
