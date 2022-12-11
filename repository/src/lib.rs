@@ -472,17 +472,19 @@ impl<T: RawRepository> DistributedRepository<T> {
         };
         let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
         let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit);
-        let agenda_proof_commit_hash = self
-            .raw
-            .create_semantic_commit(agenda_proof_semantic_commit)
-            .await?;
         let agenda_proof_branch_name = format!(
             "a-{}",
             &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
         );
         self.raw
-            .create_branch(agenda_proof_branch_name, agenda_proof_commit_hash)
+            .create_branch(agenda_proof_branch_name.clone(), agenda_commit_hash)
             .await?;
+        self.raw.checkout(agenda_proof_branch_name).await?;
+        let agenda_proof_commit_hash = self
+            .raw
+            .create_semantic_commit(agenda_proof_semantic_commit)
+            .await?;
+
         Ok(agenda_proof_commit_hash)
     }
 
