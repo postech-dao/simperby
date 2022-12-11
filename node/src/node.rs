@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::*;
 use eyre::eyre;
 use simperby_consensus::{Consensus, ConsensusParameters};
@@ -8,6 +6,7 @@ use simperby_network::NetworkConfig;
 use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
 use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
 use simperby_repository::DistributedRepository;
+use std::collections::HashMap;
 
 pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     config: Config,
