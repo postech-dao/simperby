@@ -1,4 +1,5 @@
 use super::*;
+use log::trace;
 use utils::*;
 
 pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Result<(), Error> {
@@ -66,7 +67,7 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             .iter()
             .any(|(_, local_branch_commit_hash)| *local_branch_commit_hash == commit_hash)
         {
-            info!(
+            trace!(
                 "skip {}: already tracked by local repository",
                 branch_displayed
             );
@@ -80,7 +81,7 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
                 .find_merge_base(last_finalized_commit_hash, commit_hash)
                 .await?
         {
-            info!("remote tracking branch outdated: {}", branch_displayed);
+            trace!("remote tracking branch outdated: {}", branch_displayed);
             continue;
         }
 

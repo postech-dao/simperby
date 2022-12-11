@@ -317,7 +317,7 @@ impl RawRepositoryImplInner {
                 let sig = self.repo.signature()?;
                 let id = index.write_tree()?;
                 let tree = self.repo.find_tree(id)?;
-                let commit_message = format!("{}{}{}", commit.title, "\n", commit.body); // TODO: Check "\n" divides commit message's head and body.
+                let commit_message = format!("{}\n\n\n\n\n{}", commit.title, commit.body); // TODO: Check "\n" divides commit message's head and body.
                 let head = self.get_head()?;
                 let parent_oid = git2::Oid::from_bytes(&head.hash)?;
                 let parent_commit = self.repo.find_commit(parent_oid)?;
