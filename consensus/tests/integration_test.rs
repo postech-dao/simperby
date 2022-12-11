@@ -1,5 +1,7 @@
 use common::{BlockHeight, Timestamp};
+#[allow(unused_imports)]
 use log::debug;
+use std::fmt::Debug;
 use simperby_common::{
     self as common,
     crypto::{Hash256, PublicKey},
@@ -48,6 +50,16 @@ fn get_network_id_and_dms_key(testname: &str) -> (String, String) {
     (network_id, dms_key)
 }
 
+/// This may panic.
+fn assert_eq_unordered<T: Eq + PartialEq + Debug>(expected: Vec<T>, actual: Vec<T>) {
+    let result = expected.len() == actual.len()
+        && actual.iter().all(|a| expected.contains(a))
+        && expected.iter().all(|e| actual.contains(e));
+    if !result {
+        panic!("assert_eq_unordered failed: \nexpected: {:?}\nactual: {:?}", expected, actual);
+    }
+}
+
 #[tokio::test]
 async fn single_server_propose_1() {
     setup_test();
@@ -85,7 +97,7 @@ async fn single_server_propose_1() {
     .await
     .unwrap();
     let mut other_nodes = Vec::new();
-    for config in other_configs {
+    for config in &other_configs {
         let consensus = Consensus::new(
             create_test_dms(config.clone(), dms_key.clone(), peers.clone()).await,
             create_storage(create_temp_dir()).await,
@@ -112,26 +124,60 @@ async fn single_server_propose_1() {
             .unwrap();
     }
 
-    // Make consensus
+    // Step 1: The server node proposes a block
+    // Expected: The server node proposes a block and prevotes on it.
     // Initial block candidate is set to 0 by default, so we progress without setting a new candidate.
-    let result = server_node.progress(get_timestamp()).await.unwrap();
-    debug!("progress result: {:?}", result);
-    assert!(result
-        .iter()
-        .any(|r| matches!(r, ProgressResult::Proposed(..))));
+    let timestamp = get_timestamp();
+    let result = server_node.progress(timestamp).await.unwrap();
+    let expected = vec![ProgressResult::Proposed(0, dummy_block_hash, timestamp), ProgressResult::NonNilPreVoted(0, dummy_block_hash, timestamp)];
+    assert_eq!(result, expected);
 
+    // Step 2: Non-server nodes fetch messages from the server and make progress.
+    // Expected: Node 0, 1 will prevote, node 2, 3 will precommit.
     let serve_task = tokio::spawn(async { server_node.serve(3_000).await });
-    for other_node in &mut other_nodes {
+    for (i, other_node) in other_nodes.iter_mut().enumerate() {
         other_node.fetch().await.unwrap();
-        let result = other_node.progress(get_timestamp()).await.unwrap();
-        assert!(result
-            .iter()
-            .any(|r| matches!(r, ProgressResult::NonNilPreVoted(..))));
+        let timestamp = get_timestamp();
+        let result = other_node.progress(timestamp).await.unwrap();
+        let mut expected = vec![ProgressResult::NonNilPreVoted(0, dummy_block_hash, timestamp)];
+        // The nodes will broadcast precommits as well if they see prevotes over 2/3.
+        // Plus-ones for the server and the node itself.
+        if ((i + 1 + 1) as f64 / num_nodes as f64) > 2 as f64 / 3 as f64 {
+            expected.push(ProgressResult::NonNilPreCommitted(0, dummy_block_hash, timestamp));
+        }
+        assert_eq!(result, expected);
     }
     let server_node = serve_task.await.unwrap().unwrap();
+
+    // Check if prevotes and precommits are broadcasted well.
     let messages = server_node.read_messages().await.unwrap();
-    let prevotes = messages
-        .iter()
-        .filter(|message| matches!(message, ConsensusMessage::NonNilPreVoted(..)));
-    assert_eq!(prevotes.count(), num_nodes)
+    let mut expected = vec![
+        (ConsensusMessage::Proposal { round: 0, valid_round: None, block_hash: dummy_block_hash }, server_config.public_key.clone()),
+        (ConsensusMessage::NonNilPreVoted(0, dummy_block_hash), server_config.public_key.clone()),
+    ];
+    for (i, config) in other_configs.iter().enumerate() {
+        expected.push((ConsensusMessage::NonNilPreVoted(0, dummy_block_hash), config.public_key.clone()));
+        if ((i + 1 + 1) as f64 / num_nodes as f64) > 2 as f64 / 3 as f64 {
+            expected.push((ConsensusMessage::NonNilPreCommitted(0, dummy_block_hash), config.public_key.clone()));
+        }
+    }
+    assert_eq_unordered(expected, messages);
+
+    // Step 3: Run fetch on non-server nodes again so that all of them can see prevotes and then do precommits.
+    // Expected: Node 0, 1 will precommit, node 2, 3 will do nothing.
+    for (i, other_node) in other_nodes.iter_mut().enumerate() {
+        other_node.fetch().await.unwrap();
+        let timestamp = get_timestamp();
+        let result = other_node.progress(timestamp).await.unwrap();
+        let mut expected = vec![ProgressResult::NonNilPreVoted(0, dummy_block_hash, timestamp)];
+        // The nodes will broadcast precommits as well if they see prevotes over 2/3.
+        // Plus-ones for the server and the node itself.
+        if ((i + 1 + 1) as f64 / num_nodes as f64) > 2 as f64 / 3 as f64 {
+            expected.push(ProgressResult::NonNilPreCommitted(0, dummy_block_hash, timestamp));
+        }
+        assert_eq!(result, expected);
+    }
+
+    // Step 4: Progress the server node.
+    // Expected: The server node 
 }

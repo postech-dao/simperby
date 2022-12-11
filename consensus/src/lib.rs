@@ -107,7 +107,7 @@ impl VetomintWrapper {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConsensusMessage {
     Proposal {
         round: ConsensusRound,
@@ -124,7 +124,7 @@ pub enum ConsensusMessage {
     NilPreCommitted(ConsensusRound),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProgressResult {
     Proposed(ConsensusRound, Hash256, Timestamp),
     NonNilPreVoted(ConsensusRound, Hash256, Timestamp),
@@ -370,12 +370,13 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 
 // Private methods
 impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
-    /// Reads all consensusmessages in its dms.
-    pub async fn read_messages(&self) -> Result<Vec<ConsensusMessage>, Error> {
+    /// Reads all consensus messages with its signer in the dms.
+    pub async fn read_messages(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
         let raw_messages = self.dms.read_messages().await?;
         let messages = raw_messages
             .into_iter()
-            .filter_map(|m| serde_json::from_str::<ConsensusMessage>(m.data()).ok())
+            .map(|m| (serde_json::from_str::<ConsensusMessage>(m.data()), m.signature().signer().clone()))
+            .filter_map(|(cm, pk)| cm.ok().map(|cm| (cm, pk)))
             .collect();
         Ok(messages)
     }
