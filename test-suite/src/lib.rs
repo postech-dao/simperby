@@ -133,7 +133,7 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
 }
 
 pub async fn copy_repository(source_path: &str, dest_path: &str) {
-    run_command(format!("mkdir -p {}/repository/repo", dest_path)).await;
+    run_command(format!("mkdir -p {}/repository", dest_path)).await;
     run_command(format!(
         "cp -r {}/repository/repo {}/repository/repo",
         source_path, dest_path
