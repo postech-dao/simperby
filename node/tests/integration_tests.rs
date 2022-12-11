@@ -73,14 +73,22 @@ async fn normal_1() {
     let mut proposer_node = serve.await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
 
-    for mut node in std::iter::once(proposer_node).chain(other_nodes.into_iter()) {
+    // Step 4: Propagate finalized proof
+    let serve = tokio::spawn(async move { proposer_node.serve().await.unwrap() });
+    sleep_ms(1000).await;
+    for node in other_nodes.iter_mut() {
+        node.fetch().await.unwrap();
+    }
+    let proposer_node = serve.await.unwrap();
+
+    for node in std::iter::once(proposer_node).chain(other_nodes.into_iter()) {
         let finalized = node
-            .get_raw_repo_mut()
+            .get_raw_repo()
             .locate_branch("finalized".to_owned())
             .await
             .unwrap();
         let title = node
-            .get_raw_repo_mut()
+            .get_raw_repo()
             .read_semantic_commit(finalized)
             .await
             .unwrap()
