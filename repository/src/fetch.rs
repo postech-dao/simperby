@@ -135,7 +135,8 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
                 }
             }
 
-            // If failed, finalize the second to last block.
+            // If failed, finalize the second block from the last block
+            // using `prev_block_finalization_proof`.
             if !hit && block_commit_hashes.len() > 2 {
                 let last_block = csv.get_block_headers().last().unwrap().clone();
                 last_finalization_proof = LastFinalizationProof {
