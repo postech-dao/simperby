@@ -335,12 +335,13 @@ impl CommitSequenceVerifier {
                     .proof
                     .iter()
                     .map(|s| {
-                        if !governance_set.contains_key(s.signer()) {
-                            return Err(Error::InvalidArgument(
+                        if let Some(weight) = governance_set.get(s.signer()) {
+                            Ok(*weight)
+                        } else {
+                            Err(Error::InvalidArgument(
                                 "invalid agenda proof: invalid signer".to_string(),
-                            ));
+                            ))
                         }
-                        Ok(governance_set[s.signer()])
                     })
                     .collect::<Result<Vec<_>, Error>>()?
                     .iter()
