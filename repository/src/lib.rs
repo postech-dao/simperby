@@ -129,19 +129,16 @@ impl<T: RawRepository> DistributedRepository<T> {
         let _ = self
             .raw
             .create_branch(FINALIZED_BRANCH_NAME.into(), self.raw.get_head().await?)
-            .await?;
+            .await;
         self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
         let _ = self
             .raw
             .create_branch(WORK_BRANCH_NAME.into(), result)
-            .await?;
+            .await;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
-        let _ = self
-            .raw
-            .create_branch(FP_BRANCH_NAME.into(), result)
-            .await?;
+        let _ = self.raw.create_branch(FP_BRANCH_NAME.into(), result).await;
         self.raw.checkout(FP_BRANCH_NAME.into()).await?;
         self.raw
             .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
