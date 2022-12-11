@@ -211,7 +211,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             commit_state(&mut state_storage, &new_state).await?;
             new_state
         };
-        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::new()));
+        let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::from_iter(
+            state.verified_block_hashes.iter().cloned(),
+        )));
         dms.set_filter(Arc::new(ConsensusMessageFilter {
             verified_block_hashes: Arc::clone(&verified_block_hashes),
             validator_set: state
