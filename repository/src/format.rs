@@ -193,7 +193,7 @@ mod tests {
             commit_merkle_root: Hash256::hash("hello2"),
             repository_merkle_root: Hash256::hash("hello3"),
             validator_set: vec![(PublicKey::zero(), 1)],
-            version: "0.1.2".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         });
         assert_eq!(
             block,

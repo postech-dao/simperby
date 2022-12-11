@@ -656,7 +656,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             ),
             repository_merkle_root: Hash256::zero(), // TODO
             validator_set: reserved_state.get_validator_set().unwrap(),
-            version: "0.0.0".to_string(),
+            version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         };
         let block_commit = Commit::Block(block_header.clone());
         let semantic_commit = to_semantic_commit(&block_commit);

@@ -13,8 +13,6 @@ use simperby_governance::Governance;
 use simperby_repository::raw::SemanticCommit;
 use simperby_repository::CommitHash;
 
-pub const PROTOCOL_VERSION: &str = "0.0.0";
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub chain_name: String,
