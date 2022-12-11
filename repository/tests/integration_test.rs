@@ -70,7 +70,7 @@ async fn basic_1() {
         client_node_repo.get_agendas().await.unwrap(),
         vec![(agenda_commit, agenda.to_hash256())]
     );
-    server_node_repo
+    let agenda_proof = server_node_repo
         .approve(
             &agenda.to_hash256(),
             keys.iter()
@@ -79,6 +79,11 @@ async fn basic_1() {
         )
         .await
         .unwrap();
+    run_command(format!(
+        "cd {}/repository/repo && git branch -f work {}",
+        server_node_dir, agenda_proof
+    ))
+    .await;
 
     // Step 1: create a block and let the client update that
     let (block, block_commit) = server_node_repo
