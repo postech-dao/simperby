@@ -32,22 +32,17 @@ impl ReservedState {
                     .or_insert(member.consensus_voting_power);
             } else {
                 validator_set
-                    .entry(member.public_key.clone())
+                    .entry(member.name.clone())
                     .and_modify(|v| *v += member.consensus_voting_power)
                     .or_insert(member.consensus_voting_power);
             }
         }
-        let mut validator_set: Vec<(PublicKey, u64)> = validator_set
+        // TODO handle error
+        Ok(self
+            .consensus_leader_order
             .iter()
-            .map(|(public_key, voting_power)| (public_key.clone(), *voting_power))
-            .collect();
-        validator_set.sort_by_key(|(public_key, _)| {
-            self.consensus_leader_order
-                .iter()
-                .position(|member_name| *member_name == self.query_name(public_key).unwrap())
-                .unwrap()
-        });
-        Ok(validator_set)
+            .map(|name| (self.query_public_key(name).unwrap(), validator_set[name]))
+            .collect())
     }
 
     pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
@@ -60,14 +55,14 @@ impl ReservedState {
                     .or_insert(member.consensus_voting_power);
             } else {
                 governance_set
-                    .entry(member.public_key.clone())
+                    .entry(member.name.clone())
                     .and_modify(|v| *v += member.consensus_voting_power)
                     .or_insert(member.consensus_voting_power);
             }
         }
         Ok(governance_set
             .iter()
-            .map(|(public_key, voting_power)| (public_key.clone(), *voting_power))
+            .map(|(name, voting_power)| (self.query_public_key(name).unwrap(), *voting_power))
             .collect())
     }
 
@@ -83,6 +78,15 @@ impl ReservedState {
         for member in &self.members {
             if &member.public_key == public_key {
                 return Some(member.name.clone());
+            }
+        }
+        None
+    }
+
+    pub fn query_public_key(&self, name: &MemberName) -> Option<PublicKey> {
+        for member in &self.members {
+            if &member.name == name {
+                return Some(member.public_key.clone());
             }
         }
         None
