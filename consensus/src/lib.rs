@@ -5,8 +5,8 @@ use eyre::eyre;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
-    BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Timestamp, ToHash256,
-    TypedSignature, VotingPower,
+    BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Signature, Timestamp,
+    ToHash256, TypedSignature, VotingPower,
 };
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
@@ -21,6 +21,12 @@ pub type Error = eyre::Error;
 const STATE_FILE_NAME: &str = "state.json";
 pub type Nil = ();
 const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
+
+/// The signed `String` is constructed by `format!("{}-prevote", block_hash)`.
+type Prevote = TypedSignature<String>;
+/// This can be verified by `precommit.get_raw_signature().verify(block_hash, signer)`
+/// where `block_hash` is the hash of `BlockHeader`.
+type Precommit = TypedSignature<BlockHeader>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
@@ -114,12 +120,8 @@ pub enum ConsensusMessage {
         valid_round: Option<ConsensusRound>,
         block_hash: Hash256,
     },
-    NonNilPreVoted(
-        ConsensusRound,
-        /// The hash of the voted block
-        Hash256,
-    ),
-    NonNilPreCommitted(ConsensusRound, Hash256),
+    NonNilPreVoted(ConsensusRound, Hash256, Prevote),
+    NonNilPreCommitted(ConsensusRound, Hash256, Precommit),
     NilPreVoted(ConsensusRound),
     NilPreCommitted(ConsensusRound),
 }
@@ -144,25 +146,48 @@ pub struct ConsensusMessageFilter {
 
 impl MessageFilter for ConsensusMessageFilter {
     fn filter(&self, message: &Message) -> Result<(), String> {
-        if !self.validator_set.contains(message.signature().signer()) {
+        let signer = message.signature().signer();
+        if !self.validator_set.contains(signer) {
             return Err("the signer is not in the validator set".to_string());
         }
         let consensus_message =
             serde_json::from_str::<ConsensusMessage>(message.data()).map_err(|e| e.to_string())?;
         match consensus_message {
-            ConsensusMessage::Proposal { block_hash, .. }
-            | ConsensusMessage::NonNilPreVoted(_, block_hash)
-            | ConsensusMessage::NonNilPreCommitted(_, block_hash) => {
-                if self.verified_block_hashes.read().contains(&block_hash) {
-                    Ok(())
-                } else {
-                    Err(format!(
-                        "the block hash is not verified yet: {}",
-                        block_hash
-                    ))
+            ConsensusMessage::Proposal { block_hash, .. } => self.verify_block_hash(block_hash),
+            ConsensusMessage::NonNilPreVoted(_, block_hash, prevote) => {
+                if signer != prevote.signer() {
+                    return Err("DMS message signer does not match with prevote signer".to_string());
                 }
+                let original_data = format!("{}-{}", block_hash, "prevote");
+                prevote.verify(&original_data).map_err(|e| e.to_string())?;
+                self.verify_block_hash(block_hash)
+            }
+            ConsensusMessage::NonNilPreCommitted(_, block_hash, precommit) => {
+                if signer != precommit.signer() {
+                    return Err(
+                        "DMS message signer does not match with precommit signer".to_string()
+                    );
+                }
+                precommit
+                    .get_raw_signature()
+                    .verify(block_hash, signer)
+                    .map_err(|e| e.to_string())?;
+                self.verify_block_hash(block_hash)
             }
             _ => Ok(()),
+        }
+    }
+}
+
+impl ConsensusMessageFilter {
+    fn verify_block_hash(&self, block_hash: Hash256) -> Result<(), String> {
+        if self.verified_block_hashes.read().contains(&block_hash) {
+            Ok(())
+        } else {
+            Err(format!(
+                "the block hash is not verified yet: {}",
+                block_hash
+            ))
         }
     }
 }
@@ -473,7 +498,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     favor: !self.state.vetoed_block_hashes.contains(block_hash),
                 }
             }
-            ConsensusMessage::NonNilPreVoted(round, block_hash) => {
+            ConsensusMessage::NonNilPreVoted(round, block_hash, _) => {
                 let index = self
                     .get_block_index(block_hash)
                     .expect("this must be already verified by the message filter");
@@ -483,7 +508,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     round: *round as usize,
                 }
             }
-            ConsensusMessage::NonNilPreCommitted(round, block_hash) => {
+            ConsensusMessage::NonNilPreCommitted(round, block_hash, _) => {
                 let index = self
                     .get_block_index(block_hash)
                     .expect("this must be already verified by the message filter");
@@ -543,7 +568,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 ))
             }
             ConsensusResponse::BroadcastPrevote { proposal, round } => {
-                let _ = self
+                let private_key = self
                     .this_node_key
                     .as_ref()
                     .ok_or_else(|| eyre!("this node is not a validator"))?;
@@ -553,7 +578,14 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                         .verified_block_hashes
                         .get(block_index)
                         .expect("the block to propose is not in verified_block_hashes");
-                    let message = ConsensusMessage::NonNilPreVoted(round as u64, block_hash);
+                    let message = ConsensusMessage::NonNilPreVoted(
+                        round as u64,
+                        block_hash,
+                        TypedSignature::sign(
+                            &format!("{}-{}", block_hash, "prevote"),
+                            private_key,
+                        )?,
+                    );
                     let result =
                         ProgressResult::NonNilPreVoted(round as u64, block_hash, timestamp);
                     (message, result)
@@ -566,7 +598,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 Ok(progress_result)
             }
             ConsensusResponse::BroadcastPrecommit { proposal, round } => {
-                let _ = self
+                let private_key = self
                     .this_node_key
                     .as_ref()
                     .ok_or_else(|| eyre!("this node is not a validator"))?;
@@ -576,7 +608,14 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                         .verified_block_hashes
                         .get(block_index)
                         .expect("the block to propose is not in verified_block_hashes");
-                    let message = ConsensusMessage::NonNilPreCommitted(round as u64, block_hash);
+                    let message = ConsensusMessage::NonNilPreCommitted(
+                        round as u64,
+                        block_hash,
+                        TypedSignature::new(
+                            Signature::sign(block_hash, private_key)?,
+                            private_key.public_key(),
+                        ),
+                    );
                     let result =
                         ProgressResult::NonNilPreCommitted(round as u64, block_hash, timestamp);
                     (message, result)
