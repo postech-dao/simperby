@@ -5,8 +5,8 @@ use eyre::eyre;
 use serde::{Deserialize, Serialize};
 use simperby_common::{
     crypto::{Hash256, PublicKey},
-    BlockHeader, BlockHeight, ConsensusRound, PrivateKey, Timestamp, ToHash256, TypedSignature,
-    VotingPower,
+    BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Timestamp, ToHash256,
+    TypedSignature, VotingPower,
 };
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
@@ -131,7 +131,7 @@ pub enum ProgressResult {
     NonNilPreCommitted(ConsensusRound, Hash256, Timestamp),
     NilPreVoted(ConsensusRound, Timestamp),
     NilPreCommitted(ConsensusRound, Timestamp),
-    Finalized(Hash256, Timestamp),
+    Finalized(Hash256, Timestamp, FinalizationProof),
     ViolationReported(PublicKey, String, Timestamp),
 }
 
@@ -588,14 +588,15 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 self.broadcast_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
-            ConsensusResponse::FinalizeBlock { proposal } => {
+            ConsensusResponse::FinalizeBlock { proposal, .. } => {
                 let block_hash = *self
                     .state
                     .verified_block_hashes
                     .get(proposal)
                     .expect("oob access to verified_block_hashes");
                 self.state.finalized = true;
-                Ok(ProgressResult::Finalized(block_hash, timestamp))
+                let proof = Vec::new(); // TODO
+                Ok(ProgressResult::Finalized(block_hash, timestamp, proof))
             }
             ConsensusResponse::ViolationReport {
                 violator,

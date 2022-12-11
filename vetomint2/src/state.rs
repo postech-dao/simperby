@@ -43,7 +43,7 @@ pub(crate) struct ConsensusState {
     pub precommit_timeout_schedules: BTreeSet<(Round, Timestamp)>,
     pub for_the_first_time_1: BTreeSet<Round>,
     pub for_the_first_time_2: BTreeSet<Round>,
-    pub finalized: Option<BlockIdentifier>,
+    pub finalized: Option<(BlockIdentifier, Vec<ValidatorIndex>)>,
 }
 
 impl ConsensusState {

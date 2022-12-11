@@ -118,7 +118,10 @@ fn normal_1() {
         );
         assert_eq!(
             response,
-            vec![ConsensusResponse::FinalizeBlock { proposal: 0 }]
+            vec![ConsensusResponse::FinalizeBlock {
+                proposal: 0,
+                proof: (0..4).into_iter().filter(|x| *x != (i + 3) % 4).collect(),
+            }]
         );
     }
 }

@@ -6,8 +6,8 @@ pub(crate) fn progress(
     event: ConsensusEvent,
     timestamp: Timestamp,
 ) -> Vec<ConsensusResponse> {
-    if let Some(proposal) = state.finalized {
-        return vec![ConsensusResponse::FinalizeBlock { proposal }];
+    if let Some((proposal, proof)) = state.finalized.clone() {
+        return vec![ConsensusResponse::FinalizeBlock { proposal, proof }];
     }
     match event {
         ConsensusEvent::Start => start_round(state, 0, timestamp),
@@ -386,9 +386,22 @@ fn on_4f_non_nil_precommit(
         && state.get_total_precommits_on_proposal(target_round, target_proposal) * 3
             > state.get_total_voting_power() * 2
     {
-        state.finalized = Some(target_proposal);
+        let proof: Vec<_> = state
+            .precommits
+            .iter()
+            .filter_map(|vote| {
+                if vote.round == target_round && vote.proposal == Some(target_proposal) {
+                    Some(vote.signer)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        state.finalized = Some((target_proposal, proof.clone()));
+
         vec![ConsensusResponse::FinalizeBlock {
             proposal: target_proposal,
+            proof,
         }]
     } else {
         Vec::new()

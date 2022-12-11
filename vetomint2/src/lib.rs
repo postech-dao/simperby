@@ -79,6 +79,7 @@ pub enum ConsensusResponse {
     },
     FinalizeBlock {
         proposal: BlockIdentifier,
+        proof: Vec<ValidatorIndex>,
     },
     ViolationReport {
         violator: ValidatorIndex,
