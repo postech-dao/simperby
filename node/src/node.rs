@@ -22,7 +22,7 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
 impl SimperbyNode {
     pub async fn initialize(config: Config, path: &str) -> Result<Self> {
         // Step 0: initialize the repository module
-        let peers: Vec<Peer> = serde_json::from_str(
+        let peers: Vec<Peer> = serde_spb::from_str(
             &tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?,
         )?;
         let peers = SharedKnownPeers::new_static(peers.clone());

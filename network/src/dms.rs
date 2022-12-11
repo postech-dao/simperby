@@ -37,7 +37,7 @@ impl Message {
 
 impl ToHash256 for Message {
     fn to_hash256(&self) -> Hash256 {
-        Hash256::hash(serde_json::to_vec(self).unwrap())
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
@@ -217,7 +217,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         if storage.list_files().await?.is_empty() {
             Self::write_state(&mut storage, State { dms_key }).await?;
         } else {
-            let state: State = serde_json::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
+            let state: State = serde_spb::from_str(&storage.read_file(STATE_FILE_PATH).await?)?;
             if state.dms_key != dms_key {
                 storage.remove_all_files().await?;
                 Self::write_state(&mut storage, State { dms_key }).await?;
@@ -349,7 +349,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                     N::broadcast(
                         &network_config,
                         &peers,
-                        serde_json::to_vec(&message).unwrap(),
+                        serde_spb::to_vec(&message).unwrap(),
                     )
                     .await?;
                     Result::<(), Error>::Ok(())
@@ -389,7 +389,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .collect::<Result<Vec<_>, _>>()?;
         let messages = data
             .into_iter()
-            .map(|d| serde_json::from_str::<RawMessage>(&d))
+            .map(|d| serde_spb::from_str::<RawMessage>(&d))
             .collect::<Result<Vec<RawMessage>, _>>()?;
         let messages = messages
             .into_iter()
@@ -405,7 +405,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         storage
             .add_or_overwrite_file(
                 &format!("{}.json", message.to_hash256()),
-                serde_json::to_string(&message).unwrap(),
+                serde_spb::to_string(&message).unwrap(),
             )
             .await?;
         Ok(())
@@ -413,7 +413,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
 
     async fn write_state(storage: &mut impl Storage, state: State) -> Result<(), Error> {
         storage
-            .add_or_overwrite_file(STATE_FILE_PATH, serde_json::to_string(&state)?)
+            .add_or_overwrite_file(STATE_FILE_PATH, serde_spb::to_string(&state)?)
             .await?;
         Ok(())
     }
@@ -482,7 +482,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         .await?;
         while let Some(m) = recv.0.recv().await {
             let result = async {
-                let message: RawMessage = serde_json::from_slice(&m)?;
+                let message: RawMessage = serde_spb::from_slice(&m)?;
                 let message = message.into_message()?;
                 this.read()
                     .await

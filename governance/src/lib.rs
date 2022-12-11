@@ -44,7 +44,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         let votes = messages
             .iter()
             .map(|message| {
-                let vote: Vote = serde_json::from_str(message.data()).unwrap();
+                let vote: Vote = serde_spb::from_str(message.data()).unwrap();
                 (vote.agenda_hash, vote.voter, vote.signature)
             })
             .fold(
@@ -59,7 +59,7 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     pub async fn vote(&mut self, agenda_hash: Hash256) -> Result<(), Error> {
-        let data = serde_json::to_string(&Vote {
+        let data = serde_spb::to_string(&Vote {
             agenda_hash,
             voter: self.this_node_key.as_ref().unwrap().public_key(),
             signature: Signature::sign(agenda_hash, self.this_node_key.as_ref().unwrap())?,

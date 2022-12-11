@@ -48,7 +48,7 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
             "{}/{}(at {})",
             remote_name,
             branch_name,
-            serde_json::to_string(&commit_hash).unwrap()
+            serde_spb::to_string(&commit_hash).unwrap()
         );
 
         // Skip if the branch is `fp` or `work`.

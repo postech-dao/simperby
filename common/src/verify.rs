@@ -545,7 +545,7 @@ mod test {
             author: validator_keypair[author_index].0.clone(),
             timestamp: time,
             head: "Test general-diff commit".to_string(),
-            body: serde_json::to_string(&json!({
+            body: serde_spb::to_string(&json!({
                 "type": "transfer-ft",
                 "asset": "ETH",
                 "amount": "0.1",

@@ -7,7 +7,7 @@ pub fn to_semantic_commit(commit: &Commit) -> SemanticCommit {
     match commit {
         Commit::Agenda(agenda) => {
             let title = format!(">agenda: {}", agenda.height);
-            let body = serde_json::to_string(agenda).unwrap();
+            let body = serde_spb::to_string(agenda).unwrap();
             SemanticCommit {
                 title,
                 body,
@@ -16,7 +16,7 @@ pub fn to_semantic_commit(commit: &Commit) -> SemanticCommit {
         }
         Commit::Block(block_header) => {
             let title = format!(">block: {}", block_header.height);
-            let body = serde_json::to_string(block_header).unwrap();
+            let body = serde_spb::to_string(block_header).unwrap();
             SemanticCommit {
                 title,
                 body,
@@ -30,7 +30,7 @@ pub fn to_semantic_commit(commit: &Commit) -> SemanticCommit {
         },
         Commit::AgendaProof(agenda_proof) => {
             let title = format!(">agenda-proof: {}", agenda_proof.height);
-            let body = serde_json::to_string(agenda_proof).unwrap();
+            let body = serde_spb::to_string(agenda_proof).unwrap();
             SemanticCommit {
                 title,
                 body,
@@ -64,7 +64,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
         let height = height.parse::<u64>()?;
         match commit_type {
             "agenda" => {
-                let agenda: Agenda = serde_json::from_str(&semantic_commit.body)?;
+                let agenda: Agenda = serde_spb::from_str(&semantic_commit.body)?;
                 if height != agenda.height {
                     return Err(eyre!(
                         "agenda height mismatch: expected {}, got {}",
@@ -75,7 +75,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                 Ok(Commit::Agenda(agenda))
             }
             "block" => {
-                let block_header: BlockHeader = serde_json::from_str(&semantic_commit.body)?;
+                let block_header: BlockHeader = serde_spb::from_str(&semantic_commit.body)?;
                 if height != block_header.height {
                     return Err(eyre!(
                         "block height mismatch: expected {}, got {}",
@@ -86,7 +86,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                 Ok(Commit::Block(block_header))
             }
             "agenda-proof" => {
-                let agenda_proof: AgendaProof = serde_json::from_str(&semantic_commit.body)?;
+                let agenda_proof: AgendaProof = serde_spb::from_str(&semantic_commit.body)?;
                 if height != agenda_proof.height {
                     return Err(eyre!(
                         "agenda-proof height mismatch: expected {}, got {}",
@@ -111,7 +111,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
 
 pub fn fp_to_semantic_commit(fp: &LastFinalizationProof) -> SemanticCommit {
     let title = format!(">fp: {}", fp.height);
-    let body = serde_json::to_string(&fp).unwrap();
+    let body = serde_spb::to_string(&fp).unwrap();
     SemanticCommit {
         title,
         body,
@@ -132,7 +132,7 @@ pub fn fp_from_semantic_commit(
             )
         })?;
         let height = height.parse::<u64>()?;
-        let proof: LastFinalizationProof = serde_json::from_str(&semantic_commit.body)?;
+        let proof: LastFinalizationProof = serde_spb::from_str(&semantic_commit.body)?;
         if height != proof.height {
             return Err(eyre!(
                 "proof height mismatch: expected {}, got {}",

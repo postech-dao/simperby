@@ -200,7 +200,7 @@ impl Signature {
 
 /// A signature that is explicitly marked with the type of the signed data.
 ///
-/// This implies that the signature is created on `Hash256::hash(serde_json::to_vec(T).unwrap())`.
+/// This implies that the signature is created on `Hash256::hash(serde_spb::to_vec(T).unwrap())`.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
 pub struct TypedSignature<T> {
     signature: Signature,
@@ -375,47 +375,48 @@ pub fn generate_keypair_random() -> (PublicKey, PrivateKey) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serde_spb;
 
     #[test]
     fn pretty_format() {
         let hash = Hash256::hash("hello world");
         assert_eq!(hash.to_string().len(), 64);
-        let encoded = serde_json::to_string(&hash).unwrap();
+        let encoded = serde_spb::to_string(&hash).unwrap();
         assert_eq!(encoded.len(), 66);
         let (public_key, private_key) = generate_keypair("hello world");
         let signature = Signature::sign(hash, &private_key).unwrap();
-        let encoded = serde_json::to_string(&signature).unwrap();
+        let encoded = serde_spb::to_string(&signature).unwrap();
         assert_eq!(encoded.len(), 132);
-        let encoded = serde_json::to_string(&public_key).unwrap();
+        let encoded = serde_spb::to_string(&public_key).unwrap();
         assert_eq!(encoded.len(), 68);
-        let encoded = serde_json::to_string(&private_key).unwrap();
+        let encoded = serde_spb::to_string(&private_key).unwrap();
         assert_eq!(encoded.len(), 66);
     }
 
     #[test]
     fn hash_encode_decode() {
         let hash = Hash256::hash("hello world");
-        let encoded = serde_json::to_string(&hash).unwrap();
-        let decoded = serde_json::from_str(&encoded).unwrap();
+        let encoded = serde_spb::to_string(&hash).unwrap();
+        let decoded = serde_spb::from_str(&encoded).unwrap();
         assert_eq!(hash, decoded);
     }
 
     #[test]
     fn hash_encode_decode_zero() {
         let hash = Hash256::zero();
-        let encoded = serde_json::to_string(&hash).unwrap();
-        let decoded = serde_json::from_str(&encoded).unwrap();
+        let encoded = serde_spb::to_string(&hash).unwrap();
+        let decoded = serde_spb::from_str(&encoded).unwrap();
         assert_eq!(hash, decoded);
     }
 
     #[test]
     fn key_encode_decode() {
         let (public_key, private_key) = generate_keypair("hello world");
-        let encoded = serde_json::to_string(&public_key).unwrap();
-        let decoded = serde_json::from_str(&encoded).unwrap();
+        let encoded = serde_spb::to_string(&public_key).unwrap();
+        let decoded = serde_spb::from_str(&encoded).unwrap();
         assert_eq!(public_key, decoded);
-        let encoded = serde_json::to_string(&private_key).unwrap();
-        let decoded = serde_json::from_str(&encoded).unwrap();
+        let encoded = serde_spb::to_string(&private_key).unwrap();
+        let decoded = serde_spb::from_str(&encoded).unwrap();
         assert_eq!(private_key, decoded);
     }
 
@@ -423,8 +424,8 @@ mod tests {
     fn signature_encode_decode() {
         let (public_key, private_key) = generate_keypair("hello world");
         let signature = Signature::sign(Hash256::hash("hello world"), &private_key).unwrap();
-        let encoded = serde_json::to_string(&signature).unwrap();
-        let decoded = serde_json::from_str(&encoded).unwrap();
+        let encoded = serde_spb::to_string(&signature).unwrap();
+        let decoded = serde_spb::from_str(&encoded).unwrap();
         assert_eq!(signature, decoded);
         signature
             .verify(Hash256::hash("hello world"), &public_key)

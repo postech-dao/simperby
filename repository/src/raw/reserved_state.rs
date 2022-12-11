@@ -8,14 +8,14 @@ use tokio::fs;
 pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
     let genesis_info =
         fs::read_to_string(format!("{}/{}", path, "reserved/genesis_info.json")).await?;
-    let genesis_info: GenesisInfo = serde_json::from_str(genesis_info.as_str())?;
+    let genesis_info: GenesisInfo = serde_spb::from_str(genesis_info.as_str())?;
 
     let mut members: Vec<Member> = vec![];
     let mut members_directory = fs::read_dir(format!("{}/{}", path, "reserved/members")).await?;
     while let Some(member_file) = members_directory.next_entry().await? {
         let path = member_file.path();
         let member = fs::read_to_string(path).await?;
-        let member: Member = serde_json::from_str(member.as_str())?;
+        let member: Member = serde_spb::from_str(member.as_str())?;
         members.push(member);
     }
     members.sort_by(|m1, m2| m1.name.cmp(&m2.name));
@@ -26,10 +26,10 @@ pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
     ))
     .await?;
     let consensus_leader_order: Vec<MemberName> =
-        serde_json::from_str(consensus_leader_order.as_str())?;
+        serde_spb::from_str(consensus_leader_order.as_str())?;
 
     let version = fs::read_to_string(format!("{}/{}", path, "reserved/version")).await?;
-    let version: String = serde_json::from_str(version.as_str())?;
+    let version: String = serde_spb::from_str(version.as_str())?;
 
     let reserved_state = ReservedState {
         genesis_info,
@@ -43,9 +43,9 @@ pub async fn read_reserved_state(path: &str) -> Result<ReservedState, Error> {
 
 /// Writes the given reserved state to the given path, overwriting the existing file.
 pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(), Error> {
-    let genesis_info = serde_json::to_string(&state.genesis_info)?;
-    let consensus_leader_order = serde_json::to_string(&state.consensus_leader_order)?;
-    let version = serde_json::to_string(&state.version)?;
+    let genesis_info = serde_spb::to_string(&state.genesis_info)?;
+    let consensus_leader_order = serde_spb::to_string(&state.consensus_leader_order)?;
+    let version = serde_spb::to_string(&state.version)?;
 
     // Create files of reserved state.
     let path = format!("{}/{}", path, "reserved");
@@ -76,7 +76,7 @@ pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(
     }
     for member in &state.members {
         let file_name = format!("{}{}", member.name, ".json");
-        let member = serde_json::to_string(member)?;
+        let member = serde_spb::to_string(member)?;
         fs::write(format!("{}/{}", path.as_str(), file_name), member).await?;
     }
 
