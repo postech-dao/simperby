@@ -334,7 +334,16 @@ impl CommitSequenceVerifier {
                 let signed_weight = agenda_proof
                     .proof
                     .iter()
-                    .map(|s| governance_set.get(s.signer()).unwrap())
+                    .map(|s| {
+                        if !governance_set.contains_key(s.signer()) {
+                            return Err(Error::InvalidArgument(
+                                "invalid agenda proof: invalid signer".to_string(),
+                            ));
+                        }
+                        Ok(governance_set[s.signer()])
+                    })
+                    .collect::<Result<Vec<_>, Error>>()?
+                    .iter()
                     .sum::<u64>();
                 if signed_weight * 2 <= total_weight {
                     return Err(Error::InvalidArgument(
