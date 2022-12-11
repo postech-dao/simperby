@@ -2,6 +2,7 @@ use light_client::*;
 use merkle_tree::*;
 use simperby_common::{verify::CommitSequenceVerifier, *};
 use simperby_test_suite::*;
+use std::collections::HashSet;
 
 #[test]
 fn basic1() {
@@ -66,4 +67,50 @@ fn basic1() {
     );
     let merkle_proof = merkle_tree.create_merkle_proof(tx.to_hash256()).unwrap();
     assert!(light_client.verify_commitment(serde_json::to_vec(&tx).unwrap(), 1, merkle_proof));
+}
+
+#[test]
+fn basic2() {
+    setup_test();
+    let member_number = 10;
+    let del_genesis = generate_delegation_genesis(member_number);
+    let mut rs: ReservedState = del_genesis.0;
+    let _keys: Vec<(PublicKey, PrivateKey)> = del_genesis.1;
+
+    // Check get_validator_set
+    let mut val_set_initial = rs.clone().genesis_info.header.validator_set;
+    let index = val_set_initial
+        .iter()
+        .enumerate()
+        .position(|(x, _)| x == 0)
+        .unwrap();
+    val_set_initial[2].1 = 2;
+    val_set_initial.remove(index);
+
+    rs.consensus_leader_order.remove(0);
+    let get_val_set = rs.get_validator_set().unwrap();
+    assert_eq!(val_set_initial, get_val_set);
+
+    // Check get_governance_set
+    let get_gov_set = rs
+        .get_governance_set()
+        .unwrap()
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let mut member_governance: Vec<(PublicKey, VotingPower)> = rs
+        .members
+        .iter()
+        .map(|m| (m.clone().public_key, m.governance_voting_power))
+        .collect();
+    let index = val_set_initial
+        .iter()
+        .enumerate()
+        .position(|(x, _)| x == 0)
+        .unwrap();
+    member_governance[2].1 = 2;
+    member_governance.remove(index);
+    let member_governance = member_governance.into_iter().collect::<HashSet<_>>();
+    rs.members.remove(0);
+
+    assert_eq!(member_governance, get_gov_set);
 }
