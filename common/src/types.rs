@@ -18,6 +18,8 @@ pub struct Member {
     pub name: MemberName,
     pub governance_voting_power: VotingPower,
     pub consensus_voting_power: VotingPower,
+    /// If this member delegated its governance voting power to another member,
+    /// the delegatee.
     pub governance_delegations: Option<PublicKey>,
     /// If this member delegated its governance consensus power to another member,
     /// the delegatee.

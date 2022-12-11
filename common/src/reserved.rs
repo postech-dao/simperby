@@ -45,6 +45,27 @@ impl ReservedState {
         Ok(validator_set)
     }
 
+    pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
+        let mut governance_set = HashMap::new();
+        for member in &self.members {
+            if let Some(delegatee) = &member.governance_delegations {
+                governance_set
+                    .entry(delegatee.clone())
+                    .and_modify(|v| *v += member.consensus_voting_power)
+                    .or_insert(member.consensus_voting_power);
+            } else {
+                governance_set
+                    .entry(member.public_key.clone())
+                    .and_modify(|v| *v += member.consensus_voting_power)
+                    .or_insert(member.consensus_voting_power);
+            }
+        }
+        Ok(governance_set
+            .iter()
+            .map(|(public_key, voting_power)| (public_key.clone(), *voting_power))
+            .collect())
+    }
+
     pub fn apply_delegate(&mut self, _tx: &TxDelegate) -> Result<Self, String> {
         unimplemented!()
     }
