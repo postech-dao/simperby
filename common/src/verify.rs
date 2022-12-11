@@ -1,6 +1,7 @@
 use crate::reserved::ReservedState;
 use crate::*;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -321,6 +322,24 @@ impl CommitSequenceVerifier {
                     signature.verify(agenda).map_err(|e| {
                         Error::CryptoError("invalid agenda proof: invalid signature".to_string(), e)
                     })?;
+                }
+                // Check if the agenda proof is signed by the majority of the governance participants
+                let governance_set = self
+                    .reserved_state
+                    .get_governance_set()
+                    .unwrap()
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
+                let total_weight = governance_set.values().sum::<u64>();
+                let signed_weight = agenda_proof
+                    .proof
+                    .iter()
+                    .map(|s| governance_set.get(s.signer()).unwrap())
+                    .sum::<u64>();
+                if signed_weight * 2 <= total_weight {
+                    return Err(Error::InvalidArgument(
+                        "invalid agenda proof: insufficient signed weight".to_string(),
+                    ));
                 }
                 self.phase = Phase::AgendaProof {
                     agenda_proof: agenda_proof.clone(),
