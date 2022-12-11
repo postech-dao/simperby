@@ -23,10 +23,10 @@ pub type Nil = ();
 const NIL_BLOCK_PROPOSAL_INDEX: BlockIdentifier = BlockIdentifier::MAX;
 
 /// The signed `String` is constructed by `format!("{}-prevote", block_hash)`.
-type Prevote = TypedSignature<String>;
+pub type Prevote = TypedSignature<String>;
 /// This can be verified by `precommit.get_raw_signature().verify(block_hash, signer)`
 /// where `block_hash` is the hash of `BlockHeader`.
-type Precommit = TypedSignature<BlockHeader>;
+pub type Precommit = TypedSignature<BlockHeader>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
@@ -391,12 +391,9 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let dms = self.dms.serve(time_in_ms).await?;
         Ok(Self { dms, ..self })
     }
-}
 
-// Private methods
-impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     /// Reads all consensus messages with its signer in the dms.
-    async fn read_messages(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
+    pub async fn read_messages(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
         let raw_messages = self.dms.read_messages().await?;
         let messages = raw_messages
             .into_iter()
@@ -411,7 +408,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(messages)
     }
 
-    async fn read_precommits(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
+    pub async fn read_precommits(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
         Ok(self
             .read_messages()
             .await?
@@ -419,7 +416,10 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .filter(|(cm, _)| matches!(cm, ConsensusMessage::NonNilPreCommitted(..)))
             .collect())
     }
+}
 
+// Private methods
+impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     fn construct_new_state(
         block_header: &BlockHeader,
         consensus_parameters: ConsensusParams,
