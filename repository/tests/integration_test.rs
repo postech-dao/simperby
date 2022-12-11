@@ -72,7 +72,7 @@ async fn basic_1() {
     );
     server_node_repo
         .approve(
-            &agenda_commit,
+            &agenda.to_hash256(),
             keys.iter()
                 .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
                 .collect(),

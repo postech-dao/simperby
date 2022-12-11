@@ -416,18 +416,17 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// and update the corresponding `a-#` branch to it
     pub async fn approve(
         &mut self,
-        agenda_commit_hash: &CommitHash,
+        agenda_hash: &Hash256,
         proof: Vec<TypedSignature<Agenda>>,
     ) -> Result<CommitHash, Error> {
         // Check if the agenda branch is rebased on top of the `finalized` branch.
         let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-        let agenda_branch_name = self.raw.get_branches(*agenda_commit_hash).await?;
-        let agenda_branch_name = agenda_branch_name
-            .get(0)
-            .ok_or_else(|| eyre::eyre!("cannot get valid agenda branch name"))?;
+        let agenda_branch_name =
+            format!("a-{}", &agenda_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
+        let agenda_commit_hash = self.raw.locate_branch(agenda_branch_name.clone()).await?;
         if self
             .raw
-            .find_merge_base(last_header_commit, *agenda_commit_hash)
+            .find_merge_base(last_header_commit, agenda_commit_hash)
             .await?
             != last_header_commit
         {
@@ -442,7 +441,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let finalized_header = self.get_last_finalized_block_header().await?;
         let reserved_state = self.get_reserved_state().await?;
         let finalized_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-        let commits = utils::read_commits(self, finalized_commit_hash, *agenda_commit_hash).await?;
+        let commits = utils::read_commits(self, finalized_commit_hash, agenda_commit_hash).await?;
         let mut verifier = CommitSequenceVerifier::new(finalized_header.clone(), reserved_state)
             .map_err(|e| eyre!("failed to create a verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
@@ -470,9 +469,10 @@ impl<T: RawRepository> DistributedRepository<T> {
             .raw
             .create_semantic_commit(agenda_proof_semantic_commit)
             .await?;
-        let mut agenda_proof_branch_name = agenda_proof_commit.to_hash256().to_string();
-        agenda_proof_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-        let agenda_proof_branch_name = format!("a-{}", agenda_proof_branch_name);
+        let agenda_proof_branch_name = format!(
+            "a-{}",
+            &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+        );
         self.raw
             .create_branch(agenda_proof_branch_name, agenda_proof_commit_hash)
             .await?;

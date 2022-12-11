@@ -4,7 +4,7 @@ use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message},
     primitives::{GossipNetwork, Storage},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub type Error = eyre::Error;
 
@@ -18,7 +18,7 @@ pub fn generate_dms_key(header: &BlockHeader) -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {
     /// Agenda hashes and their voters.
-    pub votes: HashMap<Hash256, HashSet<PublicKey>>,
+    pub votes: HashMap<Hash256, HashMap<PublicKey, Signature>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -34,6 +34,7 @@ pub struct Governance<N: GossipNetwork, S: Storage> {
 }
 
 impl<N: GossipNetwork, S: Storage> Governance<N, S> {
+    /// TODO: this must take the eligible governance set for this height.
     pub async fn new(dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
         Ok(Self { dms, this_node_key })
     }
@@ -44,15 +45,15 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
             .iter()
             .map(|message| {
                 let vote: Vote = serde_json::from_str(message.data()).unwrap();
-                (vote.agenda_hash, vote.voter)
+                (vote.agenda_hash, vote.voter, vote.signature)
             })
-            .fold(HashMap::new(), |mut votes, (agenda_hash, voter)| {
-                votes
-                    .entry(agenda_hash)
-                    .or_insert_with(HashSet::new)
-                    .insert(voter);
-                votes
-            });
+            .fold(
+                HashMap::<_, HashMap<_, Signature>>::new(),
+                |mut votes, (agenda_hash, voter, signature)| {
+                    (*votes.entry(agenda_hash).or_default()).insert(voter, signature);
+                    votes
+                },
+            );
         let status = GovernanceStatus { votes };
         Ok(status)
     }
