@@ -127,7 +127,7 @@ impl SimperbyNode {
             // TODO: replace params and timestamp with proper values
             ConsensusParameters {
                 timeout_ms: 10000000,
-                repeat_round_for_first_leader: 0,
+                repeat_round_for_first_leader: 100,
             },
             0,
             Some(config.private_key.clone()),

@@ -32,7 +32,7 @@ async fn setup_peer(path: &str, peers: &[Peer]) {
 #[tokio::test]
 async fn normal_1() {
     setup_test();
-    let (rs, keys) = generate_standard_genesis(4);
+    let (rs, keys) = generate_standard_genesis(5);
     let chain_name = "normal_1".to_owned();
 
     let configs = keys
@@ -47,7 +47,7 @@ async fn normal_1() {
     genesis(configs[0].clone(), &server_dir).await.unwrap();
     let mut proposer_node = initialize(configs[0].clone(), &server_dir).await.unwrap();
     let mut other_nodes = Vec::new();
-    for config in configs[1..=3].iter() {
+    for config in configs[1..=4].iter() {
         let dir = create_temp_dir();
         copy_repository(&server_dir, &dir).await;
         setup_peer(
@@ -95,6 +95,9 @@ async fn normal_1() {
     proposer_node.progress_for_consensus().await.unwrap();
     let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
     sleep_ms(500).await;
+    for node in other_nodes.iter_mut() {
+        node.fetch().await.unwrap();
+    }
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
     }
