@@ -8,6 +8,25 @@ use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
 use simperby_repository::DistributedRepository;
 use std::collections::HashMap;
 
+pub async fn genesis(config: Config, path: &str) -> Result<()> {
+    let peers: Vec<Peer> =
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?)?;
+    let peers = SharedKnownPeers::new_static(peers.clone());
+    let raw_repository = RawRepositoryImpl::open(&format!("{}/repository/repo", path)).await?;
+    let mut repository = DistributedRepository::new(
+        raw_repository,
+        simperby_repository::Config {
+            mirrors: config.public_repo_url.clone(),
+            long_range_attack_distance: 3,
+        },
+        peers.clone(),
+    )
+    .await?;
+    repository.genesis().await?;
+
+    Ok(())
+}
+
 pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     config: Config,
     repository: DistributedRepository<R>,
