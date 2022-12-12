@@ -38,6 +38,7 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     last_finalized_header: BlockHeader,
 
     path: String,
+    network_config: NetworkConfig,
 }
 
 impl SimperbyNode {
@@ -66,8 +67,15 @@ impl SimperbyNode {
         let network_config = NetworkConfig {
             network_id: reserved_state.genesis_info.chain_name.clone(),
             ports: vec![
-                (governance_dms_key.clone(), 1555),
-                (consensus_dms_key.clone(), 1556),
+                (
+                    format!("dms-{}", governance_dms_key.clone()),
+                    config.governance_port,
+                ),
+                (
+                    format!("dms-{}", consensus_dms_key.clone()),
+                    config.consensus_port,
+                ),
+                ("repository".to_owned(), config.repository_port),
             ]
             .into_iter()
             .collect(),
@@ -82,14 +90,13 @@ impl SimperbyNode {
         let dms_config = dms::Config {
             fetch_interval: Some(std::time::Duration::from_millis(500)),
             broadcast_interval: Some(std::time::Duration::from_millis(500)),
-            network_config,
+            network_config: network_config.clone(),
         };
 
         // Step 2: initialize the governance module
-        StorageImpl::create(&format!("{}/governance/dms", path))
-            .await
-            .unwrap();
-        let storage = StorageImpl::open(path).await.unwrap();
+        let dms_path = format!("{}/governance/dms", path);
+        StorageImpl::create(&dms_path).await.unwrap();
+        let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
             storage,
             governance_dms_key,
@@ -100,10 +107,9 @@ impl SimperbyNode {
         let governance = Governance::new(dms, Some(config.private_key.clone())).await?;
 
         // Step 3: initialize the consensus module
-        StorageImpl::create(&format!("{}/consensus/dms", path))
-            .await
-            .unwrap();
-        let storage = StorageImpl::open(path).await.unwrap();
+        let dms_path = format!("{}/consensus/dms", path);
+        StorageImpl::create(&dms_path).await.unwrap();
+        let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
             storage,
             consensus_dms_key,
@@ -111,17 +117,16 @@ impl SimperbyNode {
             peers.clone(),
         )
         .await?;
-        StorageImpl::create(&format!("{}/consensus/state", path))
-            .await
-            .unwrap();
-        let consensus_state_storage = StorageImpl::open(path).await.unwrap();
+        let state_path = format!("{}/consensus/state", path);
+        StorageImpl::create(&state_path).await.unwrap();
+        let consensus_state_storage = StorageImpl::open(&state_path).await.unwrap();
         let consensus = Consensus::new(
             dms,
             consensus_state_storage,
             last_finalized_header.clone(),
             // TODO: replace params and timestamp with proper values
             ConsensusParameters {
-                timeout_ms: 0,
+                timeout_ms: 10000000,
                 repeat_round_for_first_leader: 0,
             },
             0,
@@ -135,6 +140,8 @@ impl SimperbyNode {
             consensus,
             last_reserved_state: reserved_state,
             last_finalized_header,
+            path: path.to_owned(),
+            network_config,
         })
     }
 
@@ -144,6 +151,11 @@ impl SimperbyNode {
 
     pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
         self.repository.get_raw_mut()
+    }
+
+    /// TODO: revise this interface
+    pub fn network_config(&self) -> &NetworkConfig {
+        &self.network_config
     }
 }
 
@@ -284,15 +296,11 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
 
     async fn serve(self, ms: u64) -> Result<Self> {
         let repository_port = self.config.repository_port;
-        let governance_port = self.config.governance_port;
-        let consensus_port = self.config.consensus_port;
 
-        let t1 =
-            tokio::spawn(async move { self.governance.serve(ms, governance_port).await.unwrap() });
-        let t2 =
-            tokio::spawn(async move { self.consensus.serve(ms, consensus_port).await.unwrap() });
+        let t1 = tokio::spawn(async move { self.governance.serve(ms).await.unwrap() });
+        let t2 = tokio::spawn(async move { self.consensus.serve(ms).await.unwrap() });
         let path = self.path.clone();
-        tokio::spawn(async move {
+        let t3 = tokio::spawn(async move {
             let server = simperby_repository::server::run_server(
                 &format!("{}/repository", path),
                 repository_port,
@@ -304,6 +312,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
 
         let governance = t1.await?;
         let consensus = t2.await?;
+        let _ = t3.await?;
 
         Ok(Self {
             governance,
@@ -313,6 +322,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
             last_reserved_state: self.last_reserved_state,
             last_finalized_header: self.last_finalized_header,
             path: self.path,
+            network_config: self.network_config,
         })
     }
 
@@ -322,6 +332,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         let t3 = async { self.repository.fetch().await };
         futures::try_join!(t1, t2, t3)?;
 
+        // Update governance
         let governance_set = self
             .last_reserved_state
             .get_governance_set()
@@ -345,7 +356,9 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         let total_voting_power = governance_set.values().sum::<VotingPower>();
         for (agenda, voted_power) in votes {
             if voted_power * 2 > total_voting_power {
-                self.repository
+                // TODO: handle this error
+                let _ = self
+                    .repository
                     .approve(
                         &agenda,
                         governance_state.votes[&agenda]
@@ -353,8 +366,15 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
                             .map(|(k, s)| TypedSignature::new(s.clone(), k.clone()))
                             .collect(),
                     )
-                    .await?;
+                    .await;
             }
+        }
+
+        // Update consensus
+        for (_, block_hash) in self.repository.get_blocks().await? {
+            self.consensus
+                .register_verified_block_hash(block_hash)
+                .await?;
         }
         Ok(())
     }

@@ -1,7 +1,6 @@
-#![cfg(never)]
-
 use simperby_common::*;
-use simperby_node::*;
+use simperby_network::Peer;
+use simperby_node::{node::genesis, *};
 use simperby_repository::raw::RawRepository;
 use simperby_test_suite::*;
 use tokio::io::AsyncWriteExt;
@@ -14,11 +13,12 @@ fn generate_config(key: PrivateKey, chain_name: String) -> Config {
         broadcast_interval_ms: None,
         fetch_interval_ms: None,
         public_repo_url: vec![],
+        governance_port: dispense_port(),
+        consensus_port: dispense_port(),
+        repository_port: dispense_port(),
     }
 }
 
-#[tokio::test]
-#[ignore]
 async fn setup_peer(path: &str, peers: &[Peer]) {
     let mut file = tokio::fs::File::create(format!("{}/peers.json", path))
         .await
@@ -29,7 +29,9 @@ async fn setup_peer(path: &str, peers: &[Peer]) {
     file.flush().await.unwrap();
 }
 
+#[tokio::test]
 async fn normal_1() {
+    setup_test();
     let (rs, keys) = generate_standard_genesis(4);
     let chain_name = "normal_1".to_owned();
 
@@ -42,17 +44,19 @@ async fn normal_1() {
     let server_dir = create_temp_dir();
     setup_peer(&server_dir, &[]).await;
     setup_pre_genesis_repository(&server_dir, rs.clone()).await;
+    genesis(configs[0].clone(), &server_dir).await.unwrap();
     let mut proposer_node = initialize(configs[0].clone(), &server_dir).await.unwrap();
     let mut other_nodes = Vec::new();
     for config in configs[1..=3].iter() {
         let dir = create_temp_dir();
+        copy_repository(&server_dir, &dir).await;
         setup_peer(
             &dir,
             &[Peer {
                 public_key: configs[0].public_key.clone(),
                 name: "proposer".to_owned(),
                 address: "127.0.0.1:1".parse().unwrap(),
-                ports: todo!(),
+                ports: proposer_node.network_config().ports.clone(),
                 message: "123".to_owned(),
                 recently_seen_timestamp: 0,
             }],
@@ -62,49 +66,69 @@ async fn normal_1() {
     }
 
     // Step 1: create an agenda and propagate it
+    log::info!("STEP 1");
     proposer_node.create_agenda().await.unwrap();
     let agenda_commit = proposer_node
         .get_raw_repo_mut()
         .locate_branch("work".to_owned())
         .await
         .unwrap();
-    let serve = tokio::spawn(async move { proposer_node.serve().await.unwrap() });
-    sleep_ms(1000).await;
+    let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
+    sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
         node.vote(agenda_commit).await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
+    // currently calling `fetch()` is the only way to notice governance approval
+    proposer_node.fetch().await.unwrap();
+    // TODO: it is not guaranteed that `HEAD` is on the agenda proof.
+    run_command(format!(
+        "cd {}/repository/repo && git branch -f work HEAD",
+        server_dir
+    ))
+    .await;
 
     // Step 2: create block and run prevote phase
+    log::info!("STEP 2");
     proposer_node.create_block().await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
-    let serve = tokio::spawn(async move { proposer_node.serve().await.unwrap() });
-    sleep_ms(1000).await;
+    let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
+    sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
+    }
+    for node in other_nodes.iter_mut() {
         node.progress_for_consensus().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
 
     // Step 3: Run precommit phase
-    let serve = tokio::spawn(async move { proposer_node.serve().await.unwrap() });
-    sleep_ms(1000).await;
+    log::info!("STEP 3");
+    let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
+    sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
-        node.progress_for_consensus().await.unwrap();
+    }
+    for node in other_nodes.iter_mut() {
+        let _ = node.progress_for_consensus().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
-    proposer_node.progress_for_consensus().await.unwrap();
+    let _ = proposer_node.progress_for_consensus().await.unwrap();
 
     // Step 4: Propagate finalized proof
-    let serve = tokio::spawn(async move { proposer_node.serve().await.unwrap() });
-    sleep_ms(1000).await;
+    log::info!("STEP 4");
+    let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
+    sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
     }
-    let proposer_node = serve.await.unwrap();
+    for node in other_nodes.iter_mut() {
+        let _ = node.progress_for_consensus().await;
+    }
+    let mut proposer_node = serve.await.unwrap();
+    let _ = proposer_node.progress_for_consensus().await;
 
     for node in std::iter::once(proposer_node).chain(other_nodes.into_iter()) {
         let finalized = node

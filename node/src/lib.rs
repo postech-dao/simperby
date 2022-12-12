@@ -27,6 +27,10 @@ pub struct Config {
     ///
     /// They're added as a remote repo, named `public_#`.
     pub public_repo_url: Vec<String>,
+
+    pub governance_port: u16,
+    pub consensus_port: u16,
+    pub repository_port: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -108,6 +112,8 @@ pub trait SimperbyApi {
     async fn run(self) -> Result<()>;
 
     /// Makes a progress for the consensus, returning the result.
+    ///
+    /// TODO: it has to consume the object if finalized.
     async fn progress_for_consensus(&mut self) -> Result<String>;
 
     /// Gets the current status of the consensus.
@@ -117,7 +123,7 @@ pub trait SimperbyApi {
     async fn get_network_status(&self) -> Result<NetworkStatus>;
 
     /// Serves indefinitely the p2p network.
-    async fn serve(self) -> Result<Self>
+    async fn serve(self, ms: u64) -> Result<Self>
     where
         Self: Sized;
 
