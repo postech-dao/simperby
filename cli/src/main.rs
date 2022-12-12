@@ -18,9 +18,20 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
 }
 
 #[tokio::main(flavor = "multi_thread")]
+#[allow(unreachable_code)]
 async fn main() -> eyre::Result<()> {
     color_eyre::install().unwrap();
     env_logger::init();
+
+    let private_key = std::env::args().nth(1).unwrap();
+    let sorc = std::env::args().nth(2).unwrap();
+    if sorc == "s" {
+        genesis::run_genesis_proposer(&private_key).await;
+    } else {
+        genesis::run_genesis_non_proposer(&private_key).await;
+    }
+
+    return Ok(());
 
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();
@@ -51,10 +62,10 @@ async fn main() -> eyre::Result<()> {
             );
         }
         Commands::GenesisNonProposer => {
-            genesis::run_genesis_non_proposer(config, &path).await;
+            // genesis::run_genesis_non_proposer(config, &path).await;
         }
         Commands::GenesisProposer => {
-            genesis::run_genesis_proposer(config, &path).await;
+            // genesis::run_genesis_proposer(config, &path).await;
         }
         _ => unimplemented!(),
     }
