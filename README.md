@@ -32,17 +32,21 @@ If you build a chain with Simperby, it instantly becomes **a DAO**, as it functi
 4. Multichain Interoperability
 5. Immutable, Verifiable, and Distributed Storage as a Git Repository
 
-## Governance & Communication Channel & Consensus
+## Simperby Super Simple Summary
+
+See [docs](docs/ssss.md)
+
+## Protocol Overview
 
 See [docs](docs/protocol_overview.md)
 
-## Blockchain as a Git Repository
+## Simperby: the Git-based Blockchain
 
 See [docs](docs/git.md)
 
-## Multichain DAO
+## Simperby: the DAO Spaceship for Multichain Journey
 
-See [docs](docs/multichain_dao.md)
+See [docs](docs/multichain.md)
 
 ## License
 
@@ -53,4 +57,3 @@ This project is licensed under the [MIT license](./LICENSE).
 See [DEV-GUIDE.md](./DEV-GUIDE.md).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Simperby by you, shall be licensed as MIT, without any additional terms or conditions.
-
