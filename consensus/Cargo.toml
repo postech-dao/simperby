@@ -14,7 +14,7 @@ log = "0.4"
 thiserror = "1.0.32"
 simperby-common = { version = "0.0.0", path = "../common" }
 simperby-network = { version = "0.0.0", path = "../network" }
-vetomint2 = { version = "0.0.0", path = "../vetomint2" }
+vetomint = { version = "0.0.0", path = "../vetomint" }
 parking_lot = "0.12.1"
 
 [dev-dependencies]

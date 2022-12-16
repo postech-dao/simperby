@@ -17,7 +17,7 @@ use simperby_test_suite as test_suite;
 use std::fmt::Debug;
 use std::iter::once;
 use test_suite::*;
-use vetomint2::ConsensusParams;
+use vetomint::ConsensusParams;
 
 fn get_initial_block_header(validator_set: Vec<(PublicKey, VotingPower)>) -> BlockHeader {
     BlockHeader {

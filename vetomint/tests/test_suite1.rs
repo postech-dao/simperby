@@ -1,4 +1,4 @@
-use vetomint2::*;
+use vetomint::*;
 
 /// A very normal, desirable, and expected scenario.
 #[test]
