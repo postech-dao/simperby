@@ -14,7 +14,7 @@ use simperby_network::{
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use vetomint2::*;
+use vetomint::*;
 
 pub type ConsensusParameters = ConsensusParams;
 pub type Error = eyre::Error;
