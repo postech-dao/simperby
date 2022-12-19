@@ -48,12 +48,17 @@ We have to verify 3 things here:
 - **NO MERGE COMMITS**.
 - Push your works on your own forked repo, and make a **PR across forks**.
 - Use the same title (head) and content (body) for a single-commit PR.
-- When the PR resolves some issues, put `fixes #123` in the content of the PR, not in the commit messages.
+- When the PR resolves some issues, put `fixes #123` in the content of the PR,
+  not in the commit messages.
 - Conversation **must be resolved by the commentor**, not the PR author.
-- Do not rely on Github notifications; directly mention the relevant people in Discord instead.
-- To resolve reviews, put additional commits representing the changes, not amend the existing commits and force push it.
-- However, if it is about commit messages or trivial errors, it's ok to amend the existing commits and force push it.
-- After all reviews are resolved, the PR author may squash and organize the commits, and force push it upon request.
+- Do not rely on Github notifications; directly mention the relevant people in
+  Discord instead.
+- To resolve reviews, put additional commits representing the changes, not amend
+  the existing commits and force push it.
+- However, if it is about commit messages or trivial errors, it's ok to amend
+  the existing commits and force push it.
+- After all reviews are resolved, the PR author may squash and organize
+  the commits, and force push it upon request.
 
 ## Rust
 
