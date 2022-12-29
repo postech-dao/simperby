@@ -64,6 +64,11 @@ pub trait RawRepository: Send + Sync + 'static {
     where
         Self: Sized;
 
+    /// Returns the full commit hash from the revision selection string.
+    ///
+    /// See the [reference](https://git-scm.com/book/en/v2/Git-Tools-Revision-Selection).
+    async fn retrieve_commit_hash(&self, revision_selection: &str) -> Result<CommitHash, Error>;
+
     // ----------------------
     // Branch-related methods
     // ----------------------
@@ -360,6 +365,10 @@ impl RawRepository for RawRepositoryImpl {
         let inner = tokio::sync::Mutex::new(Some(repo));
 
         Ok(Self { inner })
+    }
+
+    async fn retrieve_commit_hash(&self, _revision_selection: &str) -> Result<CommitHash, Error> {
+        todo!()
     }
 
     async fn list_branches(&self) -> Result<Vec<Branch>, Error> {
