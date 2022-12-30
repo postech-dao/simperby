@@ -67,7 +67,7 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Returns the full commit hash from the revision selection string.
     ///
     /// See the [reference](https://git-scm.com/book/en/v2/Git-Tools-Revision-Selection).
-    async fn retrieve_commit_hash(&self, revision_selection: &str) -> Result<CommitHash, Error>;
+    async fn retrieve_commit_hash(&self, revision_selection: String) -> Result<CommitHash, Error>;
 
     // ----------------------
     // Branch-related methods
@@ -367,8 +367,13 @@ impl RawRepository for RawRepositoryImpl {
         Ok(Self { inner })
     }
 
-    async fn retrieve_commit_hash(&self, _revision_selection: &str) -> Result<CommitHash, Error> {
-        todo!()
+    async fn retrieve_commit_hash(&self, revision_selection: String) -> Result<CommitHash, Error> {
+        helper_1(
+            self,
+            RawRepositoryImplInner::retrieve_commit_hash,
+            revision_selection,
+        )
+        .await
     }
 
     async fn list_branches(&self) -> Result<Vec<Branch>, Error> {

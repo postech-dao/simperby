@@ -508,3 +508,71 @@ async fn semantic_commit() {
 
     assert_eq!(semantic_commit_nonreserved.diff, Diff::NonReserved(hash));
 }
+
+/*
+    c3 (HEAD -> branch_b)
+     |  c2 (branch_a, tag_a)
+     | /
+    c1 (main)
+*/
+/// Make three commits at different branches and retrieve commits by different revisions.
+#[tokio::test]
+async fn retrieve_commit_hash() {
+    let td = TempDir::new().unwrap();
+    let path = td.path();
+    let mut repo = init_repository_with_initial_commit(path).await.unwrap();
+
+    // Create "branch_a" and "branch_b" branches at c1
+    let commit_hash_main = repo.locate_branch(MAIN.into()).await.unwrap();
+    repo.create_branch(BRANCH_A.into(), commit_hash_main)
+        .await
+        .unwrap();
+    repo.create_branch(BRANCH_B.into(), commit_hash_main)
+        .await
+        .unwrap();
+
+    // Make a commit at "branch_a" branch
+    repo.checkout(BRANCH_A.into()).await.unwrap();
+    let commit_hash_a = repo
+        .create_commit(BRANCH_A.into(), Some("".to_owned()))
+        .await
+        .unwrap();
+    // Make a tag at "branch_a" branch
+    repo.create_tag(TAG_A.into(), commit_hash_a).await.unwrap();
+    // Make a commit at "branch_b" branch
+    repo.checkout(BRANCH_B.into()).await.unwrap();
+    let commit_hash_b = repo
+        .create_commit(BRANCH_B.into(), Some("".to_owned()))
+        .await
+        .unwrap();
+
+    // Retrieve commits by branch.
+    let commit_hash_a_retrieve = repo.retrieve_commit_hash(BRANCH_A.into()).await.unwrap();
+    assert_eq!(commit_hash_a_retrieve, commit_hash_a);
+    let commit_hash_b_retrieve = repo.retrieve_commit_hash(BRANCH_B.into()).await.unwrap();
+    assert_eq!(commit_hash_b_retrieve, commit_hash_b);
+    let commit_hash_main_retrieve = repo.retrieve_commit_hash(MAIN.into()).await.unwrap();
+    assert_eq!(commit_hash_main_retrieve, commit_hash_main);
+
+    // Retrieve commits by HEAD.
+    let commit_hash_head_retrieve = repo.retrieve_commit_hash("HEAD".to_owned()).await.unwrap();
+    assert_eq!(commit_hash_head_retrieve, commit_hash_b);
+    let commit_hash_head_retrieve = repo
+        .retrieve_commit_hash("HEAD^1".to_owned())
+        .await
+        .unwrap();
+    assert_eq!(commit_hash_head_retrieve, commit_hash_main);
+    let commit_hash_head_retrieve = repo
+        .retrieve_commit_hash("HEAD~1".to_owned())
+        .await
+        .unwrap();
+    assert_eq!(commit_hash_head_retrieve, commit_hash_main);
+    // This fails since there is only one parent commit.
+    repo.retrieve_commit_hash("HEAD^2".to_owned())
+        .await
+        .unwrap_err();
+
+    // Retrieve commits by tag.
+    let commit_hash_tag_a_retrieve = repo.retrieve_commit_hash(TAG_A.into()).await.unwrap();
+    assert_eq!(commit_hash_tag_a_retrieve, commit_hash_a);
+}

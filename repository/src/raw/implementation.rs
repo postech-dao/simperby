@@ -67,6 +67,19 @@ impl RawRepositoryImplInner {
         Ok(Self { repo })
     }
 
+    pub(crate) fn retrieve_commit_hash(
+        &self,
+        revision_selection: String,
+    ) -> Result<CommitHash, Error> {
+        let object = self.repo.revparse_single(revision_selection.as_str())?;
+        let commit = object.peel_to_commit()?;
+        let oid = commit.id();
+        let hash =
+            <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
+
+        Ok(CommitHash { hash })
+    }
+
     pub(crate) fn list_branches(&self) -> Result<Vec<Branch>, Error> {
         let branches = self.repo.branches(Option::Some(BranchType::Local))?;
 
