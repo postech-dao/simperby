@@ -65,7 +65,7 @@ fn basic1() {
             .collect(),
     );
     let merkle_proof = merkle_tree.create_merkle_proof(tx.to_hash256()).unwrap();
-    assert!(light_client.verify_commitment(serde_spb::to_vec(&tx).unwrap(), 1, merkle_proof));
+    assert!(light_client.verify_transaction_commitment(&tx, 1, merkle_proof));
 }
 
 #[test]
@@ -134,5 +134,5 @@ fn basic2() {
             .collect(),
     );
     let merkle_proof = merkle_tree.create_merkle_proof(tx.to_hash256()).unwrap();
-    assert!(light_client.verify_commitment(serde_spb::to_vec(&tx).unwrap(), 1, merkle_proof));
+    assert!(light_client.verify_transaction_commitment(&tx, 1, merkle_proof));
 }

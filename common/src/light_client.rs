@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightClient {
     pub repository_roots: Vec<Hash256>,
-    pub state_roots_height_offset: u64,
     pub commit_roots: Vec<Hash256>,
-    pub commit_roots_height_offset: u64,
+    pub height_offset: u64,
     pub last_header: BlockHeader,
 }
 
@@ -17,9 +16,8 @@ impl LightClient {
     pub fn new(initial_header: BlockHeader) -> Self {
         Self {
             repository_roots: vec![initial_header.repository_merkle_root],
-            state_roots_height_offset: initial_header.height,
             commit_roots: vec![initial_header.commit_merkle_root],
-            commit_roots_height_offset: initial_header.height,
+            height_offset: initial_header.height,
             last_header: initial_header,
         }
     }
@@ -34,23 +32,34 @@ impl LightClient {
         Ok(())
     }
 
-    /// Verifies the given data with its proof.
-    pub fn verify_commitment(
+    /// Verifies the given transaction with its proof.
+    pub fn verify_transaction_commitment(
         &self,
-        message: Vec<u8>,
+        transaction: &Transaction,
         block_height: u64,
         proof: MerkleProof,
     ) -> bool {
-        if block_height < self.commit_roots_height_offset
-            || block_height >= self.commit_roots_height_offset + self.commit_roots.len() as u64
+        let message = serde_spb::to_vec(transaction).unwrap();
+        if block_height < self.height_offset
+            || block_height >= self.height_offset + self.commit_roots.len() as u64
         {
             return false;
         }
         proof
             .verify(
-                self.commit_roots[(block_height - self.commit_roots_height_offset) as usize],
+                self.commit_roots[(block_height - self.height_offset) as usize],
                 &message,
             )
             .is_ok()
+    }
+
+    /// Verifies the state entry with its proof.
+    pub fn verify_state_commitment(
+        &self,
+        _message: Vec<u8>,
+        _block_height: u64,
+        _proof: MerkleProof,
+    ) -> bool {
+        todo!()
     }
 }
