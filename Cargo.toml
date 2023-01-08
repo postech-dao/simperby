@@ -9,4 +9,5 @@ members = [
     "repository",
     "consensus",
     "governance",
+    "settlement"
 ]

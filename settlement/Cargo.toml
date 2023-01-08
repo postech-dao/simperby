@@ -1,0 +1,21 @@
+[package]
+name = "simperby-settlement"
+version = "0.0.0"
+authors = ["PDAO Team <hello@postech-dao.xyz>"]
+edition = "2021"
+
+[dependencies]
+eyre = "0.6.8"
+async-trait = "0.1.42"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+log = "0.4"
+thiserror = "1.0"
+simperby-common = { version = "0.0.0", path = "../common" }
+rust_decimal = "1.25.0"
+
+[dev-dependencies]
+rand = "0.8.5"
+simperby-test-suite = { path = "../test-suite" }
+env_logger = "0.10.0"
