@@ -66,6 +66,12 @@ impl<'de> Deserialize<'de> for CommitHash {
 
 pub type Error = eyre::Error;
 
+#[derive(thiserror::Error, Debug)]
+#[error("repository integrity broken: {msg}")]
+pub struct IntegrityError {
+    pub msg: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Public repos (usually mirrors) for the read-only accesses
