@@ -17,27 +17,7 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
     Ok(CommitHash { hash })
 }
 
-#[tokio::main(flavor = "multi_thread")]
-#[allow(unreachable_code)]
-async fn main() -> eyre::Result<()> {
-    color_eyre::install().unwrap();
-    env_logger::init();
-
-    let private_key = std::env::args().nth(1).unwrap();
-    let sorc = std::env::args().nth(2).unwrap();
-    if sorc == "s" {
-        genesis::run_genesis_proposer(&private_key).await;
-    } else {
-        genesis::run_genesis_non_proposer(&private_key).await;
-    }
-
-    return Ok(());
-
-    let args = cli::Cli::parse();
-    let path = args.path.display().to_string();
-    let config: Config =
-        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/config.json", path)).await?)?;
-
+async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
     match args.command {
         Commands::Sync {
             last_finalization_proof: _,
@@ -69,7 +49,36 @@ async fn main() -> eyre::Result<()> {
         }
         _ => unimplemented!(),
     }
-    #[allow(unreachable_code)]
+    Ok(())
+}
+
+#[tokio::main(flavor = "multi_thread")]
+#[allow(unreachable_code)]
+async fn main() -> eyre::Result<()> {
+    color_eyre::install().unwrap();
+    env_logger::init();
+
+    let private_key = std::env::args().nth(1).unwrap();
+    let server_or_client = std::env::args().nth(2).unwrap();
+    if server_or_client == "s" {
+        genesis::run_genesis_proposer(&private_key).await;
+    } else {
+        genesis::run_genesis_non_proposer(&private_key).await;
+    }
+
+    return Ok(());
+
+    let args = cli::Cli::parse();
+    let path = args.path.display().to_string();
+    let config: Config =
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/config.json", path)).await?)?;
+
+    if let Err(e) = run(args, path, config).await {
+        if let Ok(_err) = e.downcast::<simperby_node::simperby_repository::IntegrityError>() {
+            // TODO: perform some special handling?
+        }
+    }
+
     Ok(())
 }
 
