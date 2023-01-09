@@ -163,9 +163,9 @@ impl<T: RawRepository> DistributedRepository<T> {
         if let Commit::Block(block_header) = commit {
             Ok(block_header)
         } else {
-            Err(eyre!(
-                "repository integrity broken; `finalized` branch is not on a block"
-            ))
+            Err(eyre!(IntegrityError {
+                msg: "`finalized` branch is not on a block".to_owned(),
+            }))
         }
     }
 
