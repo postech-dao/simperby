@@ -19,16 +19,23 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
 
 async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
     match args.command {
+        Commands::Clone { .. } => todo!(),
         Commands::Sync {
             last_finalization_proof: _,
         } => todo!(),
+        Commands::Git => todo!(),
         Commands::Clean { .. } => todo!(),
         Commands::Create(CreateCommands::Agenda) => todo!(),
         Commands::Create(CreateCommands::Block) => todo!(),
+        Commands::Vote { .. } => todo!(),
+        Commands::Veto { .. } => todo!(),
         Commands::Show { commit } => show(config, &path, commit).await?,
         Commands::Consensus { show: _ } => todo!(),
+        Commands::Network => todo!(),
         Commands::Serve => todo!(),
-        Commands::Fetch => todo!(),
+        Commands::Update => todo!(),
+        Commands::Broadcast => todo!(),
+        Commands::Chat { .. } => todo!(),
         Commands::Sign(SignCommands::Custom { hash }) => {
             let hash = Hash256::from_array(
                 hex::decode(hash)?
@@ -40,12 +47,6 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                 "{}",
                 Signature::sign(hash, &config.private_key).map_err(|_| eyre!("failed to sign"))?
             );
-        }
-        Commands::GenesisNonProposer => {
-            // genesis::run_genesis_non_proposer(config, &path).await;
-        }
-        Commands::GenesisProposer => {
-            // genesis::run_genesis_proposer(config, &path).await;
         }
         _ => unimplemented!(),
     }
