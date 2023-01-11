@@ -103,15 +103,12 @@ pub enum Commands {
     },
     /// Show the overall information of the given commit.
     Show { commit: String },
-    /// Run the Simperby node indefinitely. This is same as running `serve` while
-    /// invoking `consensus` and `fetch` repeatedly.
-    Run,
     /// Make a progress on the consensus.
     ///
     /// The node may broadcast the proposal or consensus messages depending on the
     /// current consensus round state.
     Consensus {
-        /// If enabled, it shows the status of the consensus.
+        /// If enabled, it shows the status of the consensus instead of making a progress.
         ///
         /// Unlike the governance which is performed on each agenda,
         /// the consensus is 'global' so this option is not associated with any commit.
@@ -120,11 +117,16 @@ pub enum Commands {
     },
     /// Show the current status of the p2p network.
     Network,
-    /// Serve the p2p network indefinitely.
+    /// Become a server node indefinitely, serving all message propagation and Git requests.
+    ///
+    /// You can not perform any other operations while running this command;
+    /// you have to run another shell to perform client-side, synchronous operations.
     Serve,
-    /// Fetch the data broadcasted over the network and update it to the repository,
-    /// the governance, and the consensus.
-    Fetch,
+    /// Update the node state by fetching data from the p2p network,
+    /// verifying incoming data, and applying to the repository and consensus & governance status.
+    Update,
+    /// Broadcast relevant data to the p2p network.
+    Broadcast,
     /// Chat on the P2P network.
     Chat {
         /// The message to say. If not specified, it prints the chat log.
