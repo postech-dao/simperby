@@ -141,8 +141,4 @@ pub enum Commands {
     /// Sign a message with the configured private key.
     #[command(subcommand)]
     Sign(SignCommands),
-    /// THIS IS TEMPORARY.
-    GenesisProposer,
-    /// THIS IS TEMPORARY
-    GenesisNonProposer,
 }
