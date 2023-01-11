@@ -76,7 +76,10 @@ pub enum Commands {
     Git,
     /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
-        /// If enabled, it will remove all the commits except those included in `finalized`.
+        /// If enabled, it will remove
+        /// 1. all branches except `finalized`, `fp`, and `work`
+        /// 2. all remote repositories
+        /// 3. all orphan commits
         #[clap(long, action)]
         hard: bool,
     },
