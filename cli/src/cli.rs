@@ -72,7 +72,7 @@ pub enum Commands {
         #[clap(short, long, action)]
         last_finalization_proof: String,
     },
-    /// Print the information about the block data Git server that this node is hosting.
+    /// Print the information about the Git server that this node is hosting.
     Git,
     /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
