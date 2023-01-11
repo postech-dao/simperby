@@ -51,8 +51,12 @@ pub enum SignCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Initialize a new Simperby node in the current directory.
-    Init,
+    /// Clone a remote repository to the current directory,
+    /// and initialize a new Simperby node after verification.
+    Clone {
+        /// The URL of the remote repository.
+        url: String,
+    },
     /// Sync the `finalized` branch to the `work` branch.
     ///
     /// This will verify every commit along the way.
