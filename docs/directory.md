@@ -2,7 +2,6 @@
 
 ## `/`
 
-- `simperby.exe` or `simperby`: the executable
 - `config.json`: the configuration
 - `key.json`: private key
 
