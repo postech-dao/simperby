@@ -119,7 +119,7 @@ pub enum Commands {
     Network,
     /// Become a server node indefinitely, serving all message propagation and Git requests.
     ///
-    /// You can not perform any other operations while running this command;
+    /// You cannot perform any other operations while running this command;
     /// you have to run another shell to perform client-side, synchronous operations.
     Serve,
     /// Update the node state by fetching data from the p2p network,
