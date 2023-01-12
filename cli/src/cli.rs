@@ -117,7 +117,7 @@ pub enum Commands {
     },
     /// Show the current status of the p2p network.
     Network,
-    /// Become a server node indefinitely, serving all message propagation and Git requests.
+    /// Become a server node indefinitely, serving all message propagations and Git requests.
     ///
     /// You cannot perform any other operations while running this command;
     /// you have to run another shell to perform client-side, synchronous operations.
