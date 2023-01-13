@@ -1176,7 +1176,13 @@ mod test {
             .unwrap_err();
     }
 
-    // TODO: add test case where the transaction commit is invalid because it is extra-agenda transaction phase.
+    #[ignore]
+    #[test]
+    /// Test the case where the transaction commit is invalid because it is extra-agenda transaction phase.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn phase_mismatch_for_transaction_commit3() {
+        todo!("Implement this test");
+    }
 
     #[test]
     /// Test the case where the agenda commit is invalid because the agenda height is invalid.
@@ -1297,7 +1303,14 @@ mod test {
             .unwrap_err();
     }
 
-    // TODO: add test case where the agenda commit is invalid because it is extra-agenda transaction phase.
+    #[ignore]
+    #[test]
+    // Test the case where the agenda commit is invalid because it is extra-agenda transaction phase.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn phase_mismatch_for_agenda_commit3() {
+        todo!("Implement this test")
+    }
 
     #[test]
     /// Test the case where the agenda proof commit is invalid because the agenda proof height is invalid.
@@ -1428,11 +1441,18 @@ mod test {
         .unwrap_err();
     }
 
-    // TODO: add test case where the agenda proof commit is invalid because it is extra-agenda transaction phase.
+    #[ignore]
+    #[test]
+    /// Test the case where the agenda proof commit is invalid because it is extra-agenda transaction phase.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    /// TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn phase_mismatch_for_agenda_proof_commit3() {
+        todo!("Implement this test")
+    }
 
     #[test]
     /// Test the case where the agenda proof commit is invalid because it is block phase.
-    fn phase_mismatch_for_agenda_proof_commit3() {
+    fn phase_mismatch_for_agenda_proof_commit4() {
         let (validator_keypair, _, mut csv) = setup_test(3);
         // Apply agenda-proof commit at block phase
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
@@ -1450,5 +1470,87 @@ mod test {
         .unwrap_err();
     }
 
-    // TODO: add test case where extra-agenda transactions are invalid.
+    #[ignore]
+    #[test]
+    // Test the case where the `Delegate` extra-agenda transaction is invalid because the delegator is not a member.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_delegate_transaction_with_invalid_delegator1() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Delegate` extra-agenda transaction is invalid because the delegator has already delegated.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_delegate_transaction_with_invalid_delegator2() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Delegate` extra-agenda transaction is invalid because the delegatee is not a member.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_delegate_transaction_with_invalid_delegatee() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Delegate` extra-agenda transaction is invalid because the signature is invalid.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_delegate_transaction_with_invalid_signature() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Delegate` extra-agenda transaction is invalid because the timestamp is invalid.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_delegate_transaction_with_invalid_timestamp() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the delegator is not a member.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    /// TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_undelegate_transaction_with_invalid_delegator1() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the delegator has nothing delegated.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    /// TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_undelegate_transaction_with_invalid_delegator2() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the signature is invalid.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    // TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_undelegate_transaction_with_invalid_signature() {
+        todo!("Implement this test")
+    }
+
+    #[ignore]
+    #[test]
+    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the timestamp is invalid.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
+    /// TODO: enable this test case when the extra-agenda transaction is implemented.
+    fn invalid_undelegate_transaction_with_invalid_timestamp() {
+        todo!("Implement this test")
+    }
+
+    // TODO: add test cases where the `Report` extra-agenda transactions are invalid.
+    // These test cases are TODO because the `Report` extra-agenda transaction is not implemented yet.
 }
