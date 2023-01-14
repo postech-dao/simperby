@@ -1527,7 +1527,7 @@ mod test {
 
     #[ignore]
     #[test]
-    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the delegator has nothing delegated.
+    // Test the case where the `Undelegate` extra-agenda transaction is invalid because the delegator has not delegated.
     /// This test case is ignored because the extra-agenda transaction is not implemented yet.
     /// TODO: enable this test case when the extra-agenda transaction is implemented.
     fn invalid_undelegate_transaction_with_invalid_delegator2() {
