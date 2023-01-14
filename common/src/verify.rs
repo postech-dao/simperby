@@ -1179,6 +1179,7 @@ mod test {
     #[ignore]
     #[test]
     /// Test the case where the transaction commit is invalid because it is extra-agenda transaction phase.
+    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
     // TODO: enable this test case when the extra-agenda transaction is implemented.
     fn phase_mismatch_for_transaction_commit3() {
         todo!("Implement this test");
