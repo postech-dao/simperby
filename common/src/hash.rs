@@ -85,6 +85,12 @@ impl ToHash256 for Commit {
     }
 }
 
+impl ToHash256 for DelegationTransactionData {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
+    }
+}
+
 impl Transaction {
     /// Returns the alternative hash of the transaction, which is for the Merkle tree.
     pub fn merkle_hash(&self) -> Hash256 {
