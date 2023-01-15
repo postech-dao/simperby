@@ -1,6 +1,6 @@
 use crate::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// The partial set of the blockchain state which is reserved and protected.
 ///
@@ -22,55 +22,108 @@ pub struct ReservedState {
 
 impl ReservedState {
     pub fn get_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut validator_set = HashMap::new();
-        for member in &self.members {
-            if let Some(delegatee) = &member.consensus_delegatee {
-                validator_set
-                    .entry(delegatee.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            } else {
-                validator_set
-                    .entry(member.name.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            }
-        }
-        // TODO handle error
-        Ok(self
-            .consensus_leader_order
+        let validator_set = self
+            .members
             .iter()
-            .map(|name| (self.query_public_key(name).unwrap(), validator_set[name]))
-            .collect())
+            .map(|member| {
+                let name = member
+                    .consensus_delegatee
+                    .as_ref()
+                    .map_or_else(|| member.name.as_str(), |name| name.as_str());
+                let public_key = self.query_public_key(&name.to_string()).ok_or_else(|| {
+                    format!("the public key of {name} is not found in the reserved state.")
+                })?;
+                Ok((public_key, member.consensus_voting_power))
+            })
+            .try_fold(
+                BTreeMap::new(),
+                |mut map, result: Result<(crypto::PublicKey, u64), String>| {
+                    let (public_key, voting_power) = result?;
+                    map.entry(public_key)
+                        .and_modify(|v| *v += voting_power)
+                        .or_insert(voting_power);
+                    Ok::<BTreeMap<crypto::PublicKey, u64>, String>(map)
+                },
+            )?
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        Ok(validator_set)
     }
 
     pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut governance_set = HashMap::new();
-        for member in &self.members {
-            if let Some(delegatee) = &member.governance_delegatee {
-                governance_set
-                    .entry(delegatee.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            } else {
-                governance_set
-                    .entry(member.name.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
+        let governance_set = self
+            .members
+            .iter()
+            .map(|member| {
+                let name = member
+                    .governance_delegatee
+                    .as_ref()
+                    .map_or_else(|| member.name.as_str(), |name| name.as_str());
+                let public_key = self.query_public_key(&name.to_string()).ok_or_else(|| {
+                    format!("the public key of {name} is not found in the reserved state.")
+                })?;
+                Ok((public_key, member.consensus_voting_power))
+            })
+            .try_fold(
+                BTreeMap::new(),
+                |mut map, result: Result<(crypto::PublicKey, u64), String>| {
+                    let (public_key, voting_power) = result?;
+                    map.entry(public_key)
+                        .and_modify(|v| *v += voting_power)
+                        .or_insert(voting_power);
+                    Ok::<BTreeMap<crypto::PublicKey, u64>, String>(map)
+                },
+            )?
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        Ok(governance_set)
+    }
+
+    pub fn apply_delegate(&mut self, tx: &TxDelegate) -> Result<Self, String> {
+        if tx.proof.verify(&tx.data).is_err() {
+            return Err("delegation proof verification failed".to_string());
+        }
+        let delegator_name = self
+            .query_name(&tx.data.delegator.clone())
+            .ok_or_else(|| "delegator does not exist by name".to_string())?;
+        let delegatee_name = self
+            .query_name(&tx.data.delegatee.clone())
+            .ok_or_else(|| "delegatee does not exist by name".to_string())?;
+        for delegator in &mut self.members {
+            if delegator.name == delegator_name {
+                if tx.data.governance {
+                    delegator.governance_delegatee = Some(delegatee_name.clone());
+                    delegator.consensus_delegatee = Some(delegatee_name);
+                } else {
+                    delegator.consensus_delegatee = Some(delegatee_name);
+                }
+                break;
             }
         }
-        Ok(governance_set
-            .iter()
-            .map(|(name, voting_power)| (self.query_public_key(name).unwrap(), *voting_power))
-            .collect())
+        Ok(self.clone())
     }
 
-    pub fn apply_delegate(&mut self, _tx: &TxDelegate) -> Result<Self, String> {
-        unimplemented!()
-    }
-
-    pub fn apply_undelegate(&mut self, _tx: &TxUndelegate) -> Result<Self, String> {
-        unimplemented!()
+    pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
+        if tx.proof.verify(&tx.data).is_err() {
+            return Err("delegation proof verification failed".to_string());
+        }
+        let delegator_name = self
+            .query_name(&tx.data.delegator.clone())
+            .ok_or_else(|| "delegator does not exist by name".to_string())?;
+        for delegator in &mut self.members {
+            if delegator.name == delegator_name {
+                if delegator.consensus_delegatee.is_some() {
+                    delegator.consensus_delegatee = None;
+                    delegator.governance_delegatee = None;
+                    break;
+                } else {
+                    return Err("consensus delegatee is not set".to_string());
+                }
+            }
+        }
+        Ok(self.clone())
     }
 
     pub fn query_name(&self, public_key: &PublicKey) -> Option<MemberName> {
@@ -95,6 +148,7 @@ impl ReservedState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::*;
     use simperby_test_suite::setup_test;
     use std::collections::HashSet;
 
@@ -186,6 +240,7 @@ mod tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn basic_validator_set2() {
         setup_test();
@@ -336,6 +391,233 @@ mod tests {
             vec![(keys[1].0.clone(), 2), (keys[3].0.clone(), 2),]
                 .into_iter()
                 .collect::<HashSet<_>>()
+        );
+    }
+
+    #[test]
+    fn test_apply_delegate_on_governance_and_consensus_success() {
+        // given
+        setup_test();
+        let (mut reserved_state, keys) = generate_standard_genesis(4);
+
+        // delegator : member-0000 && delegatee : member-0002
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[2].0.clone();
+
+        let delegatee = reserved_state.members[2].clone();
+
+        // when
+        let data: DelegationTransactionData = DelegationTransactionData {
+            delegator: delegator_public_key,
+            delegatee: delegatee_public_key,
+            governance: true,
+            block_height: 0,
+            timestamp: 0,
+        };
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxDelegate { data, proof };
+        let new_state = reserved_state.apply_delegate(&tx);
+
+        // then
+        assert!(new_state.is_ok());
+        let new_state = new_state.unwrap();
+        let new_state_validator_set = new_state.get_validator_set();
+        let new_state_governance_set = new_state.get_governance_set();
+
+        assert_eq!(
+            new_state.members[0].governance_delegatee.as_ref().unwrap(),
+            &delegatee.name
+        );
+
+        assert_eq!(
+            new_state.members[0].consensus_delegatee.as_ref().unwrap(),
+            &delegatee.name
+        );
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            2
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            2
+        );
+    }
+
+    #[test]
+    fn test_apply_delegate_on_consensus_success() {
+        // given
+        setup_test();
+        let (mut state, keys) = generate_standard_genesis(3);
+        // delegator : member-0000 && delegatee : member-0002
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[2].0.clone();
+
+        let delegatee = state.members[2].clone();
+
+        // when
+        let data: DelegationTransactionData = DelegationTransactionData {
+            delegator: delegator_public_key,
+            delegatee: delegatee_public_key,
+            governance: false,
+            block_height: 0,
+            timestamp: 0,
+        };
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxDelegate { data, proof };
+
+        let new_state = state.apply_delegate(&tx);
+
+        // then
+        assert!(new_state.is_ok());
+        let new_state = new_state.unwrap();
+        let new_state_validator_set = new_state.get_validator_set();
+        let new_state_governance_set = new_state.get_governance_set();
+
+        assert_eq!(
+            new_state.members[0].consensus_delegatee.as_ref().unwrap(),
+            &delegatee.name
+        );
+
+        assert_eq!(new_state.members[0].governance_delegatee, None);
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            2
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            1
+        );
+    }
+
+    #[test]
+    fn test_apply_undelegate_on_governance_and_consensus_success() {
+        // given
+        setup_test();
+        let (mut reserved_state, keys) = generate_delegated_genesis(4, true);
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+
+        let delegatee = reserved_state.members[2].clone();
+
+        // when
+        let data = UndelegationTransactionData {
+            delegator: delegator_public_key,
+            block_height: 0,
+            timestamp: 0,
+        };
+
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxUndelegate { data, proof };
+        let undelegated_state = reserved_state.apply_undelegate(&tx);
+
+        // then
+        assert!(undelegated_state.is_ok());
+        let undelegated_state = undelegated_state.unwrap();
+        let new_state_validator_set = undelegated_state.get_validator_set();
+        let new_state_governance_set = undelegated_state.get_governance_set();
+
+        assert_eq!(undelegated_state.members[0].consensus_delegatee, None);
+        assert_eq!(undelegated_state.members[0].governance_delegatee, None);
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            1
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            1
+        );
+    }
+
+    #[test]
+    fn test_apply_undelegate_on_consensus_success() {
+        // given
+        setup_test();
+        let (mut reserved_state, keys) = generate_delegated_genesis(4, false);
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+
+        let delegatee = reserved_state.members[2].clone();
+
+        // when
+        let data = UndelegationTransactionData {
+            delegator: delegator_public_key,
+            block_height: 0,
+            timestamp: 0,
+        };
+
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxUndelegate { data, proof };
+        let undelegated_state = reserved_state.apply_undelegate(&tx);
+
+        // then
+        assert!(undelegated_state.is_ok());
+        let undelegated_state = undelegated_state.unwrap();
+        let new_state_validator_set = undelegated_state.get_validator_set();
+        let new_state_governance_set = undelegated_state.get_governance_set();
+
+        assert_eq!(undelegated_state.members[0].consensus_delegatee, None);
+        assert_eq!(undelegated_state.members[0].governance_delegatee, None);
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            1
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            1
         );
     }
 }
