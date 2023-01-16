@@ -51,12 +51,23 @@ pub enum SignCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Clone a remote repository to the current directory,
+    // ----- Initialization Commands ----- //
+    /// Create a genesis commit and initialize a Simberby repository
+    /// from the given existing Git repository.
+    ///
+    /// This will seek the reserved state, verify it, and add a genesis commit.
+    /// You have to run `init` after this to initialize the Simperby node.
+    Genesis,
+    /// Initialize a new Simperby node from the given existing Simperby repository.
+    Init,
+    /// Clone a remote Simperby repository to the current directory,
     /// and initialize a new Simperby node after verification.
     Clone {
         /// The URL of the remote repository.
         url: String,
     },
+
+    // ----- Modification Commands ----- //
     /// Sync the `finalized` branch to the `work` branch.
     ///
     /// This will verify every commit along the way.
@@ -72,8 +83,6 @@ pub enum Commands {
         #[clap(short, long, action)]
         last_finalization_proof: String,
     },
-    /// Print the information about the Git server that this node is hosting.
-    Git,
     /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
         /// If enabled, it will remove
@@ -101,8 +110,6 @@ pub enum Commands {
         /// If the given commit is already set to `veto`, it will be removed.
         commit: Option<String>,
     },
-    /// Show the overall information of the given commit.
-    Show { commit: String },
     /// Make a progress on the consensus.
     ///
     /// The node may broadcast the proposal or consensus messages depending on the
@@ -115,8 +122,16 @@ pub enum Commands {
         #[clap(long, action)]
         show: bool,
     },
+
+    // ----- Information Commands ----- //
+    /// Print the information about the Git server that this node is hosting.
+    Git,
+    /// Show the overall information of the given commit.
+    Show { commit: String },
     /// Show the current status of the p2p network.
     Network,
+
+    // ----- Network Commands ----- //
     /// Become a server node indefinitely, serving all message propagations and Git requests.
     ///
     /// You cannot perform any other operations while running this command;
@@ -127,6 +142,8 @@ pub enum Commands {
     Update,
     /// Broadcast relevant data to the p2p network.
     Broadcast,
+
+    // ----- Miscellaneous Commands ----- //
     /// Chat on the P2P network.
     Chat {
         /// The message to say. If not specified, it prints the chat log.

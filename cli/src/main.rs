@@ -4,9 +4,7 @@ mod genesis;
 use clap::Parser;
 use cli::*;
 use eyre::{eyre, Result};
-use simperby_node::{
-    simperby_common::*, simperby_repository::CommitHash, CommitInfo, Config, SimperbyApi,
-};
+use simperby_node::{simperby_common::*, simperby_repository::CommitHash, CommitInfo, Config};
 
 fn to_commit_hash(s: &str) -> Result<CommitHash> {
     let hash = hex::decode(s).map_err(|_| eyre!("invalid hash"))?;
