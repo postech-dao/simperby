@@ -1,6 +1,6 @@
 use simperby_common::*;
 use simperby_network::Peer;
-use simperby_node::{node::genesis, *};
+use simperby_node::{genesis, *};
 use simperby_repository::raw::RawRepository;
 use simperby_test_suite::*;
 use tokio::io::AsyncWriteExt;
