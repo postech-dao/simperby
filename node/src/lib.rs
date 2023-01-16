@@ -19,7 +19,7 @@
 //!
 //! - `genesis`
 //!
-//! The following CLI commands are provided as global funcitons as they are about the node creation.
+//! The following CLI commands are provided as global functions as they are about the node creation.
 //!
 //! - `init`
 //! - `clone`
@@ -35,14 +35,15 @@ pub use simperby_common;
 pub use simperby_network;
 pub use simperby_repository;
 
-use async_trait::async_trait;
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_governance::Governance;
-use simperby_repository::raw::SemanticCommit;
+use simperby_network::{Peer, SharedKnownPeers};
+use simperby_repository::raw::{RawRepository, RawRepositoryImpl, SemanticCommit};
 use simperby_repository::CommitHash;
+use simperby_repository::DistributedRepository;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -103,74 +104,43 @@ pub enum CommitInfo {
     }, // TODO
 }
 
-/// The API for the Simperby node.
-///
-/// It is for serving the **CLI**, providing low-level functions and type-specified interfaces.
-#[async_trait]
-pub trait SimperbyApi {
-    /// Initializes a new Simperby node from the genesis state
-    /// stored in the given directory (which is not yet a Git repository).
-    async fn genesis(&mut self) -> Result<()>;
-
-    /// Synchronizes the `finalized` branch to the given commit.
-    async fn sync(&mut self, commmit: CommitHash) -> Result<()>;
-
-    /// Cleans the repository, removing all the outdated commits.
-    async fn clean(&mut self, hard: bool) -> Result<()>;
-
-    /// Creates a block commit on the `finalized` branch.
-    async fn create_block(&mut self) -> Result<CommitHash>;
-
-    /// Creates a block commit on the `finalized` branch.
-    async fn create_agenda(&mut self) -> Result<CommitHash>;
-
-    /// Creates an extra-agenda transaction on the `finalized` branch.
-    async fn create_extra_agenda_transaction(&mut self, tx: ExtraAgendaTransaction) -> Result<()>;
-
-    /// Votes and propagates.
-    async fn vote(&mut self, agenda_commit: CommitHash) -> Result<()>;
-
-    /// Vetos the current round.
-    async fn veto_round(&mut self) -> Result<()>;
-
-    /// Vetos the given block.
-    async fn veto_block(&mut self, block_commit: CommitHash) -> Result<()>;
-
-    /// Shows information about the given commit.
-    async fn show(&self, commit: CommitHash) -> Result<CommitInfo>;
-
-    /// Runs indefinitely updating everything.
-    async fn run(self) -> Result<()>;
-
-    /// Makes a progress for the consensus, returning the result.
-    ///
-    /// TODO: it has to consume the object if finalized.
-    async fn progress_for_consensus(&mut self) -> Result<String>;
-
-    /// Gets the current status of the consensus.
-    async fn get_consensus_status(&self) -> Result<ConsensusStatus>;
-
-    /// Gets the current status of the p2p network.
-    async fn get_network_status(&self) -> Result<NetworkStatus>;
-
-    /// Serves indefinitely the p2p network.
-    async fn serve(self, ms: u64) -> Result<Self>
-    where
-        Self: Sized;
-
-    /// Fetch the data from the network and apply to the repository, the governance, and the consensus.
-    async fn fetch(&mut self) -> Result<()>;
-
-    // TODO: Add chat-related methods.
-}
-
-/// A working Simperby node.
 pub type SimperbyNode = node::Node<
     simperby_network::primitives::DummyGossipNetwork,
     simperby_network::storage::StorageImpl,
     simperby_repository::raw::RawRepositoryImpl,
 >;
 
+/// Creates a genesis commit.
+pub async fn genesis(config: Config, path: &str) -> Result<()> {
+    let peers: Vec<Peer> =
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?)?;
+    let peers = SharedKnownPeers::new_static(peers.clone());
+    let raw_repository = RawRepositoryImpl::open(&format!("{}/repository/repo", path)).await?;
+    let mut repository = DistributedRepository::new(
+        raw_repository,
+        simperby_repository::Config {
+            mirrors: config.public_repo_url.clone(),
+            long_range_attack_distance: 3,
+        },
+        peers.clone(),
+    )
+    .await?;
+    repository.genesis().await?;
+
+    Ok(())
+}
+
+/// Initializes a node.
 pub async fn initialize(config: Config, path: &str) -> Result<SimperbyNode> {
     SimperbyNode::initialize(config, path).await
+}
+
+/// Clones a remote repository and initializes a node.
+pub async fn clone(_config: Config, _path: &str, _url: &str) -> Result<SimperbyNode> {
+    todo!()
+}
+
+/// Runs a server node indefinitely.
+pub async fn serve(_config: Config, _path: &str) -> Result<()> {
+    todo!()
 }

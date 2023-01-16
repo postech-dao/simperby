@@ -8,23 +8,11 @@ use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
 use simperby_repository::DistributedRepository;
 use std::collections::HashMap;
 
-pub async fn genesis(config: Config, path: &str) -> Result<()> {
-    let peers: Vec<Peer> =
-        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?)?;
-    let peers = SharedKnownPeers::new_static(peers.clone());
-    let raw_repository = RawRepositoryImpl::open(&format!("{}/repository/repo", path)).await?;
-    let mut repository = DistributedRepository::new(
-        raw_repository,
-        simperby_repository::Config {
-            mirrors: config.public_repo_url.clone(),
-            long_range_attack_distance: 3,
-        },
-        peers.clone(),
-    )
-    .await?;
-    repository.genesis().await?;
-
-    Ok(())
+fn get_timestamp() -> Timestamp {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as Timestamp
 }
 
 pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
@@ -157,30 +145,19 @@ impl SimperbyNode {
     pub fn network_config(&self) -> &NetworkConfig {
         &self.network_config
     }
-}
 
-fn get_timestamp() -> Timestamp {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as Timestamp
-}
-
-#[async_trait]
-impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, R> {
-    async fn genesis(&mut self) -> Result<()> {
+    /// Synchronizes the `finalized` branch to the given commit.
+    pub async fn sync(&mut self, _commmit: CommitHash) -> Result<()> {
         todo!()
     }
 
-    async fn sync(&mut self, _commmit: CommitHash) -> Result<()> {
-        todo!()
-    }
-
-    async fn clean(&mut self, _hard: bool) -> Result<()> {
+    /// Cleans the repository, removing all the outdated commits.
+    pub async fn clean(&mut self, _hard: bool) -> Result<()> {
         self.repository.clean().await
     }
 
-    async fn create_block(&mut self) -> Result<CommitHash> {
+    /// Creates a block commit on the `work` branch.
+    pub async fn create_block(&mut self) -> Result<CommitHash> {
         let (header, commit_hash) = self
             .repository
             .create_block(self.config.public_key.clone())
@@ -195,7 +172,8 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         Ok(commit_hash)
     }
 
-    async fn create_agenda(&mut self) -> Result<CommitHash> {
+    /// Creates an agenda commit on the `work` branch.
+    pub async fn create_agenda(&mut self) -> Result<CommitHash> {
         let (_, commit_hash) = self
             .repository
             .create_agenda(self.config.public_key.clone())
@@ -203,11 +181,16 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         Ok(commit_hash)
     }
 
-    async fn create_extra_agenda_transaction(&mut self, _tx: ExtraAgendaTransaction) -> Result<()> {
+    /// Creates an extra-agenda transaction on the `work` branch.
+    pub async fn create_extra_agenda_transaction(
+        &mut self,
+        _tx: ExtraAgendaTransaction,
+    ) -> Result<()> {
         unimplemented!()
     }
 
-    async fn vote(&mut self, agenda_commit: CommitHash) -> Result<()> {
+    /// Votes on the agenda corresponding to the given `agenda_commit` and propagates the result
+    pub async fn vote(&mut self, agenda_commit: CommitHash) -> Result<()> {
         let valid_agendas = self.repository.get_agendas().await?;
         let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
             x.1
@@ -222,15 +205,18 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         Ok(())
     }
 
-    async fn veto_round(&mut self) -> Result<()> {
+    /// Vetoes the current round.
+    pub async fn veto_round(&mut self) -> Result<()> {
         unimplemented!()
     }
 
-    async fn veto_block(&mut self, _block_commit: CommitHash) -> Result<()> {
+    /// Vetoes the given block.
+    pub async fn veto_block(&mut self, _block_commit: CommitHash) -> Result<()> {
         unimplemented!()
     }
 
-    async fn show(&self, commit_hash: CommitHash) -> Result<CommitInfo> {
+    /// Shows information about the given commit.
+    pub async fn show(&self, commit_hash: CommitHash) -> Result<CommitInfo> {
         let semantic_commit = self
             .repository
             .get_raw()
@@ -272,11 +258,10 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         Ok(result)
     }
 
-    async fn run(self) -> Result<()> {
-        unimplemented!()
-    }
-
-    async fn progress_for_consensus(&mut self) -> Result<String> {
+    /// Makes a progress for the consensus, returning the result.
+    ///
+    /// TODO: it has to consume the object if finalized.
+    pub async fn progress_for_consensus(&mut self) -> Result<String> {
         let result = self.consensus.progress(get_timestamp()).await?;
         for result in result.iter() {
             if let ProgressResult::Finalized(hash, _, proof) = result {
@@ -286,15 +271,17 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         Ok(format!("{:?}", result))
     }
 
-    async fn get_consensus_status(&self) -> Result<ConsensusStatus> {
+    /// Gets the current status of the consensus.
+    pub async fn get_consensus_status(&self) -> Result<ConsensusStatus> {
         todo!()
     }
 
-    async fn get_network_status(&self) -> Result<NetworkStatus> {
+    /// Gets the current status of the p2p network.
+    pub async fn get_network_status(&self) -> Result<NetworkStatus> {
         unimplemented!()
     }
 
-    async fn serve(self, ms: u64) -> Result<Self> {
+    pub async fn serve(self, ms: u64) -> Result<Self> {
         let repository_port = self.config.repository_port;
 
         let t1 = tokio::spawn(async move { self.governance.serve(ms).await.unwrap() });
@@ -312,7 +299,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
 
         let governance = t1.await?;
         let consensus = t2.await?;
-        let _ = t3.await?;
+        t3.await?;
 
         Ok(Self {
             governance,
@@ -326,7 +313,7 @@ impl<N: GossipNetwork, S: Storage, R: RawRepository> SimperbyApi for Node<N, S, 
         })
     }
 
-    async fn fetch(&mut self) -> Result<()> {
+    pub async fn fetch(&mut self) -> Result<()> {
         let t1 = async { self.governance.fetch().await };
         let t2 = async { self.consensus.fetch().await };
         let t3 = async { self.repository.fetch().await };
