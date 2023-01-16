@@ -1,3 +1,34 @@
+//! A Simperby node.
+//!
+//! The following CLI commands are provided by `SimperbyNode` as they are based on the node state.
+//!
+//! - `sync`
+//! - `clean`
+//! - `create`
+//! - `vote`
+//! - `veto`
+//! - `consensus`
+//! - `git`
+//! - `show`
+//! - `network`
+//! - `update`
+//! - `broadcast`
+//! - `chat`
+//!
+//! The following CLI commands are provided as global functions as they are node-stateless.
+//!
+//! - `genesis`
+//!
+//! The following CLI commands are provided as global funcitons as they are about the node creation.
+//!
+//! - `init`
+//! - `clone`
+//! - `serve`
+//!
+//! The following CLI commands are not provided here because they are simple
+//! and so directly implemented in the CLI.
+//!
+//! - `sign`
 pub mod node;
 
 pub use simperby_common;
