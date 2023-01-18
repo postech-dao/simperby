@@ -189,7 +189,7 @@ impl SimperbyNode {
         unimplemented!()
     }
 
-    /// Votes on the agenda corresponding to the given `agenda_commit` and propagates the result
+    /// Votes on the agenda corresponding to the given `agenda_commit` and propagates the result.
     pub async fn vote(&mut self, agenda_commit: CommitHash) -> Result<()> {
         let valid_agendas = self.repository.get_agendas().await?;
         let agenda_hash = if let Some(x) = valid_agendas.iter().find(|(x, _)| *x == agenda_commit) {
