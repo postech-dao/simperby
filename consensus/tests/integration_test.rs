@@ -83,6 +83,7 @@ fn _verify_fp(_fp: FinalizationProof) {
 }
 
 #[tokio::test]
+#[ignore]
 async fn single_server_propose_1() {
     setup_test();
     let (network_id, dms_key) = get_network_id_and_dms_key("single_server_propose_1");

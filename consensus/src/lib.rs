@@ -374,6 +374,12 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         Ok(final_result)
     }
 
+    /// Broadcasts all the local messages.
+    pub async fn broadcast(&mut self) -> Result<(), Error> {
+        self.dms.broadcast_all().await?;
+        Ok(())
+    }
+
     pub async fn fetch(&mut self) -> Result<(), Error> {
         self.dms.fetch().await
     }

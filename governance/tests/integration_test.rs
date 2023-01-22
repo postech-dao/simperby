@@ -51,6 +51,7 @@ async fn basic_1() {
 
     for (node, _) in client_nodes.iter_mut() {
         node.vote(agenda_hash).await.unwrap();
+        node.broadcast().await.unwrap();
     }
     sleep_ms(500).await;
     for (node, _) in client_nodes.iter_mut() {

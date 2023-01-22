@@ -304,7 +304,6 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
     pub async fn add_message(&mut self, message: Message) -> Result<(), Error> {
         Self::add_message_but_not_broadcast(&mut *(self.storage.write().await), message.clone())
             .await?;
-        self.broadcast_all().await?;
         Ok(())
     }
 

@@ -74,6 +74,12 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
         Ok(())
     }
 
+    /// Broadcasts all the local messages.
+    pub async fn broadcast(&mut self) -> Result<(), Error> {
+        self.dms.broadcast_all().await?;
+        Ok(())
+    }
+
     pub async fn fetch(&mut self) -> Result<(), Error> {
         self.dms.fetch().await?;
         Ok(())

@@ -227,6 +227,12 @@ impl<T: RawRepository> DistributedRepository<T> {
         Ok(())
     }
 
+    /// Broadcasts all the local messages.
+    pub async fn broadcast(&mut self) -> Result<(), Error> {
+        // TODO: perform git push
+        Ok(())
+    }
+
     /// Fetches new commits from the network.
     ///
     /// It **verifies** all the incoming changes and applies them to the local repository
