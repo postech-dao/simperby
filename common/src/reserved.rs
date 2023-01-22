@@ -10,6 +10,14 @@ pub struct TxDelegateUpdateDelegatorResponse {
     pub delegated_governance_voting_power: Option<VotingPower>,
 }
 
+pub struct TxUndelegateUpdateDelegatorResponse {
+    pub updated: bool,
+    pub consensus_delegatee: Option<MemberName>,
+    pub governance_delegatee: Option<MemberName>,
+    pub undelegated_consensus_voting_power: Option<VotingPower>,
+    pub undelegated_governance_voting_power: Option<VotingPower>,
+}
+
 /// The partial set of the blockchain state which is reserved and protected.
 ///
 /// It is stored in the reserved directory of the repository.
@@ -141,8 +149,66 @@ impl ReservedState {
         }
     }
 
-    pub fn apply_undelegate(&mut self, _tx: &TxUndelegate) -> Result<Self, String> {
-        unimplemented!()
+    pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
+        let mut delegator_updated = false;
+        let delegator_name = match self.query_name(&tx.delegator.clone()) {
+            Some(name) => name,
+            None => return Result::Err("delegator does not exist by name".to_string()),
+        };
+
+        for member in &mut self.members {
+            if member.name == delegator_name {
+                match Self::remove_delegator_delegatee_field(tx, member) {
+                    Ok(delegator_update_response) => {
+                        delegator_updated = delegator_update_response.updated;
+                    }
+                    Err(e) => {
+                        return Result::Err("delegator update failed".to_string() + e.as_str())
+                    }
+                }
+            }
+        }
+        if delegator_updated {
+            Ok(self.clone())
+        } else {
+            Err("Something has gone wrong. Nothing was undelegated".to_string())
+        }
+    }
+
+    fn remove_delegator_delegatee_field(
+        tx: &TxUndelegate,
+        now_member: &mut Member,
+    ) -> Result<TxUndelegateUpdateDelegatorResponse, String> {
+        let original_consensus_delegatee_clone = now_member.consensus_delegatee.clone();
+        let original_consensus_delegatee: &MemberName = match &original_consensus_delegatee_clone {
+            Some(consensus_delegatee) => consensus_delegatee,
+            None => return Result::Err("consensus delegatee is not set".to_string()),
+        };
+        now_member.consensus_delegatee = None;
+        if tx.governance {
+            let original_governance_delegatee_clone = now_member.governance_delegatee.clone();
+            let original_governance_delegatee: &MemberName =
+                match &original_governance_delegatee_clone {
+                    Some(governance_delegatee) => governance_delegatee,
+                    None => return Result::Err("governance delegatee is not set".to_string()),
+                };
+            now_member.governance_delegatee = None;
+            Ok(TxUndelegateUpdateDelegatorResponse {
+                updated: true,
+                consensus_delegatee: Option::Some(original_consensus_delegatee.clone()),
+                governance_delegatee: Option::Some(original_governance_delegatee.clone()),
+                undelegated_consensus_voting_power: None,
+                undelegated_governance_voting_power: Some(now_member.governance_voting_power),
+            })
+        } else {
+            Ok(TxUndelegateUpdateDelegatorResponse {
+                updated: true,
+                consensus_delegatee: Option::Some(original_consensus_delegatee.clone()),
+                governance_delegatee: None,
+                undelegated_consensus_voting_power: Some(now_member.consensus_voting_power),
+                undelegated_governance_voting_power: None,
+            })
+        }
     }
 
     pub fn query_name(&self, public_key: &PublicKey) -> Option<MemberName> {
@@ -627,6 +693,282 @@ mod tests {
                 .unwrap()
                 .1,
             20
+        );
+    }
+
+    fn setup_tx_undelegate_on_governance_test(
+    ) -> (PublicKey, PrivateKey, PublicKey, Member, ReservedState) {
+        let keys = (0..4)
+            .into_iter()
+            .map(|i| generate_keypair(format!("{i}")))
+            .collect::<Vec<_>>();
+
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[1].0.clone();
+
+        let delegator = Member {
+            public_key: delegator_public_key.clone(),
+            name: "delegator".to_string(),
+            consensus_voting_power: 10,
+            governance_voting_power: 10, // delegated
+            consensus_delegatee: Some("delegatee".to_string()),
+            governance_delegatee: Some("delegatee".to_string()),
+        };
+
+        let delegatee = Member {
+            public_key: delegatee_public_key.clone(),
+            name: "delegatee".to_string(),
+            consensus_voting_power: 20,
+            governance_voting_power: 20,
+            consensus_delegatee: None,
+            governance_delegatee: None,
+        };
+
+        let members = vec![
+            delegator.clone(),
+            delegatee.clone(),
+            create_member(keys.clone(), 2),
+        ];
+
+        let genesis_header = BlockHeader {
+            author: PublicKey::zero(),
+            prev_block_finalization_proof: Vec::new(),
+            previous_hash: Hash256::zero(),
+            height: 0,
+            timestamp: 0,
+            commit_merkle_root: Hash256::zero(),
+            repository_merkle_root: Hash256::zero(),
+            validator_set: members
+                .iter()
+                .map(|member| (member.public_key.clone(), member.consensus_voting_power))
+                .collect::<Vec<_>>(),
+            version: "0.1.0".to_string(),
+        };
+
+        let genesis_info = GenesisInfo {
+            header: genesis_header.clone(),
+            genesis_proof: keys
+                .iter()
+                .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
+                .collect::<Vec<_>>(),
+            chain_name: "test-chain".to_string(),
+        };
+
+        let state = ReservedState {
+            genesis_info,
+            members: vec![delegator.clone(), delegatee.clone()],
+            consensus_leader_order: vec![delegator.name, delegatee.name.to_string()],
+            version: "".to_string(),
+        };
+        (
+            delegator_public_key,
+            delegator_private_key,
+            delegatee_public_key,
+            delegatee,
+            state,
+        )
+    }
+
+    #[test]
+    fn test_apply_undelegate_on_governance_success() {
+        // given
+        setup_test();
+        let (
+            delegator_public_key,
+            delegator_private_key,
+            delegatee_public_key,
+            delegatee,
+            mut state,
+        ) = setup_tx_undelegate_on_governance_test();
+
+        // when
+        let data = (
+            delegator_public_key.clone(),
+            delegatee_public_key.clone(),
+            true,
+            0u64,
+        );
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxUndelegate {
+            delegator: delegator_public_key,
+            delegatee: delegatee_public_key,
+            governance: true,
+            proof,
+            timestamp: 0,
+        };
+        let new_state = state.apply_undelegate(&tx);
+
+        // then
+        assert!(new_state.is_ok());
+        let new_state = new_state.unwrap();
+        let new_state_validator_set = new_state.get_validator_set();
+        let new_state_governance_set = new_state.get_governance_set();
+
+        assert_eq!(new_state.members[0].consensus_voting_power, 10);
+        assert_eq!(new_state.members[0].governance_voting_power, 10);
+        assert_eq!(new_state.members[0].consensus_delegatee, None);
+        assert_eq!(new_state.members[0].governance_delegatee, None);
+        assert_eq!(new_state.members[1].consensus_voting_power, 20);
+        assert_eq!(new_state.members[1].governance_voting_power, 20);
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            20
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            20
+        );
+    }
+
+    fn setup_tx_undelegate_on_consensus_test(
+    ) -> (PublicKey, PrivateKey, PublicKey, Member, ReservedState) {
+        let keys = (0..4)
+            .into_iter()
+            .map(|i| generate_keypair(format!("{i}")))
+            .collect::<Vec<_>>();
+
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[1].0.clone();
+
+        let delegator = Member {
+            public_key: delegator_public_key.clone(),
+            name: "delegator".to_string(),
+            consensus_voting_power: 10, // delegated
+            governance_voting_power: 10,
+            consensus_delegatee: Some("delegatee".to_string()),
+            governance_delegatee: None,
+        };
+
+        let delegatee = Member {
+            public_key: delegatee_public_key.clone(),
+            name: "delegatee".to_string(),
+            consensus_voting_power: 10,
+            governance_voting_power: 10,
+            consensus_delegatee: None,
+            governance_delegatee: None,
+        };
+
+        let members = vec![
+            delegator.clone(),
+            delegatee.clone(),
+            create_member(keys.clone(), 2),
+        ];
+
+        let genesis_header = BlockHeader {
+            author: PublicKey::zero(),
+            prev_block_finalization_proof: Vec::new(),
+            previous_hash: Hash256::zero(),
+            height: 0,
+            timestamp: 0,
+            commit_merkle_root: Hash256::zero(),
+            repository_merkle_root: Hash256::zero(),
+            validator_set: members
+                .iter()
+                .map(|member| (member.public_key.clone(), member.consensus_voting_power))
+                .collect::<Vec<_>>(),
+            version: "0.1.0".to_string(),
+        };
+
+        let genesis_info = GenesisInfo {
+            header: genesis_header.clone(),
+            genesis_proof: keys
+                .iter()
+                .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
+                .collect::<Vec<_>>(),
+            chain_name: "test-chain".to_string(),
+        };
+
+        let state = ReservedState {
+            genesis_info,
+            members: vec![delegator.clone(), delegatee.clone()],
+            consensus_leader_order: vec![delegator.name, delegatee.name.to_string()],
+            version: "".to_string(),
+        };
+        (
+            delegator_public_key,
+            delegator_private_key,
+            delegatee_public_key,
+            delegatee,
+            state,
+        )
+    }
+
+    #[test]
+    fn test_apply_undelegate_on_consensus_success() {
+        // given
+        setup_test();
+        let (
+            delegator_public_key,
+            delegator_private_key,
+            delegatee_public_key,
+            delegatee,
+            mut state,
+        ) = setup_tx_undelegate_on_consensus_test();
+
+        // when
+        let data = (
+            delegator_public_key.clone(),
+            delegatee_public_key.clone(),
+            true,
+            0u64,
+        );
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxUndelegate {
+            delegator: delegator_public_key,
+            delegatee: delegatee_public_key,
+            governance: false,
+            proof,
+            timestamp: 0,
+        };
+        let new_state = state.apply_undelegate(&tx);
+
+        // then
+        assert!(new_state.is_ok());
+        let new_state = new_state.unwrap();
+        let new_state_validator_set = new_state.get_validator_set();
+        let new_state_governance_set = new_state.get_governance_set();
+
+        assert_eq!(new_state.members[0].governance_delegatee, None);
+        assert_eq!(new_state.members[0].consensus_delegatee, None);
+        assert_eq!(new_state.members[0].consensus_voting_power, 10);
+        assert_eq!(new_state.members[0].governance_voting_power, 10);
+        assert_eq!(new_state.members[1].consensus_voting_power, 10);
+        assert_eq!(new_state.members[1].governance_voting_power, 10);
+
+        assert_eq!(
+            new_state_validator_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            10
+        );
+
+        assert_eq!(
+            new_state_governance_set
+                .unwrap()
+                .into_iter()
+                .find(|v| v.0 == delegatee.public_key)
+                .unwrap()
+                .1,
+            10
         );
     }
 }
