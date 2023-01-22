@@ -78,6 +78,7 @@ async fn normal_1() {
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
         node.vote(agenda_commit).await.unwrap();
+        node.broadcast().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
     // currently calling `fetch()` is the only way to notice governance approval
@@ -93,6 +94,7 @@ async fn normal_1() {
     log::info!("STEP 2");
     proposer_node.create_block().await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
+    proposer_node.broadcast().await.unwrap();
     let serve = tokio::spawn(async move { proposer_node.serve(5000).await.unwrap() });
     sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
@@ -103,9 +105,11 @@ async fn normal_1() {
     }
     for node in other_nodes.iter_mut() {
         node.progress_for_consensus().await.unwrap();
+        node.broadcast().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
+    proposer_node.broadcast().await.unwrap();
 
     // Step 3: Run precommit phase
     log::info!("STEP 3");
@@ -116,9 +120,11 @@ async fn normal_1() {
     }
     for node in other_nodes.iter_mut() {
         let _ = node.progress_for_consensus().await.unwrap();
+        node.broadcast().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
     let _ = proposer_node.progress_for_consensus().await.unwrap();
+    proposer_node.broadcast().await.unwrap();
 
     // Step 4: Propagate finalized proof
     log::info!("STEP 4");
@@ -129,9 +135,11 @@ async fn normal_1() {
     }
     for node in other_nodes.iter_mut() {
         let _ = node.progress_for_consensus().await;
+        node.broadcast().await.unwrap();
     }
     let mut proposer_node = serve.await.unwrap();
     let _ = proposer_node.progress_for_consensus().await;
+    proposer_node.broadcast().await.unwrap();
 
     for node in std::iter::once(proposer_node).chain(other_nodes.into_iter()) {
         let finalized = node

@@ -365,4 +365,14 @@ impl SimperbyNode {
         }
         Ok(())
     }
+
+    /// Broadcasts all the local messages and reports the result.
+    pub async fn broadcast(&mut self) -> Result<Vec<String>> {
+        let t1 = async { self.governance.broadcast().await };
+        let t2 = async { self.consensus.broadcast().await };
+        let t3 = async { self.repository.broadcast().await };
+        futures::try_join!(t1, t2, t3)?;
+        // TODO: report the result
+        Ok(vec![])
+    }
 }
