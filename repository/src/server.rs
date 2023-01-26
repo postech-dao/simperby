@@ -34,7 +34,12 @@ impl Drop for GitServer {
     }
 }
 
-pub async fn run_server(path: &str, port: u16) -> GitServer {
+/// Runs a Simperby Git server with a push hook enabled.
+///
+/// - `path` is the path to the root directory of a Simperby blockchain (not the repository path)
+/// - `port` is the port to run the server on
+/// - `simperby_executable_path` is the path to the Simperby executable, which will be executed by the hook.
+pub async fn run_server(path: &str, port: u16, _simperby_executable_path: &str) -> GitServer {
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
     let child = std::process::Command::new("git")
@@ -76,7 +81,7 @@ mod tests {
         .await;
         run_command(format!("cd {}/repo && git commit -m 'hello'", path)).await;
         let server_task = tokio::spawn(async move {
-            let _x = run_server(&path, port).await;
+            let _x = run_server(&path, port, "").await;
             sleep_ms(6000).await;
         });
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;

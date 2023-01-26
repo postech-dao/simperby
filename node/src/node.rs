@@ -291,6 +291,7 @@ impl SimperbyNode {
             let server = simperby_repository::server::run_server(
                 &format!("{}/repository", path),
                 repository_port,
+                "",
             )
             .await;
             tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
