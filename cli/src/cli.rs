@@ -165,6 +165,6 @@ pub enum Commands {
         /// The Unix timestamp of the push request. This is for preventing replay attacks.
         timestamp: u64,
         /// The signature by the pusher.
-        signautre: String,
+        signature: String,
     },
 }

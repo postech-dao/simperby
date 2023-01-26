@@ -40,7 +40,7 @@ async fn basic_1() {
     let server_node_dir_clone = server_node_dir.clone();
     let git_server = tokio::spawn(async move {
         let _server =
-            server::run_server(&format!("{}/repository", server_node_dir_clone), port).await;
+            server::run_server(&format!("{}/repository", server_node_dir_clone), port, "").await;
         sleep_ms(12000).await;
     });
 
