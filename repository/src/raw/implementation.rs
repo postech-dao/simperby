@@ -673,17 +673,23 @@ impl RawRepositoryImplInner {
         remote_name: String,
         branch: Branch,
         option: Option<String>,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         if let Some(option_string) = option {
             let mut cfg = self.repo.config()?;
             cfg.set_str("push.pushoption", option_string.as_str())?;
         }
 
-        let _push = tokio::runtime::Handle::current().block_on(async move {
-            run_command(format!("git push {} {}", remote_name, branch)).await
+        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
+
+        let is_push_success = tokio::runtime::Handle::current().block_on(async move {
+            run_command(format!(
+                "cd {} && git push {} {}",
+                workdir, remote_name, branch
+            ))
+            .await
         })?;
 
-        Ok(())
+        Ok(is_push_success)
     }
 
     pub(crate) fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
@@ -793,7 +799,7 @@ pub async fn run_command(command: impl AsRef<str>) {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
+pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
     println!("> RUN: {}", command.as_ref());
     let mut child = tokio::process::Command::new("sh")
         .arg("-c")
@@ -805,7 +811,6 @@ pub async fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
         .wait()
         .await
         .map_err(|_| Error::Unknown("failed to wait on child".to_string()))?;
-    assert!(ecode.success());
 
-    Ok(())
+    Ok(ecode.success())
 }
