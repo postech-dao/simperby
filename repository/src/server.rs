@@ -1,5 +1,6 @@
 use log::info;
 use path_slash::PathExt as _;
+use std::{self, os::unix::prelude::PermissionsExt};
 use tokio::fs;
 
 pub struct GitServer {
@@ -40,9 +41,51 @@ impl Drop for GitServer {
 /// - `path` is the path to the root directory of a Simperby blockchain (not the repository path)
 /// - `port` is the port to run the server on
 /// - `simperby_executable_path` is the path to the Simperby executable, which will be executed by the hook.
-pub async fn run_server(path: &str, port: u16, _simperby_executable_path: &str) -> GitServer {
+pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -> GitServer {
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
+
+    fs::File::create(format!("{}/simperby_true.sh", simperby_executable_path))
+        .await
+        .unwrap();
+    fs::File::create(format!("{}/simperby_false.sh", simperby_executable_path))
+        .await
+        .unwrap();
+
+    let true_content = r#"#!/bin/sh
+value=true
+echo "$value"
+"#;
+    let false_content = r#"#!/bin/sh
+value=false
+echo "$value"
+"#;
+
+    fs::write(
+        format!("{}/simperby_true.sh", simperby_executable_path),
+        true_content,
+    )
+    .await
+    .unwrap();
+    fs::write(
+        format!("{}/simperby_false.sh", simperby_executable_path),
+        false_content,
+    )
+    .await
+    .unwrap();
+
+    fs::set_permissions(
+        format!("{}/simperby_true.sh", simperby_executable_path),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .await
+    .unwrap();
+    fs::set_permissions(
+        format!("{}/simperby_false.sh", simperby_executable_path),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .await
+    .unwrap();
 
     fs::rename(
         format!("{}/repo/hooks/pre-receive.sample", path),
@@ -51,30 +94,7 @@ pub async fn run_server(path: &str, port: u16, _simperby_executable_path: &str) 
     .await
     .unwrap();
 
-    let hook_content = r#"#!/bin/sh
-eval "count=\$GIT_PUSH_OPTION_COUNT"
-
-if [ "$count" != "0" ]
-then
-	i=0
-	while [ "$i" -lt "$count" ]
-	do
-		eval "value=\$GIT_PUSH_OPTION_$i"
-		case "$value" in
-		reject)
-			exit 1
-            ;;
-        *)
-			echo "echo from the pre-receive-hook: ${value}" >&2
-			;;
-		esac
-		i=$((i + 1))
-	done
-else 
-	echo "please respond!!"
-	exit 1		
-fi"#;
-
+    let hook_content = include_str!("pre_receive.sh");
     fs::write(format!("{}/repo/hooks/pre-receive", path), hook_content)
         .await
         .unwrap();
@@ -153,8 +173,11 @@ mod tests {
         ))
         .await;
 
+        let td_simperby = TempDir::new().unwrap();
+        let simperby_executable_path = td_simperby.path().to_slash().unwrap().into_owned();
+
         let server_task = tokio::spawn(async move {
-            let _x = run_server(&path_server, port, "").await;
+            let _x = run_server(&path_server, port, &simperby_executable_path).await;
             sleep_ms(6000).await;
         });
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
@@ -182,6 +205,7 @@ mod tests {
         ))
         .await;
 
+        let simperby_executable_path = td_simperby.path().to_slash().unwrap().into_owned();
         // Push with the string which is acceptable to the server hook.
         let repo = RawRepositoryImpl::open(format!("{}/repo", path_local).as_str())
             .await
@@ -191,7 +215,7 @@ mod tests {
             .push_option(
                 "origin".to_string(),
                 "master".to_string(),
-                Some("acceptable".to_string()),
+                Some(format!("accept={}", simperby_executable_path)),
             )
             .await
             .unwrap();
@@ -214,7 +238,7 @@ mod tests {
             .push_option(
                 "origin".to_string(),
                 "master".to_string(),
-                Some("reject".to_string()),
+                Some(format!("reject={}", simperby_executable_path)),
             )
             .await
             .unwrap();
