@@ -217,6 +217,15 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
     async fn fetch_all(&mut self) -> Result<(), Error>;
 
+    /// Pushes to the remote repository with the push option.
+    /// This is same as `git push <remote_name> <branch_name> --push-option=<string>`.
+    async fn push_option(
+        &self,
+        remote_name: String,
+        branch: Branch,
+        option: Option<String>,
+    ) -> Result<(), Error>;
+
     /// Lists all the remote repositories.
     ///
     /// Returns `(remote_name, remote_url)`.
@@ -328,6 +337,27 @@ async fn helper_2_mut<
     let mut lock = s.inner.lock().await;
     let mut inner = lock.take().expect("RawRepoImpl invariant violated");
     let (result, inner) = tokio::task::spawn_blocking(move || (f(&mut inner, a1, a2), inner))
+        .await
+        .unwrap();
+    lock.replace(inner);
+    result
+}
+
+async fn helper_3<
+    T1: Send + Sync + 'static + Clone,
+    T2: Send + Sync + 'static + Clone,
+    T3: Send + Sync + 'static + Clone,
+    R: Send + Sync + 'static,
+>(
+    s: &RawRepositoryImpl,
+    f: impl Fn(&RawRepositoryImplInner, T1, T2, T3) -> R + Send + 'static,
+    a1: T1,
+    a2: T2,
+    a3: T3,
+) -> R {
+    let mut lock = s.inner.lock().await;
+    let inner = lock.take().expect("RawRepoImpl invariant violated");
+    let (result, inner) = tokio::task::spawn_blocking(move || (f(&inner, a1, a2, a3), inner))
         .await
         .unwrap();
     lock.replace(inner);
@@ -564,6 +594,22 @@ impl RawRepository for RawRepositoryImpl {
 
     async fn fetch_all(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryImplInner::fetch_all).await
+    }
+
+    async fn push_option(
+        &self,
+        remote_name: String,
+        branch: Branch,
+        option: Option<String>,
+    ) -> Result<(), Error> {
+        helper_3(
+            self,
+            RawRepositoryImplInner::push_option,
+            remote_name,
+            branch,
+            option,
+        )
+        .await
     }
 
     async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
