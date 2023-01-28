@@ -165,6 +165,19 @@ impl CommitSequenceVerifier {
         verify_finalization_proof(&self.header, proof)
     }
 
+    /// Verifies whether the given reserved state is valid from the current state.
+    pub fn verify_reserved_state(&self, _rs: &ReservedState) -> Result<(), Error> {
+        // TODO:
+        // 1. Check that the number of members is at least 4.
+        // 2. Check that the version advances correctly.
+        // 3. Check that `consensus_leader_order` is correct.
+        // 4. Check that `genesis_info` stays the same.
+        // 5. Check that the newly added (if exists) `Member::name` is unique.
+        // 6. Check that `member` monotonicaly increases (refer to `Member::expelled`).
+        // 7. Check that the delegation state doesn't change.
+        Ok(())
+    }
+
     /// Verifies the given commit and updates the internal reserved_state of CommitSequenceVerifier.
     pub fn apply_commit(&mut self, commit: &Commit) -> Result<(), Error> {
         match (commit, &mut self.phase) {
