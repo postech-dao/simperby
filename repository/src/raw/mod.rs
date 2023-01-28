@@ -224,7 +224,7 @@ pub trait RawRepository: Send + Sync + 'static {
         remote_name: String,
         branch: Branch,
         option: Option<String>,
-    ) -> Result<(), Error>;
+    ) -> Result<bool, Error>;
 
     /// Lists all the remote repositories.
     ///
@@ -601,7 +601,7 @@ impl RawRepository for RawRepositoryImpl {
         remote_name: String,
         branch: Branch,
         option: Option<String>,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         helper_3(
             self,
             RawRepositoryImplInner::push_option,
