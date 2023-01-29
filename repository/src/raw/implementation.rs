@@ -674,20 +674,25 @@ impl RawRepositoryImplInner {
         branch: Branch,
         option: Option<String>,
     ) -> Result<bool, Error> {
-        if let Some(option_string) = option {
-            let mut cfg = self.repo.config()?;
-            cfg.set_str("push.pushoption", option_string.as_str())?;
-        }
-
         let workdir = self.repo.workdir().unwrap().to_str().unwrap();
 
-        let is_push_success = tokio::runtime::Handle::current().block_on(async move {
-            run_command(format!(
-                "cd {} && git push {} {}",
-                workdir, remote_name, branch
-            ))
-            .await
-        })?;
+        let is_push_success = if let Some(option_string) = option {
+            tokio::runtime::Handle::current().block_on(async move {
+                run_command(format!(
+                    "cd {} && git push {} {} --push-option='{}'",
+                    workdir, remote_name, branch, option_string
+                ))
+                .await
+            })?
+        } else {
+            tokio::runtime::Handle::current().block_on(async move {
+                run_command(format!(
+                    "cd {} && git push {} {}",
+                    workdir, remote_name, branch
+                ))
+                .await
+            })?
+        };
 
         Ok(is_push_success)
     }
