@@ -18,7 +18,11 @@ use thiserror::Error;
 pub enum Error {
     #[error("git2 error: {0}")]
     Git2Error(git2::Error),
-    /// When the assumption of the method (e.g., there is no merge commit) is violated.
+    /// The given git object doesn't exist.
+    #[error("not found: {0}")]
+    NotFound(String),
+    /// The assumption of the method
+    /// (e.g., there is no merge commit, there must be a merge base, ..) is violated.
     #[error("the repository is invalid: {0}")]
     InvalidRepository(String),
     #[error("unknown error: {0}")]
