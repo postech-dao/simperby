@@ -287,10 +287,14 @@ impl SimperbyNode {
         let t2 = tokio::spawn(async move { self.consensus.serve(ms).await.unwrap() });
         let path = self.path.clone();
         let t3 = tokio::spawn(async move {
+<<<<<<< HEAD
             let server = simperby_repository::server::run_server(
                 &format!("{path}/repository"),
+=======
+            let server = simperby_repository::server::run_server_legacy(
+                &format!("{}/repository", path),
+>>>>>>> e86b5f1 (Modify run_server and its test)
                 repository_port,
-                "",
             )
             .await;
             tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
