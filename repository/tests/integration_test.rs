@@ -27,7 +27,7 @@ async fn basic_1() {
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
 
     let mut server_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{}/repository/repo", server_node_dir))
+        RawRepositoryImpl::open(&format!("{server_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config.clone(),
@@ -40,18 +40,17 @@ async fn basic_1() {
     let server_node_dir_clone = server_node_dir.clone();
     let git_server = tokio::spawn(async move {
         let _server =
-            server::run_server(&format!("{}/repository", server_node_dir_clone), port, "").await;
+            server::run_server(&format!("{server_node_dir_clone}/repository"), port, "").await;
         sleep_ms(12000).await;
     });
 
     let client_node_dir = create_temp_dir();
     run_command(format!(
-        "cd {} && mkdir repository && cd repository && cp -r {}/repository/repo {}/repository",
-        client_node_dir, server_node_dir, client_node_dir
+        "cd {client_node_dir} && mkdir repository && cd repository && cp -r {server_node_dir}/repository/repo {client_node_dir}/repository"
     ))
     .await;
     let mut client_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{}/repository/repo", client_node_dir))
+        RawRepositoryImpl::open(&format!("{client_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config,
@@ -80,8 +79,7 @@ async fn basic_1() {
         .await
         .unwrap();
     run_command(format!(
-        "cd {}/repository/repo && git branch -f work {}",
-        server_node_dir, agenda_proof
+        "cd {server_node_dir}/repository/repo && git branch -f work {agenda_proof}"
     ))
     .await;
 

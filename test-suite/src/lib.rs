@@ -55,7 +55,7 @@ pub fn generate_standard_genesis(
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {
     let keys = (0..member_number)
         .into_iter()
-        .map(|i| generate_keypair(format!("{}", i)))
+        .map(|i| generate_keypair(format!("{i}")))
         .collect::<Vec<_>>();
     let members = keys
         .iter()
@@ -63,7 +63,7 @@ pub fn generate_standard_genesis(
         .map(|(i, (public_key, _))| Member {
             public_key: public_key.clone(),
             // lexicographically ordered
-            name: format!("member-{:04}", i),
+            name: format!("member-{i:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
             governance_delegations: None,
@@ -98,7 +98,7 @@ pub fn generate_standard_genesis(
             members,
             consensus_leader_order: (0..member_number)
                 .into_iter()
-                .map(|i| format!("member-{:04}", i))
+                .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         },
@@ -113,7 +113,7 @@ pub fn generate_delegated_genesis(
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {
     let keys = (0..member_number)
         .into_iter()
-        .map(|i| generate_keypair(format!("{}", i)))
+        .map(|i| generate_keypair(format!("{i}")))
         .collect::<Vec<_>>();
     // member-0000 delegates to member-0002 both for governance and consensus
     let members = keys
@@ -122,7 +122,7 @@ pub fn generate_delegated_genesis(
         .map(|(i, (public_key, _))| Member {
             public_key: public_key.clone(),
             // lexicographically ordered
-            name: format!("member-{:04}", i),
+            name: format!("member-{i:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
             governance_delegations: if i == 0 {
@@ -172,7 +172,7 @@ pub fn generate_delegated_genesis(
             members,
             consensus_leader_order: (1..member_number)
                 .into_iter()
-                .map(|i| format!("member-{:04}", i))
+                .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         },
@@ -184,33 +184,30 @@ pub fn generate_delegated_genesis(
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
     run_command(format!(
-        "cd {} && mkdir repository && cd repository && mkdir repo && cd repo && git init",
-        path
+        "cd {path} && mkdir repository && cd repository && mkdir repo && cd repo && git init"
     ))
     .await;
-    let path = format!("{}/repository/repo", path);
+    let path = format!("{path}/repository/repo");
     simperby_node::simperby_repository::raw::reserved_state::write_reserved_state(
         &path,
         &reserved_state,
     )
     .await
     .unwrap();
-    println!("> Pre-genesis repository is created at {}", path);
+    println!("> Pre-genesis repository is created at {path}");
 
-    run_command(format!("cd {} && git add -A", path)).await;
+    run_command(format!("cd {path} && git add -A")).await;
     run_command(format!(
-        "cd {} && git config user.name 'Test' && git config user.email 'test@test.com'",
-        path
+        "cd {path} && git config user.name 'Test' && git config user.email 'test@test.com'"
     ))
     .await;
-    run_command(format!("cd {} && git commit -m 'genesis'", path)).await;
+    run_command(format!("cd {path} && git commit -m 'genesis'")).await;
 }
 
 pub async fn copy_repository(source_path: &str, dest_path: &str) {
-    run_command(format!("mkdir -p {}/repository", dest_path)).await;
+    run_command(format!("mkdir -p {dest_path}/repository")).await;
     run_command(format!(
-        "cp -r {}/repository/repo {}/repository/repo",
-        source_path, dest_path
+        "cp -r {source_path}/repository/repo {dest_path}/repository/repo"
     ))
     .await;
 }
@@ -270,7 +267,7 @@ pub async fn setup_server_client_nodes(
     let (public_key, private_key) = generate_keypair_random();
     let server = NetworkConfig {
         network_id: network_id.clone(),
-        ports: vec![(format!("dms-{}", network_id), dispense_port())]
+        ports: vec![(format!("dms-{network_id}"), dispense_port())]
             .into_iter()
             .collect(),
         members: Vec::new(),
@@ -282,7 +279,7 @@ pub async fn setup_server_client_nodes(
         let (public_key, private_key) = generate_keypair_random();
         let network_config = NetworkConfig {
             network_id: network_id.clone(),
-            ports: vec![(format!("dms-{}", network_id), dispense_port())]
+            ports: vec![(format!("dms-{network_id}"), dispense_port())]
                 .into_iter()
                 .collect(),
             members: Vec::new(),

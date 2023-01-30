@@ -14,7 +14,7 @@ impl Storage for StorageImpl {
     async fn create(storage_directory: &str) -> Result<(), StorageError> {
         let _ = fs::remove_dir_all(storage_directory).await;
         fs::create_dir_all(storage_directory).await?;
-        fs::File::create(format!("{}/lock", storage_directory)).await?;
+        fs::File::create(format!("{storage_directory}/lock")).await?;
         Ok(())
     }
 
@@ -24,7 +24,7 @@ impl Storage for StorageImpl {
     {
         let storage_directory_ = storage_directory.to_owned();
         let file =
-            spawn_blocking(move || std::fs::File::open(format!("{}/lock", storage_directory_)))
+            spawn_blocking(move || std::fs::File::open(format!("{storage_directory_}/lock")))
                 .await??;
         let file = spawn_blocking(move || {
             let result = file.lock_exclusive();
@@ -101,7 +101,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let s1: u128 = rng.gen();
         let s2: u128 = rng.gen();
-        Hash256::hash(format!("{}{}", s1, s2).as_bytes()).to_string()[0..16].to_owned()
+        Hash256::hash(format!("{s1}{s2}").as_bytes()).to_string()[0..16].to_owned()
     }
 
     fn gerenate_random_storage_directory() -> String {

@@ -101,7 +101,7 @@ mod tests {
     fn create_member(keys: Vec<(PublicKey, PrivateKey)>, member_num: u8) -> Member {
         Member {
             public_key: keys[member_num as usize].0.clone(),
-            name: format!("member-{:04}", member_num),
+            name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
             governance_delegations: None,
@@ -116,11 +116,11 @@ mod tests {
     ) -> Member {
         Member {
             public_key: keys[member_num as usize].0.clone(),
-            name: format!("member-{:04}", member_num),
+            name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
             governance_delegations: None,
-            consensus_delegations: Some(format!("member-{:04}", delegatee_member_num)),
+            consensus_delegations: Some(format!("member-{delegatee_member_num:04}")),
         }
     }
 
@@ -131,10 +131,10 @@ mod tests {
     ) -> Member {
         Member {
             public_key: keys[member_num as usize].0.clone(),
-            name: format!("member-{:04}", member_num),
+            name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: Some(format!("member-{:04}", delegatee_member_num)),
+            governance_delegations: Some(format!("member-{delegatee_member_num:04}")),
             consensus_delegations: None,
         }
     }
@@ -144,7 +144,7 @@ mod tests {
         setup_test();
         let keys = (0..4)
             .into_iter()
-            .map(|i| generate_keypair(format!("{}", i)))
+            .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
             create_member_with_consensus_delegation(keys.clone(), 0, 3),
@@ -191,7 +191,7 @@ mod tests {
         setup_test();
         let keys = (0..4)
             .into_iter()
-            .map(|i| generate_keypair(format!("{}", i)))
+            .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
             create_member_with_consensus_delegation(keys.clone(), 0, 1),
@@ -238,7 +238,7 @@ mod tests {
         setup_test();
         let keys = (0..4)
             .into_iter()
-            .map(|i| generate_keypair(format!("{}", i)))
+            .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
             create_member_with_governance_delegation(keys.clone(), 0, 3),
@@ -273,7 +273,7 @@ mod tests {
             members,
             consensus_leader_order: (0..4)
                 .into_iter()
-                .map(|i| format!("member-{:04}", i))
+                .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         };
@@ -288,7 +288,7 @@ mod tests {
         setup_test();
         let keys = (0..4)
             .into_iter()
-            .map(|i| generate_keypair(format!("{}", i)))
+            .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
             create_member_with_governance_delegation(keys.clone(), 0, 1),
@@ -323,7 +323,7 @@ mod tests {
             members,
             consensus_leader_order: (0..4)
                 .into_iter()
-                .map(|i| format!("member-{:04}", i))
+                .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         };

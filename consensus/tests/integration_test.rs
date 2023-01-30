@@ -48,7 +48,7 @@ async fn create_storage(dirname: String) -> StorageImpl {
 }
 
 fn get_network_id_and_dms_key(testname: &str) -> (String, String) {
-    let network_id = format!("consensus_{}", testname);
+    let network_id = format!("consensus_{testname}");
     let dms_key = network_id.clone();
     (network_id, dms_key)
 }
@@ -59,10 +59,7 @@ fn assert_eq_unordered<T: Eq + PartialEq + Debug>(expected: &Vec<T>, actual: &Ve
         && actual.iter().all(|a| expected.contains(a))
         && expected.iter().all(|e| actual.contains(e));
     if !result {
-        panic!(
-            "assert_eq_unordered failed: \nexpected: {:?}\nactual: {:?}",
-            expected, actual
-        );
+        panic!("assert_eq_unordered failed: \nexpected: {expected:?}\nactual: {actual:?}");
     }
 }
 
@@ -170,7 +167,7 @@ async fn single_server_propose_1() {
     // Expected: Node 0, 1 will prevote, node 2, 3 will precommit.
     let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
-        println!("Checking node #{}", i);
+        println!("Checking node #{i}");
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
@@ -251,7 +248,7 @@ async fn single_server_propose_1() {
     let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     let mut finalization_proofs = Vec::new();
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
-        println!("Checking node #{}", i);
+        println!("Checking node #{i}");
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();

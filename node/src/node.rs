@@ -32,11 +32,10 @@ pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
 impl SimperbyNode {
     pub async fn initialize(config: Config, path: &str) -> Result<Self> {
         // Step 0: initialize the repository module
-        let peers: Vec<Peer> = serde_spb::from_str(
-            &tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?,
-        )?;
+        let peers: Vec<Peer> =
+            serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/peers.json")).await?)?;
         let peers = SharedKnownPeers::new_static(peers.clone());
-        let raw_repository = RawRepositoryImpl::open(&format!("{}/repository/repo", path)).await?;
+        let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
         let repository = DistributedRepository::new(
             raw_repository,
             simperby_repository::Config {
@@ -82,7 +81,7 @@ impl SimperbyNode {
         };
 
         // Step 2: initialize the governance module
-        let dms_path = format!("{}/governance/dms", path);
+        let dms_path = format!("{path}/governance/dms");
         StorageImpl::create(&dms_path).await.unwrap();
         let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
@@ -95,7 +94,7 @@ impl SimperbyNode {
         let governance = Governance::new(dms, Some(config.private_key.clone())).await?;
 
         // Step 3: initialize the consensus module
-        let dms_path = format!("{}/consensus/dms", path);
+        let dms_path = format!("{path}/consensus/dms");
         StorageImpl::create(&dms_path).await.unwrap();
         let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
@@ -105,7 +104,7 @@ impl SimperbyNode {
             peers.clone(),
         )
         .await?;
-        let state_path = format!("{}/consensus/state", path);
+        let state_path = format!("{path}/consensus/state");
         StorageImpl::create(&state_path).await.unwrap();
         let consensus_state_storage = StorageImpl::open(&state_path).await.unwrap();
         let consensus = Consensus::new(
@@ -252,7 +251,7 @@ impl SimperbyNode {
             },
             x => CommitInfo::Unknown {
                 semantic_commit,
-                msg: format!("{:?}", x),
+                msg: format!("{x:?}"),
             },
         };
         Ok(result)
@@ -268,7 +267,7 @@ impl SimperbyNode {
                 self.repository.sync(hash, proof).await?;
             }
         }
-        Ok(format!("{:?}", result))
+        Ok(format!("{result:?}"))
     }
 
     /// Gets the current status of the consensus.
@@ -289,7 +288,7 @@ impl SimperbyNode {
         let path = self.path.clone();
         let t3 = tokio::spawn(async move {
             let server = simperby_repository::server::run_server(
-                &format!("{}/repository", path),
+                &format!("{path}/repository"),
                 repository_port,
                 "",
             )

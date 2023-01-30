@@ -70,7 +70,7 @@ async fn main() -> eyre::Result<()> {
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();
     let config: Config =
-        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/config.json", path)).await?)?;
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/config.json")).await?)?;
 
     if let Err(e) = run(args, path, config).await {
         if let Ok(_err) = e.downcast::<simperby_node::simperby_repository::IntegrityError>() {

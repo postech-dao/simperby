@@ -20,7 +20,7 @@ fn generate_config(key: PrivateKey, chain_name: String) -> Config {
 }
 
 async fn setup_peer(path: &str, peers: &[Peer]) {
-    let mut file = tokio::fs::File::create(format!("{}/peers.json", path))
+    let mut file = tokio::fs::File::create(format!("{path}/peers.json"))
         .await
         .unwrap();
     file.write_all(&serde_spb::to_vec(&peers).unwrap())
@@ -85,8 +85,7 @@ async fn normal_1() {
     proposer_node.fetch().await.unwrap();
     // TODO: it is not guaranteed that `HEAD` is on the agenda proof.
     run_command(format!(
-        "cd {}/repository/repo && git branch -f work HEAD",
-        server_dir
+        "cd {server_dir}/repository/repo && git branch -f work HEAD"
     ))
     .await;
 

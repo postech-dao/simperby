@@ -160,9 +160,9 @@ impl Signature {
     /// Verifies the signature against the given data and public key.
     pub fn verify(&self, data: Hash256, public_key: &PublicKey) -> Result<(), Error> {
         let signature = secp256k1::ecdsa::Signature::from_compact(&self.signature.data[0..64])
-            .map_err(|_| Error::InvalidFormat(format!("signature: {}", self)))?;
+            .map_err(|_| Error::InvalidFormat(format!("signature: {self}")))?;
         let public_key = secp256k1::PublicKey::from_slice(&public_key.key.data)
-            .map_err(|_| Error::InvalidFormat(format!("public_key: {}", public_key)))?;
+            .map_err(|_| Error::InvalidFormat(format!("public_key: {public_key}")))?;
         let message = Message::from_slice(data.as_ref()).unwrap();
         Secp256k1::verification_only()
             .verify_ecdsa(&message, &signature, &public_key)

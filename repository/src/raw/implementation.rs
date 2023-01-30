@@ -330,7 +330,7 @@ impl RawRepositoryImplInner {
                 let path = self.repo.workdir().unwrap().to_str().unwrap();
                 tokio::runtime::Handle::current()
                     .block_on(async move {
-                        reserved_state::write_reserved_state(&format!("{}/", path), &reserved_state)
+                        reserved_state::write_reserved_state(&format!("{path}/"), &reserved_state)
                             .await
                     })
                     .map_err(|e| Error::Unknown(e.to_string()))?;
@@ -514,8 +514,7 @@ impl RawRepositoryImplInner {
 
                 if num_parents > 1 {
                     return Err(Error::InvalidRepository(format!(
-                        "There exists a merge commit, {}",
-                        oid
+                        "There exists a merge commit, {oid}"
                     )));
                 }
                 // TODO: Should check current commit's parent == oids[next]
@@ -532,8 +531,7 @@ impl RawRepositoryImplInner {
 
                 if num_parents > 1 {
                     return Err(Error::InvalidRepository(format!(
-                        "There exists a merge commit, {}",
-                        oid
+                        "There exists a merge commit, {oid}"
                     )));
                 }
                 // TODO: Should check current commit's parent == oids[next]
@@ -627,9 +625,7 @@ impl RawRepositoryImplInner {
     pub(crate) fn read_reserved_state(&self) -> Result<ReservedState, Error> {
         let path = self.repo.workdir().unwrap().to_str().unwrap();
         let reserved_state = tokio::runtime::Handle::current()
-            .block_on(
-                async move { reserved_state::read_reserved_state(&format!("{}/", path)).await },
-            )
+            .block_on(async move { reserved_state::read_reserved_state(&format!("{path}/")).await })
             .map_err(|e| Error::Unknown(e.to_string()))?;
 
         Ok(reserved_state)
@@ -750,7 +746,7 @@ impl RawRepositoryImplInner {
         remote_name: String,
         branch_name: String,
     ) -> Result<CommitHash, Error> {
-        let name = format!("{}/{}", remote_name, branch_name);
+        let name = format!("{remote_name}/{branch_name}");
         let branch = self.repo.find_branch(name.as_str(), BranchType::Remote)?;
 
         let oid = branch
