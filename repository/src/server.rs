@@ -177,25 +177,22 @@ mod tests {
         let td_simperby = TempDir::new().unwrap();
         let simperby_executable_path = td_simperby.path().to_slash().unwrap().into_owned();
 
-        // Make .sh files for testing the server hook.
-        let path_true = format!("{}/simperby_true.sh", simperby_executable_path);
-        let path_false = format!("{}/simperby_false.sh", simperby_executable_path);
-        fs::File::create(&path_true).await.unwrap();
-        fs::File::create(&path_false).await.unwrap();
-        let true_content = r#"#!/bin/sh
-value=true
-echo "$value"
+        // Make .sh example file for testing the server hook.
+        let path_cli = format!("{}/simperby_cli_example.sh", simperby_executable_path);
+        fs::File::create(&path_cli).await.unwrap();
+        let cli_content = r#"#!/bin/sh
+string=$1
+result=true
+case "$string" in
+reject)
+    result=false
+    ;;
+esac
+
+echo "$result"
 "#;
-        let false_content = r#"#!/bin/sh
-value=false
-echo "$value"
-"#;
-        fs::write(&path_true, true_content).await.unwrap();
-        fs::write(&path_false, false_content).await.unwrap();
-        fs::set_permissions(&path_true, std::fs::Permissions::from_mode(0o755))
-            .await
-            .unwrap();
-        fs::set_permissions(&path_false, std::fs::Permissions::from_mode(0o755))
+        fs::write(&path_cli, cli_content).await.unwrap();
+        fs::set_permissions(&path_cli, std::fs::Permissions::from_mode(0o755))
             .await
             .unwrap();
 
