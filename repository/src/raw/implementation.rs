@@ -31,10 +31,13 @@ impl RawRepositoryImplInner {
                 opts.initial_head(init_commit_branch.as_str());
                 let repo = Repository::init_opts(directory, &opts)?;
                 {
-                    // Create initial empty commit
+                    // Set base configs.
                     let mut config = repo.config()?;
                     config.set_str("user.name", "name")?; // TODO: user.name value
                     config.set_str("user.email", "email")?; // TODO: user.email value
+                    config.set_str("receive.advertisePushOptions", "true")?;
+
+                    // Create an initial empty commit.
                     let mut index = repo.index()?;
                     let id = index.write_tree()?;
                     let sig = repo.signature()?;
@@ -63,6 +66,8 @@ impl RawRepositoryImplInner {
         Self: Sized,
     {
         let repo = Repository::clone(url, directory)?;
+        let mut config = repo.config()?;
+        config.set_str("receive.advertisePushOptions", "true")?;
 
         Ok(Self { repo })
     }
