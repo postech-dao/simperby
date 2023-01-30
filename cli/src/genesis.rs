@@ -32,7 +32,7 @@ fn get_commit_hash() -> CommitHash {
 }
 
 async fn setup_peer(path: &str, peers: &[Peer]) {
-    let mut file = tokio::fs::File::create(format!("{}/peers.json", path))
+    let mut file = tokio::fs::File::create(format!("{path}/peers.json"))
         .await
         .unwrap();
     file.write_all(&serde_spb::to_vec(&peers).unwrap())
@@ -52,22 +52,19 @@ pub async fn run_genesis_proposer(private_key: &str) {
     .unwrap();
 
     let dir = create_temp_dir();
-    println!("----------------------------DIRECTORY: {}", dir);
+    println!("----------------------------DIRECTORY: {dir}");
     setup_peer(&dir, &[]).await;
-    run_command(format!("mkdir -p {}/repository", dir)).await;
+    run_command(format!("mkdir -p {dir}/repository")).await;
     run_command(format!(
-        "cd {}/repository && git clone https://github.com/postech-dao/pdao.git repo",
-        dir
+        "cd {dir}/repository && git clone https://github.com/postech-dao/pdao.git repo"
     ))
     .await;
     run_command(format!(
-        "cd {}/repository/repo && git branch work origin/work && git branch fp origin/fp",
-        dir
+        "cd {dir}/repository/repo && git branch work origin/work && git branch fp origin/fp"
     ))
     .await;
     run_command(format!(
-        "cd {}/repository/repo && git remote remove origin",
-        dir
+        "cd {dir}/repository/repo && git remote remove origin"
     ))
     .await;
 
@@ -95,7 +92,7 @@ pub async fn run_genesis_proposer(private_key: &str) {
     println!("PRESS ENTER TO CREATE AN AGENDA --------");
     get_input();
     node.create_agenda().await.unwrap();
-    run_command(format!("cd {}/repository/repo && git show", dir)).await;
+    run_command(format!("cd {dir}/repository/repo && git show")).await;
 
     println!("PRESS ENTER TO RUN SERVER -------- [A]");
     get_input();
@@ -106,8 +103,7 @@ pub async fn run_genesis_proposer(private_key: &str) {
 
     println!("STEP 1");
     run_command(format!(
-        "cd {}/repository/repo && git branch -f work HEAD",
-        dir
+        "cd {dir}/repository/repo && git branch -f work HEAD"
     ))
     .await;
     node.create_block().await.unwrap();
@@ -135,8 +131,7 @@ pub async fn run_genesis_proposer(private_key: &str) {
     println!("SERVE FINISHED");
 
     run_command(format!(
-        "cd {}/repository/repo && git log --all --decorate --oneline --graph",
-        dir
+        "cd {dir}/repository/repo && git log --all --decorate --oneline --graph"
     ))
     .await;
 }
@@ -152,22 +147,19 @@ pub async fn run_genesis_non_proposer(private_key: &str) {
     .unwrap();
 
     let dir = create_temp_dir();
-    println!("----------------------------DIRECTORY: {}", dir);
+    println!("----------------------------DIRECTORY: {dir}");
     setup_peer(&dir, &[]).await;
-    run_command(format!("mkdir -p {}/repository", dir)).await;
+    run_command(format!("mkdir -p {dir}/repository")).await;
     run_command(format!(
-        "cd {}/repository && git clone https://github.com/postech-dao/pdao.git repo",
-        dir
+        "cd {dir}/repository && git clone https://github.com/postech-dao/pdao.git repo"
     ))
     .await;
     run_command(format!(
-        "cd {}/repository/repo && git branch work origin/work && git branch fp origin/fp",
-        dir
+        "cd {dir}/repository/repo && git branch work origin/work && git branch fp origin/fp"
     ))
     .await;
     run_command(format!(
-        "cd {}/repository/repo && git remote remove origin",
-        dir
+        "cd {dir}/repository/repo && git remote remove origin"
     ))
     .await;
     let ports =
@@ -231,8 +223,7 @@ pub async fn run_genesis_non_proposer(private_key: &str) {
     let _ = node.progress_for_consensus().await;
 
     run_command(format!(
-        "cd {}/repository/repo && git log --all --decorate --oneline --graph",
-        dir
+        "cd {dir}/repository/repo && git log --all --decorate --oneline --graph"
     ))
     .await;
 }

@@ -113,9 +113,9 @@ pub type SimperbyNode = node::Node<
 /// Creates a genesis commit.
 pub async fn genesis(config: Config, path: &str) -> Result<()> {
     let peers: Vec<Peer> =
-        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{}/peers.json", path)).await?)?;
+        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/peers.json")).await?)?;
     let peers = SharedKnownPeers::new_static(peers.clone());
-    let raw_repository = RawRepositoryImpl::open(&format!("{}/repository/repo", path)).await?;
+    let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
     let mut repository = DistributedRepository::new(
         raw_repository,
         simperby_repository::Config {

@@ -184,10 +184,7 @@ impl ConsensusMessageFilter {
         if self.verified_block_hashes.read().contains(&block_hash) {
             Ok(())
         } else {
-            Err(format!(
-                "the block hash is not verified yet: {}",
-                block_hash
-            ))
+            Err(format!("the block hash is not verified yet: {block_hash}"))
         }
     }
 }

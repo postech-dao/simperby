@@ -79,8 +79,7 @@ pub fn verify_finalization_proof(
         .sum();
     if voted_voting_power * 3 <= total_voting_power * 2 {
         return Err(Error::InvalidProof(format!(
-            "invalid finalization proof - voted voting power is too low: {} / {}",
-            voted_voting_power, total_voting_power
+            "invalid finalization proof - voted voting power is too low: {voted_voting_power} / {total_voting_power}"
         )));
     }
     Ok(())
@@ -374,7 +373,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Delegate(tx) => {
                         // Update reserved reserved_state by applying delegation
                         self.reserved_state.apply_delegate(tx).map_err(|e| {
-                            Error::InvalidArgument(format!("invalid delegation: {}", e))
+                            Error::InvalidArgument(format!("invalid delegation: {e}"))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
                             last_extra_agenda_timestamp: tx.timestamp,
@@ -383,7 +382,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Undelegate(tx) => {
                         // Update reserved reserved_state by applying undelegation
                         self.reserved_state.apply_undelegate(tx).map_err(|e| {
-                            Error::InvalidArgument(format!("invalid undelegation: {}", e))
+                            Error::InvalidArgument(format!("invalid undelegation: {e}"))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
                             last_extra_agenda_timestamp: tx.timestamp,
@@ -402,7 +401,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Delegate(tx) => {
                         // Update reserved reserved_state by applying delegation
                         self.reserved_state.apply_delegate(tx).map_err(|e| {
-                            Error::InvalidArgument(format!("invalid delegation: {}", e))
+                            Error::InvalidArgument(format!("invalid delegation: {e}"))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
                         if tx.timestamp < *last_extra_agenda_timestamp {
@@ -415,7 +414,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Undelegate(tx) => {
                         // Update reserved reserved_state by applying undelegation
                         self.reserved_state.apply_undelegate(tx).map_err(|e| {
-                            Error::InvalidArgument(format!("invalid undelegation: {}", e))
+                            Error::InvalidArgument(format!("invalid undelegation: {e}"))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
                         if tx.timestamp < *last_extra_agenda_timestamp {
@@ -431,8 +430,8 @@ impl CommitSequenceVerifier {
             (Commit::ChatLog(_chat_log), _) => unimplemented!(),
             (commit, phase) => {
                 return Err(Error::PhaseMismatch(
-                    format!("{:?}", commit),
-                    format!("{:?}", phase),
+                    format!("{commit:?}"),
+                    format!("{phase:?}"),
                 ));
             }
         }
@@ -487,7 +486,7 @@ mod test {
         for (i, (public_key, voting_power)) in validator_set.iter().enumerate() {
             members.push(Member {
                 public_key: public_key.clone(),
-                name: format!("member{}", i).to_string(),
+                name: format!("member{i}").to_string(),
                 governance_voting_power: *voting_power,
                 consensus_voting_power: *voting_power,
                 governance_delegations: None,

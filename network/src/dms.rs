@@ -111,10 +111,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
             .map_err(|e| e.to_string())?;
         let dms_key_ = dms.read().await.key.clone();
         if dms_key != dms.read().await.key {
-            return Err(format!(
-                "key mismatch: requested {}, but {}",
-                dms_key, dms_key_
-            ));
+            return Err(format!("key mismatch: requested {dms_key}, but {dms_key_}"));
         }
         let knowns: HashSet<_> = knowns.into_iter().collect();
         let messages: Vec<_> = messages
@@ -134,10 +131,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSetRpcInterface for DmsWrap
         );
         let dms_key_ = dms.read().await.key.clone();
         if dms_key != dms.read().await.key {
-            return Err(format!(
-                "key mismatch: requested {}, but {}",
-                dms_key, dms_key_
-            ));
+            return Err(format!("key mismatch: requested {dms_key}, but {dms_key_}"));
         }
         for message in messages {
             let message = message.into_message().map_err(|e| e.to_string())?;
@@ -353,7 +347,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
                     .await?;
                     Result::<(), Error>::Ok(())
                 },
-                format!("broadcast message {} to all peers", message_hash),
+                format!("broadcast message {message_hash} to all peers"),
             )
         });
         let mut tasks = Vec::new();
@@ -513,7 +507,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
             .network_config
             .ports
             .get(&port_key)
-            .ok_or_else(|| eyre!(format!("`ports` has no field of {}", port_key)))?;
+            .ok_or_else(|| eyre!(format!("`ports` has no field of {port_key}")))?;
 
         let this = Arc::new(RwLock::new(self));
         let this_ = Arc::clone(&this);
@@ -566,7 +560,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let s1: u128 = rng.gen();
         let s2: u128 = rng.gen();
-        Hash256::hash(format!("{}{}", s1, s2).as_bytes()).to_string()[0..16].to_owned()
+        Hash256::hash(format!("{s1}{s2}").as_bytes()).to_string()[0..16].to_owned()
     }
 
     /// Returns the only-serving-node and the others, with the `Peer` info for the serving node.
@@ -594,7 +588,7 @@ mod tests {
         (
             NetworkConfig {
                 network_id: network_id.clone(),
-                ports: [(format!("dms-{}", network_id), serving_node_port)]
+                ports: [(format!("dms-{network_id}"), serving_node_port)]
                     .iter()
                     .cloned()
                     .collect(),
@@ -607,7 +601,7 @@ mod tests {
                 public_key: keys[0].0.clone(),
                 name: format!("{}", keys[0].0),
                 address: SocketAddrV4::new("127.0.0.1".parse().unwrap(), serving_node_port),
-                ports: [(format!("dms-{}", network_id), serving_node_port)]
+                ports: [(format!("dms-{network_id}"), serving_node_port)]
                     .iter()
                     .cloned()
                     .collect(),
@@ -651,7 +645,7 @@ mod tests {
         let network_config = generate_node_configs(4200, 1).0;
 
         for i in 0..10 {
-            let msg = format!("{}", i);
+            let msg = format!("{i}");
             dms.add_message(Message {
                 data: msg.clone(),
                 signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),
@@ -664,7 +658,7 @@ mod tests {
         assert_eq!(
             (0..10)
                 .into_iter()
-                .map(|x| format!("{}", x))
+                .map(|x| format!("{x}"))
                 .collect::<std::collections::BTreeSet<_>>(),
             messages
                 .into_iter()
@@ -682,7 +676,7 @@ mod tests {
     ) {
         // Add the assigned messages to the DMS
         for i in &my_numbers {
-            let msg = format!("{}", i);
+            let msg = format!("{i}");
             dms.add_message(Message {
                 data: msg.clone(),
                 signature: TypedSignature::sign(&msg, &network_config.private_key).unwrap(),

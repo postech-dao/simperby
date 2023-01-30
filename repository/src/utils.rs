@@ -18,7 +18,7 @@ pub async fn add_remotes<T: RawRepository>(
         }
     }
     for (i, mirror) in this.config.mirrors.iter().enumerate() {
-        let remote_name = format!("mirror_{}", i);
+        let remote_name = format!("mirror_{i}");
         if let Err(err) = this.raw.add_remote(remote_name, mirror.clone()).await {
             warn!("failed to add remote({}): {}", mirror, err);
         }
@@ -33,7 +33,7 @@ pub async fn retrieve_fps<T: RawRepository>(
 ) -> Result<Vec<LastFinalizationProof>, Error> {
     let mut result = Vec::new();
     for (remote_name, branch_name, commit_hash) in remote_branches {
-        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!("{remote_name}/{branch_name}(at {commit_hash})");
 
         // Skip if the branch is not `fp`.
         if branch_name != FP_BRANCH_NAME {

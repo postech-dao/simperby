@@ -44,17 +44,17 @@ pub async fn run_server(path: &str, port: u16, _simperby_executable_path: &str) 
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
     let child = std::process::Command::new("git")
         .arg("daemon")
-        .arg(format!("--base-path={}", path))
+        .arg(format!("--base-path={path}"))
         .arg("--export-all")
-        .arg(format!("--port={}", port))
-        .arg(format!("--pid-file={}", pid_path))
+        .arg(format!("--port={port}"))
+        .arg(format!("--pid-file={pid_path}"))
         .spawn()
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     let daemon_pid = std::fs::read_to_string(pid_path).unwrap();
     // remove new line character
     let daemon_pid = daemon_pid[0..daemon_pid.len() - 1].parse::<u32>().unwrap();
-    println!("PID: {}", daemon_pid);
+    println!("PID: {daemon_pid}");
     GitServer { child, daemon_pid }
 }
 
@@ -71,15 +71,14 @@ mod tests {
 
         let td = TempDir::new().unwrap();
         let path = td.path().to_slash().unwrap().into_owned();
-        run_command(format!("cd {} && mkdir repo && cd repo && git init", path)).await;
-        run_command(format!("cd {}/repo && echo 'hello' > hello.txt", path)).await;
-        run_command(format!("cd {}/repo && git add -A", path)).await;
+        run_command(format!("cd {path} && mkdir repo && cd repo && git init")).await;
+        run_command(format!("cd {path}/repo && echo 'hello' > hello.txt")).await;
+        run_command(format!("cd {path}/repo && git add -A")).await;
         run_command(format!(
-            "cd {}/repo && git config user.name 'Test' && git config user.email 'test@test.com'",
-            path
+            "cd {path}/repo && git config user.name 'Test' && git config user.email 'test@test.com'"
         ))
         .await;
-        run_command(format!("cd {}/repo && git commit -m 'hello'", path)).await;
+        run_command(format!("cd {path}/repo && git commit -m 'hello'")).await;
         let server_task = tokio::spawn(async move {
             let _x = run_server(&path, port, "").await;
             sleep_ms(6000).await;
@@ -87,10 +86,9 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         let td2 = TempDir::new().unwrap();
         let path2 = td2.path().to_slash().unwrap().into_owned();
-        run_command(format!("ls {}", path2)).await;
+        run_command(format!("ls {path2}")).await;
         run_command(format!(
-            "cd {} && git clone git://127.0.0.1:{}/repo",
-            path2, port
+            "cd {path2} && git clone git://127.0.0.1:{port}/repo"
         ))
         .await;
         server_task.await.unwrap();

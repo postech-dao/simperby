@@ -152,7 +152,7 @@ pub async fn fetch<T: RawRepository>(this: &mut DistributedRepository<T>) -> Res
 
     // Step 2: create `a` and `b` branches.
     for (remote_name, branch_name, commit_hash, commit) in next_step_branches {
-        let branch_displayed = format!("{}/{}(at {})", remote_name, branch_name, commit_hash);
+        let branch_displayed = format!("{remote_name}/{branch_name}(at {commit_hash})");
         match &commit {
             Commit::Agenda(agenda) => {
                 if agenda.height == last_finalization_proof.height + 1 {

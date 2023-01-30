@@ -584,7 +584,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
         agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-        let agenda_branch_name = format!("a-{}", agenda_branch_name);
+        let agenda_branch_name = format!("a-{agenda_branch_name}");
         self.raw.create_branch(agenda_branch_name, result).await?;
         Ok((agenda, result))
     }
@@ -597,7 +597,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         if let Commit::Agenda(_) = commit {
             let mut vote_tag_name = commit.to_hash256().to_string();
             vote_tag_name.truncate(TAG_NAME_HASH_DIGITS);
-            let vote_tag_name = format!("vote-{}", vote_tag_name);
+            let vote_tag_name = format!("vote-{vote_tag_name}");
             self.raw.create_tag(vote_tag_name, commit_hash).await?;
             Ok(())
         } else {
@@ -613,7 +613,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();
             veto_tag_name.truncate(TAG_NAME_HASH_DIGITS);
-            let veto_tag_name = format!("veto-{}", veto_tag_name);
+            let veto_tag_name = format!("veto-{veto_tag_name}");
             self.raw.create_tag(veto_tag_name, commit_hash).await?;
             Ok(())
         } else {
@@ -717,7 +717,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         let mut block_branch_name = block_commit.to_hash256().to_string();
         block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
-        let block_branch_name = format!("b-{}", block_branch_name);
+        let block_branch_name = format!("b-{block_branch_name}");
         self.raw.create_branch(block_branch_name, result).await?;
         Ok((block_header, result))
     }
