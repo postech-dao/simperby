@@ -682,21 +682,11 @@ impl RawRepositoryImplInner {
         let workdir = self.repo.workdir().unwrap().to_str().unwrap();
 
         let is_push_success = if let Some(option_string) = option {
-            tokio::runtime::Handle::current().block_on(async move {
-                run_command(format!(
-                    "cd {} && git push {} {} --push-option='{}'",
-                    workdir, remote_name, branch, option_string
-                ))
-                .await
-            })?
+            run_command(format!(
+                "cd {workdir} && git push {remote_name} {branch} --push-option='{option_string}'",
+            ))?
         } else {
-            tokio::runtime::Handle::current().block_on(async move {
-                run_command(format!(
-                    "cd {} && git push {} {}",
-                    workdir, remote_name, branch
-                ))
-                .await
-            })?
+            run_command(format!("cd {workdir} && git push {remote_name} {branch}",))?
         };
 
         Ok(is_push_success)
@@ -796,22 +786,25 @@ impl RawRepositoryImplInner {
 }
 
 #[cfg(target_os = "windows")]
-pub async fn run_command(command: impl AsRef<str>) {
+pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
     println!("> RUN: {}", command.as_ref());
-    let mut child = tokio::process::Command::new("C:/Program Files/Git/bin/sh.exe")
+    let mut child = std::process::Command::new("C:/Program Files/Git/bin/sh.exe")
         .arg("--login")
         .arg("-c")
         .arg(command.as_ref())
         .spawn()
-        .expect("failed to execute process");
-    let ecode = child.wait().await.expect("failed to wait on child");
-    assert!(ecode.success());
+        .map_err(|_| Error::Unknown("failed to execute process".to_string()))?;
+    let ecode = child
+        .wait()
+        .map_err(|_| Error::Unknown("failed to wait on child".to_string()))?;
+
+    Ok(ecode.success())
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
+pub fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
     println!("> RUN: {}", command.as_ref());
-    let mut child = tokio::process::Command::new("sh")
+    let mut child = std::process::Command::new("sh")
         .arg("-c")
         .arg(command.as_ref())
         .spawn()
@@ -819,7 +812,6 @@ pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
 
     let ecode = child
         .wait()
-        .await
         .map_err(|_| Error::Unknown("failed to wait on child".to_string()))?;
 
     Ok(ecode.success())
