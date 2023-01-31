@@ -786,7 +786,7 @@ impl RawRepositoryImplInner {
 }
 
 #[cfg(target_os = "windows")]
-pub async fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
+pub fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
     println!("> RUN: {}", command.as_ref());
     let mut child = std::process::Command::new("C:/Program Files/Git/bin/sh.exe")
         .arg("--login")
