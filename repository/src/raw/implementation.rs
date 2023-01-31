@@ -678,18 +678,18 @@ impl RawRepositoryImplInner {
         remote_name: String,
         branch: Branch,
         option: Option<String>,
-    ) -> Result<bool, Error> {
+    ) -> Result<(), Error> {
         let workdir = self.repo.workdir().unwrap().to_str().unwrap();
 
-        let is_push_success = if let Some(option_string) = option {
+        if let Some(option_string) = option {
             run_command(format!(
-                "cd {workdir} && git push {remote_name} {branch} --push-option='{option_string}'",
+                "cd {workdir} && git push {remote_name} {branch} --push-option='{option_string}'"
             ))?
         } else {
-            run_command(format!("cd {workdir} && git push {remote_name} {branch}",))?
+            run_command(format!("cd {workdir} && git push {remote_name} {branch}"))?
         };
 
-        Ok(is_push_success)
+        Ok(())
     }
 
     pub(crate) fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
@@ -786,7 +786,7 @@ impl RawRepositoryImplInner {
 }
 
 #[cfg(target_os = "windows")]
-pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
+pub async fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
     println!("> RUN: {}", command.as_ref());
     let mut child = std::process::Command::new("C:/Program Files/Git/bin/sh.exe")
         .arg("--login")
@@ -798,11 +798,15 @@ pub async fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
         .wait()
         .map_err(|_| Error::Unknown("failed to wait on child".to_string()))?;
 
-    Ok(ecode.success())
+    if ecode.success() {
+        Ok(())
+    } else {
+        Err(Error::Unknown("failed to run process".to_string()))
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
+pub fn run_command(command: impl AsRef<str>) -> Result<(), Error> {
     println!("> RUN: {}", command.as_ref());
     let mut child = std::process::Command::new("sh")
         .arg("-c")
@@ -814,5 +818,9 @@ pub fn run_command(command: impl AsRef<str>) -> Result<bool, Error> {
         .wait()
         .map_err(|_| Error::Unknown("failed to wait on child".to_string()))?;
 
-    Ok(ecode.success())
+    if ecode.success() {
+        Ok(())
+    } else {
+        Err(Error::Unknown("failed to run process".to_string()))
+    }
 }
