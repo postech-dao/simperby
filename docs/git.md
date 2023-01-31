@@ -31,9 +31,9 @@ You should have a basic understanding of
   `finalized` branch**.
 8. **Simperby functions as a general distributed Git repository**, that can
   contain any useful data for the organization. This is trivially achieved
-  because **Simperby takes Git commits as blockchain transactions.** Any
-  commits made on the canonical branch (`finalized`) of the repository will be
-  stored permanently, in a Byzantine fault tolerant and distributed way.
+  because **Simperby takes Git commits as blockchain transactions.** Any commits
+  made on the canonical branch (`finalized`) of the repository will be stored
+  permanently, in a Byzantine fault tolerant and distributed way.
 
 ### Correspondence
 
@@ -50,14 +50,15 @@ The following holds for correspondence:
 
 Git is a distributed version control system that is widely used in the software
 development community. It is a mature technology that has been used for decades.
-There are four main reasons why we use Git as the underlying storage of Simperby.
+There are four main reasons why we use Git as the underlying storage of
+Simperby.
 
 ### Version Control System
 
-Git is a version control system, first of all.
-It provides wonderful features like branching, merging, rebasing, and diffing.
-You can checkout to any commit and browse the file system at that point in time.
-It manages the entire history of the repository in a linear or DAG structure.
+Git is a version control system, first of all. It provides wonderful features
+like branching, merging, rebasing, and diffing. You can checkout to any commit
+and browse the file system at that point in time. It manages the entire history
+of the repository in a linear or DAG structure.
 
 This fits amazingly well with Simperby, because.. TODO
 
@@ -69,7 +70,8 @@ contract platform, the role of the blockchain state is to serve as a
 general-purpose data storage. Here are a few examples of the use of a
 distributed file system for an organization:
 
-1. Replacement of a shared file system like [Google Drive](https://www.google.com/drive/)
+1. Replacement of a shared file system like [Google
+   Drive](https://www.google.com/drive/)
 2. Storage for a static file server for the website that the organization owns.
 3. Codebase of the organization - also the most common use case of Git itself
 4. Diff-sensitive data like the law or the constitution of the organization
@@ -80,20 +82,20 @@ ones), you can simply checkout to the revision and browse the file system.
 
 ### Distributed
 
-Git inherently works in a distributed manner.
-A Git repository may have multiple 'remotes' that can be freely added, removed,
-and fetched from. There is no 'central server' for the repository.
-Based on this principle, in Simperby, each node will add the peers that they
-discovered, and may fetch relevant remote branches, verify them and update their
-local repository. It could advance the block height by verifying the incoming
-block headers moving the local `finalized` branch. It could also track newly
-observed agenda or block proposals provided as peer's remote branches,
-reflecting on the local repository marked by its own branch.
+Git inherently works in a distributed manner. A Git repository may have multiple
+'remotes' that can be freely added, removed, and fetched from. There is no
+'central server' for the repository. Based on this principle, in Simperby, each
+node will add the peers that they discovered, and may fetch relevant remote
+branches, verify them and update their local repository. It could advance the
+block height by verifying the incoming block headers moving the local
+`finalized` branch. It could also track newly observed agenda or block proposals
+provided as peer's remote branches, reflecting on the local repository marked by
+its own branch.
 
 ### Powerful Third-Party Tools and Services
 
-Git is the most used version control system currently.
-It has a huge ecosystem of third-party tools and services.
+Git is the most used version control system currently. It has a huge ecosystem
+of third-party tools and services.
 
 1. Hosting services like [GitHub](https://github.com) or
   [GitLab](https://gitlab.com) can easily **mirror** the repository of the
@@ -102,10 +104,10 @@ It has a huge ecosystem of third-party tools and services.
   and indexing service! It is also possible to add a CI plugin to verify the
   incoming commits as Simperby node does.
 2. Clients like [GitKraken](https://www.gitkraken.com/),
-  [SourceTree](https://www.sourcetreeapp.com/),
-  [GitHub Desktop](https://desktop.github.com/) or various extensions on your
-  text editor will make both exploring and editing (for proposers) of the
-  repository much easier and more productive.
+  [SourceTree](https://www.sourcetreeapp.com/), [GitHub
+  Desktop](https://desktop.github.com/) or various extensions on your text
+  editor will make both exploring and editing (for proposers) of the repository
+  much easier and more productive.
 
 ## Specification
 
@@ -120,9 +122,11 @@ A commit is defined as follows
   directory). Note that a `tx` commit is the only exception that the commit
   title does not start with its type, `tx`. It may be empty.
 3. `tx-delegate`, `tx-undelegate`: a non-empty extra-agenda transaction that
-  updates the delegation state which resides in the reserved directory of the repository.
+  updates the delegation state which resides in the reserved directory of the
+  repository.
 4. `tx-report`: a non-empty commit that reports the misbehavior of a validator
-  with cryptographic proof. This must include the state change caused by the slashing.
+  with cryptographic proof. This must include the state change caused by the
+  slashing.
 5. `chat`: an empty commit for the chat logs of the height.
 6. `agenda-proof`: an empty commit for the proof of the governance approval of
   an agenda.
@@ -137,10 +141,10 @@ These are the names of the branches that are specially treated by the Simperby
 node. Branches other than `work` and `p` are managed by the node; it will be
 rejected if pushed.
 
-1. `finalized`: always points to the last finalized block.
-  It is strongly protected; users can't push to this branch.
-2. `work`: the only branch that users can freely push or force-push.
-  CLI commands like `create` interact with this.
+1. `finalized`: always points to the last finalized block. It is strongly
+  protected; users can't push to this branch.
+2. `work`: the only branch that users can freely push or force-push. CLI
+  commands like `create` interact with this.
 3. `p`: the block proposal for this node. The node operator may push or
   force-push to this branch. When pushed, the Git server will check the validity
   of the branch. The consensus engine will recognize this branch and propose to
@@ -150,7 +154,8 @@ rejected if pushed.
   `agenda-proof` commit which lies on top of the agenda commit. The `<hash>`
   MUST be the hash of the commit, truncated in the first 8 digits.
 5. `b-<hash>`: a valid (but not yet finalized) block propagated from other
-  nodes. The `<hash>` MUST be the hash of the commit, truncated in the first 8 digits.
+  nodes. The `<hash>` MUST be the hash of the commit, truncated in the first 8
+  digits.
 6. `fp`: a very special branch that always holds the finalization proof for the
   last block. This is required because a block header doesn't contain the
   finalization proof of itself. Thus, to make a repository self-verifiable, it
