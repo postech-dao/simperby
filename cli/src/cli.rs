@@ -158,13 +158,17 @@ pub enum Commands {
     /// Sign a message with the configured private key.
     #[command(subcommand)]
     Sign(SignCommands),
-    /// A special command triggered by the git hook.
-    NotifyPush {
+    /// A special command triggered by the Git hook, which is used to verify the push request.
+    CheckPush {
         /// The hash of the tip commit of the branch that is being pushed.
         commit: String,
+        /// The name of the branch that is being pushed.
+        branch_name: String,
         /// The Unix timestamp of the push request. This is for preventing replay attacks.
         timestamp: u64,
         /// The signature by the pusher.
         signature: String,
     },
+    /// A special command triggered by the Git hook, which is used to notify the push request.
+    NotifyPush { commit: String },
 }

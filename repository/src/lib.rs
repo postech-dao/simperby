@@ -250,6 +250,14 @@ impl<T: RawRepository> DistributedRepository<T> {
         fetch::fetch(self).await
     }
 
+    /// For a server node, get pushed commits from the network.
+    ///
+    /// Like [`fetch`], it verifies the incoming change and apply it to the local repository.
+    /// Refer to [`fetch`] for more details.
+    pub async fn get_pushed(&mut self, _commit_hash: CommitHash) -> Result<(), Error> {
+        fetch::fetch(self).await
+    }
+
     /// Serves the distributed repository protocol indefinitely.
     /// It **verifies** all the incoming changes and applies them to the local repository
     /// only if they are valid.

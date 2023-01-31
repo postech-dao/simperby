@@ -374,4 +374,18 @@ impl SimperbyNode {
         // TODO: report the result
         Ok(vec![])
     }
+
+    pub async fn check_push(
+        &mut self,
+        _commit_hash: CommitHash,
+        _branch_name: String,
+        _timestamp: Timestamp,
+        _signature: Signature,
+    ) -> Result<bool> {
+        todo!()
+    }
+
+    pub async fn notify_push(&mut self, _commit_hash: CommitHash) -> Result<()> {
+        todo!()
+    }
 }
