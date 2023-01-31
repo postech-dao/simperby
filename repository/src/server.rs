@@ -1,6 +1,6 @@
 use log::info;
 use path_slash::PathExt as _;
-use std;
+use std::{self, os::unix::prelude::PermissionsExt, path::Path};
 use tokio::fs;
 
 pub struct GitServer {
@@ -61,21 +61,16 @@ pub async fn run_server_legacy(path: &str, port: u16) -> GitServer {
 /// - `port` is the port to run the server on
 /// - `simperby_executable_path` is the path to the Simperby executable, which will be executed by the hook.
 pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -> GitServer {
-    fs::rename(
-        format!("{path}/repository/repo/.git/hooks/pre-receive.sample"),
-        format!("{path}/repository/repo/.git/hooks/pre-receive"),
-    )
-    .await
-    .unwrap();
-
-    // TODO: pre_receive.sh should be modified after Simperby executable is made.
+    let path_hook = format!("{path}/repository/repo/.git/hooks/pre-receive");
     let hook_content = include_str!("pre_receive.sh");
-    fs::write(
-        format!("{path}/repository/repo/.git/hooks/pre-receive"),
-        hook_content,
-    )
-    .await
-    .unwrap();
+    let is_hook_exist = Path::new(&path_hook).exists();
+    if !is_hook_exist {
+        fs::File::create(&path_hook).await.unwrap();
+    }
+    fs::write(&path_hook, hook_content).await.unwrap();
+    fs::set_permissions(&path_hook, std::fs::Permissions::from_mode(0o755))
+        .await
+        .unwrap();
 
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
@@ -100,11 +95,9 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
 
 #[cfg(test)]
 mod tests {
-    use crate::raw::{RawRepository, RawRepositoryImpl};
-
     use super::*;
+    use crate::raw::{RawRepository, RawRepositoryImpl};
     use simperby_test_suite::*;
-    use std::{self, os::unix::prelude::PermissionsExt};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -158,7 +151,6 @@ mod tests {
             "cd {path_server}/repository/repo && git config receive.advertisePushOptions true"
         ))
         .await;
-
         run_command(format!(
             "cd {path_server}/repository/repo && echo 'init' > init.txt && git add -A && git commit -m 'init'"
         ))
@@ -167,34 +159,30 @@ mod tests {
         let td_simperby = TempDir::new().unwrap();
         let path_simperby = td_simperby.path().to_slash().unwrap().into_owned();
 
-        // Make .sh example file for testing the server hook.
-        let path_simperby = format!("{path_simperby}/simperby_cli_example.sh");
-        fs::File::create(&path_simperby).await.unwrap();
-        let cli_content = r#"#!/bin/sh
-string=$1
-branch_name=$2
-result=true
-
-case "$string" in
-reject)
-    result=false
-    ;;
-esac
-
-if [ $branch_name != "work" ]
-then 
-result=false
-fi
-
-echo $result
+        // Make .sh example files for testing the server hook.
+        let path_true = format!("{path_simperby}/true.sh");
+        let path_false = format!("{path_simperby}/false.sh");
+        fs::File::create(&path_true).await.unwrap();
+        fs::File::create(&path_false).await.unwrap();
+        let content_true = r#"#!/bin/sh
+exit 0
 "#;
-        fs::write(&path_simperby, cli_content).await.unwrap();
-        fs::set_permissions(&path_simperby, std::fs::Permissions::from_mode(0o755))
+        let content_false = r#"#!/bin/sh
+exit 1
+"#;
+        fs::write(&path_true, content_true).await.unwrap();
+        fs::write(&path_false, content_false).await.unwrap();
+        fs::set_permissions(&path_true, std::fs::Permissions::from_mode(0o755))
+            .await
+            .unwrap();
+        fs::set_permissions(&path_false, std::fs::Permissions::from_mode(0o755))
             .await
             .unwrap();
 
+        // Open a git server with simperby executable which always returns true.
+        let path_server_clone = path_server.to_owned();
         let server_task = tokio::spawn(async move {
-            let _x = run_server(&path_server, port, &path_simperby).await;
+            let _x = run_server(&path_server_clone, port, &path_true).await;
             sleep_ms(6000).await;
         });
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
@@ -212,7 +200,7 @@ echo $result
         ))
         .await;
         run_command(format!(
-            "cd {path_local}/repo && git branch work && git checkout work"
+            "cd {path_local}/repo && git branch test && git checkout test"
         ))
         .await;
         run_command(format!(
@@ -220,57 +208,47 @@ echo $result
         ))
         .await;
 
-        // Push with the string which is unacceptable to the server hook.
         let repo = RawRepositoryImpl::open(format!("{path_local}/repo").as_str())
             .await
             .unwrap();
 
-        let result = repo
-            .push_option(
-                "origin".to_string(),
-                "work".to_string(),
-                Some("reject".to_string()),
-            )
+        repo.push_option("origin".to_string(), "test".to_string(), None)
             .await
-            .unwrap();
-        assert!(!result);
+            .unwrap_err();
 
-        let result = repo
-            .push_option("origin".to_string(), "work".to_string(), None)
-            .await
-            .unwrap();
-        assert!(!result);
+        repo.push_option(
+            "origin".to_string(),
+            "test".to_string(),
+            Some("test".to_string()),
+        )
+        .await
+        .unwrap();
 
-        // Push with the string which is acceptable to the server hook.
-        let result = repo
-            .push_option(
-                "origin".to_string(),
-                "work".to_string(),
-                Some("accept".to_string()),
-            )
-            .await
-            .unwrap();
-        assert!(result);
+        server_task.abort();
 
-        // Push with acceptable string but with unacceptable branch.
+        // Open a git server with simperby executable which always returns false.
+        let server_task = tokio::spawn(async move {
+            let _x = run_server(&path_server, port, &path_false).await;
+            sleep_ms(6000).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
         run_command(format!(
-            "cd {path_local}/repo && git branch notwork && git checkout notwork"
-        ))
-        .await;
-        run_command(format!(
-            "cd {path_local}/repo && echo 'hello' > hello2.txt && git add . && git commit -m 'hello2'"
+            "cd {path_local}/repo && echo 'hello2' > hello2.txt && git add . && git commit -m 'hello2'"
         ))
         .await;
 
-        let result = repo
-            .push_option(
-                "origin".to_string(),
-                "notwork".to_string(),
-                Some("accept".to_string()),
-            )
+        repo.push_option("origin".to_string(), "test".to_string(), None)
             .await
-            .unwrap();
-        assert!(!result);
+            .unwrap_err();
+
+        repo.push_option(
+            "origin".to_string(),
+            "test".to_string(),
+            Some("test".to_string()),
+        )
+        .await
+        .unwrap_err();
 
         server_task.await.unwrap();
     }

@@ -12,7 +12,8 @@ then
 	exit 1
 fi
 
-result=$($simperby_path $value $branch)
-if [ $result = false ]
+$($simperby_path $value $branch)
+status=$?
+if [ $status != 0 ]
 then exit 1
 fi
