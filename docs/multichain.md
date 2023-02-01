@@ -93,7 +93,7 @@ the same way (embedding a light client) but that's just pointless; there's
 nothing to programmatically respond to such events. Instead, members of the
 Simperby chain will manually check the result from the settlement chain using
 whatever method they want and take it into account if it matters in making a
-decision on the next agenda. It could be a standalone light client, some
+decision on the next agenda. They could use a standalone light client, some
 centralized explorer like Etherscan, or some could even ignore the result if
 they think it's not important for the next agenda.
 
