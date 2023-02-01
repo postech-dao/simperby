@@ -81,7 +81,7 @@ Simperby's scalability over settlement chain integration is quite impressive;
 the source code for the light client contract will be almost the same for every
 chain except for a few virtual machine-specific behaviors and the host
 interface. This enables **scalable development of light clients over various
-settlement chains**, which eventually provides powerful multichain
+settlement chains**, which will eventually provide powerful multichain
 interoperability for the DAO that uses Simperby.
 
 Also, considering that a Simperby chain has no contracts or business logic but
