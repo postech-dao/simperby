@@ -147,7 +147,7 @@ a secure channel or complex authorization mechanism; it just works out of the
 box**, in a fully trustless and end-to-end verifiable way.
 
 Most of the existing blockchain protocols have light clients, but they could not
-be as simple as Simperby's because of:
+be as simple as Simperby's because they have:
 
 1. Frequent block production (Simperby produces blocks on demand)
 2. Too many consensus participants (Simperby is a blockchain engine for
