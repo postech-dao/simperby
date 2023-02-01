@@ -26,33 +26,6 @@ pub async fn add_remotes<T: RawRepository>(
     Ok(())
 }
 
-/// Retrieve all the finalization proofs
-pub async fn retrieve_fps<T: RawRepository>(
-    this: &DistributedRepository<T>,
-    remote_branches: &[(String, String, CommitHash)],
-) -> Result<Vec<LastFinalizationProof>, Error> {
-    let mut result = Vec::new();
-    for (remote_name, branch_name, commit_hash) in remote_branches {
-        let branch_displayed = format!("{remote_name}/{branch_name}(at {commit_hash})");
-
-        // Skip if the branch is not `fp`.
-        if branch_name != FP_BRANCH_NAME {
-            continue;
-        }
-
-        let fp = this.raw.read_semantic_commit(*commit_hash).await?;
-        let fp = match format::fp_from_semantic_commit(fp) {
-            Ok(x) => x,
-            Err(err) => {
-                warn!("fp branch is invalid {}: {}", branch_displayed, err);
-                continue;
-            }
-        };
-        result.push(fp);
-    }
-    Ok(result)
-}
-
 /// Retrieve all local branches
 pub async fn retrieve_local_branches<T: RawRepository>(
     raw: &T,
@@ -102,13 +75,4 @@ pub async fn read_commits<T: RawRepository>(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|(e, c)| CommitError::Commit(e, c))?;
     Ok(commits)
-}
-
-/// Reads a single commit.
-pub async fn read_commit<T: RawRepository>(
-    this: &DistributedRepository<T>,
-    commit: CommitHash,
-) -> Result<Commit, Error> {
-    let commit = this.raw.read_semantic_commit(commit).await?;
-    from_semantic_commit(commit)
 }
