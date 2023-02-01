@@ -4,10 +4,10 @@
 
 One of the most important features of Simperby is its multichain
 interoperability. Any DAO (Decentralized Autonomous Organization) built with
-Simperby can control various Dapps (Decentralized Applications) deployed on
-various existing blockchains, such as Ethereum. This could include a treasury
+Simperby can interact with various Dapps (Decentralized Applications) deployed
+on various existing blockchains, such as Ethereum. This could include a treasury
 for the organization, a token that the organization issues, or any other
-application that the organization wants to build and deploy. This multichain
+application that the organization wants to build or use. This multichain
 communication is performed in a **trustless and verifiable manner**, with
 reasonable cost and efficiency.
 
@@ -22,7 +22,7 @@ meaningful even if we take only the headers** of the chain (note that the block
 body contains transactions).
 
 In Tendermint and Vetomint, the light client has a "last trusted header" as its
-state, and it only accepts a new header if it is actually finalized by the
+state, and only accepts a new header if it is actually finalized by the
 consensus, as the next block to the last trusted header. **There is no authority
 or trust in the header provider** as there is always a cryptographic proof for
 the finalization, the pre-commits from over 2/3 of the validators. If both the
@@ -35,11 +35,12 @@ they produce blocks frequently, so reducing the header size is important), so
 verification can be trivially handled.
 
 Now we know that a light client can track the canonical chain of headers only by
-constantly accepting the headers and the proofs in a trustless and verifiable way.
-Since a block header contains the Merkle root of the state and transactions, the
-**light client can verify the inclusion of any state entry or transaction with
-its Merkle proof**, at the given height. The light client may store all previous
-headers that it has accepted so far to verify the inclusion from past blocks.
+constantly accepting the headers and the proofs in a trustless and verifiable
+way. Since a block header contains the Merkle root of the state and
+transactions, the **light client can verify the inclusion of any state entry or
+transaction with its Merkle proof**, at the given height. The light client may
+store all previous headers that it has accepted so far to verify the inclusion
+from past blocks.
 
 ## Trustless Message Delivery
 
@@ -55,9 +56,9 @@ two different blockchains**, which is the key to multichain interoperability.
 Suppose there are two different blockchains called A and B. If the A chain has a
 light client of the B Chain deployed on A chain, whatever finalized on the B
 chain can be instantly verified on the A chain. Other contracts deployed on the
-A chain may interact with the B chain since the light client provides data
-from the B chain after verification. This communication can trivially work both
-ways if the B chain has a light client of the A chain as well.
+A chain may interact with the B chain since the light client provides data from
+the B chain after verification. This communication can trivially work both ways
+if the B chain has a light client of the A chain as well.
 
 Cosmos IBC (Inter-Blockchain Communication) is an example of a protocol based on
 this idea. IBC defines multiple layers over the core communication primitive
@@ -68,14 +69,14 @@ organic multichain structure using IBC.
 
 ## Settlement Chain
 
-Simperby is a standalone blockchain that has its own consensus mechanism and
+Simperby is a standalone blockchain that boasts its own consensus mechanism and
 distributed file system. However, there must be working applications that
 interact with the Simperby chain so that the organization can finalize something
-meaningful. Of course, the most important applications would be other existing
-chains that the organization deploys their applications on. From Simperby's
-view, they are called **settlement chains**. Any blockchain that has a smart
-contract platform can be a settlement chain once the organization pays some gas
-and deploys their light client on it.
+meaningful. The most important applications in this regard would be other
+established blockchain ecosystems, which the organization seeks to interact
+with. From Simperby's view, they are called **settlement chains**. Any
+blockchain that has a smart contract platform can be a settlement chain once the
+organization pays some gas and deploys their light client on it.
 
 Simperby's scalability over settlement chain integration is quite impressive;
 the source code for the light client contract will be almost the same for every
@@ -87,19 +88,20 @@ interoperability for the DAO that uses Simperby.
 Also, considering that a Simperby chain has no contracts or business logic but
 is only capable of recording explicitly approved data, there is nothing to
 execute automatically on the Simperby side. That is, the multichain
-communication system **doesn't have to be two-way**. Things happening
+communication system **doesn't have to be bidrectional**. Things happening
 (finalized) in the settlement chain might be delivered to the Simperby chain in
 the same way (embedding a light client) but that's just pointless; there's
-nothing to programmatically respond to such events. Instead, members of the
-Simperby chain will manually check the result from the settlement chain using
-whatever method they want and take it into account if it matters in making a
-decision on the next agenda. They could use a standalone light client, some
-centralized explorer like Etherscan, or some could even ignore the result if
-they think it's not important for the next agenda.
+nothing to programmatically respond to such events because Simperby does not
+host a contract platform. Instead, members of the Simperby chain will manually
+check the result from the settlement chain using whatever method they want and
+take it into account if it matters in making a decision on the next agenda. They
+could use a standalone light client, some centralized explorer like Etherscan,
+or some could even ignore the result if they think it's not important for the
+next agenda.
 
-There is **no communication between settlement chains** too. The number
-of required communication channels (i.e., number of light clients) are the same
-as the number of settlement chains that the organization deploys on.
+There is **no communication between settlement chains** too. The number of
+required communication channels (i.e., number of light clients) are the same as
+the number of settlement chains that the organization deploys on.
 
 ### Currently Supported Settlement Chains
 
@@ -133,6 +135,11 @@ Here are other possible use cases of Simperby-controlled contracts:
 4. A DeFi pool whose parameters are controlled by the Simperby DAO.
 5. A bridge between two different chains, where the Simperby DAO acts as the
    bridge provider.
+
+Simperby DAOs can also interact with external Dapps. They can create a proxy
+contract to serve as a user of a specific Dapp. Additionally, as the Simperby
+protocol becomes mature and common, there will be an increase in the number of
+Dapps that have built-in support for Simperby DAOs.
 
 ## Universal Interoperability
 
