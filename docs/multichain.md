@@ -35,7 +35,7 @@ they produce blocks frequently, so reducing the header size is important), so
 verification can be trivially handled.
 
 Now we know that a light client can track the canonical chain of headers only by
-constantly accepting the headers and proof in a trustless and verifiable way.
+constantly accepting the headers and the proofs in a trustless and verifiable way.
 Since a block header contains the Merkle root of the state and transactions, the
 **light client can verify the inclusion of any state entry or transaction with
 its Merkle proof**, at the given height. The light client may store all previous
