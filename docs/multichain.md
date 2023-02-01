@@ -97,9 +97,9 @@ decision on the next agenda. It could be a standalone light client, some
 centralized explorer like Etherscan, or some could even ignore the result if
 they think it's not important for the next agenda.
 
-There is **no communication between settlement chains** too. All required number
-of communication channels (i.e., number of light clients) are exactly the same
-as the number of settlement chains that the organization deploys.
+There is **no communication between settlement chains** too. The number
+of required communication channels (i.e., number of light clients) are the same
+as the number of settlement chains that the organization deploys on.
 
 ### Currently Supported Settlement Chains
 
