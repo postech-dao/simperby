@@ -1,6 +1,6 @@
-mod fetch;
 pub mod format;
 pub mod raw;
+mod receive;
 mod utils;
 // TODO: integrate the server feature with `DistributedRepository`
 pub mod server;
@@ -253,15 +253,38 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// TODO: add fork detection logic considering the long range attack distance.
     pub async fn fetch(&mut self) -> Result<(), Error> {
-        fetch::fetch(self).await
+        utils::add_remotes(self, &self.peers.read().await).await?;
+        // TODO: handle this
+        let _ = self.raw.fetch_all().await;
+        let remote_branches = self.raw.list_remote_tracking_branches().await?;
+        for (remote_name, branch_name, commit_hash) in remote_branches {
+            let branch_displayed = format!(
+                "{}/{}(at {})",
+                remote_name,
+                branch_name,
+                serde_spb::to_string(&commit_hash).unwrap()
+            );
+            let result = receive::receive(self, commit_hash).await?;
+            if let Err(e) = result {
+                warn!("failed to apply remote branch {}: {}", branch_displayed, e);
+            }
+        }
+        Ok(())
     }
 
     /// For a server node, get pushed commits from the network.
     ///
     /// Like [`fetch`], it verifies the incoming change and apply it to the local repository.
     /// Refer to [`fetch`] for more details.
-    pub async fn get_pushed(&mut self, _commit_hash: CommitHash) -> Result<(), Error> {
-        fetch::fetch(self).await
+    ///
+    /// - Returns `Ok(Ok(()))` if the branch is successfully received.
+    /// - Returns `Ok(Err(_))` if the branch is invalid and thus rejected, with the reason.
+    /// - Returns `Err(_)` if an error occurs.
+    pub async fn get_pushed(
+        &mut self,
+        commit_hash: CommitHash,
+    ) -> Result<Result<(), String>, Error> {
+        receive::receive(self, commit_hash).await
     }
 
     /// Serves the distributed repository protocol indefinitely.
