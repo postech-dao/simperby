@@ -143,14 +143,15 @@ impl CommitSequenceVerifier {
         &self.total_commits
     }
 
-    /// Returns the block headers received so far.
+    /// Returns the block headers received so far, with the index of the commit.
     ///
     /// It returns `[start_header]` if no block header has been received.
-    pub fn get_block_headers(&self) -> Vec<BlockHeader> {
+    pub fn get_block_headers(&self) -> Vec<(BlockHeader, usize)> {
         self.total_commits
             .iter()
-            .filter_map(|commit| match commit {
-                Commit::Block(header) => Some(header.clone()),
+            .enumerate()
+            .filter_map(|(i, commit)| match commit {
+                Commit::Block(header) => Some((header.clone(), i)),
                 _ => None,
             })
             .collect()
