@@ -72,6 +72,12 @@ pub struct IntegrityError {
     pub msg: String,
 }
 
+impl IntegrityError {
+    pub fn new(msg: String) -> Self {
+        Self { msg }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Public repos (usually mirrors) for the read-only accesses
