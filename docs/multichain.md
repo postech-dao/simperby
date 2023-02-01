@@ -55,7 +55,7 @@ two different blockchains**, which is the key to multichain interoperability.
 Suppose there are two different blockchains called A and B. If the A chain has a
 light client of the B Chain deployed on A chain, whatever finalized on the B
 chain can be instantly verified on the A chain. Other contracts deployed on the
-A chain would interact with the B chain since the light client provides data
+A chain may interact with the B chain since the light client provides data
 from the B chain after verification. This communication can trivially work both
 ways if the B chain has a light client of the A chain as well.
 
