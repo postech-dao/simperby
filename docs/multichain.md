@@ -136,10 +136,10 @@ Here are other possible use cases of Simperby-controlled contracts:
 5. A bridge between two different chains, where the Simperby DAO acts as the
    bridge provider.
 
-Simperby DAOs can also interact with external Dapps. They can create a proxy
-contract to serve as a user of a specific Dapp. Additionally, as the Simperby
-protocol becomes mature and common, there will be an increase in the number of
-Dapps that have built-in support for Simperby DAOs.
+Simperby DAOs can also interact with external Dapps. Organizations can upload a
+Simperby-controlloed wallet to use various existing Dapps. Additionally, as the
+Simperby protocol becomes mature and common, there will be an increase in the
+number of Dapps that have built-in support for Simperby DAOs.
 
 ## Universal Interoperability
 
