@@ -45,7 +45,7 @@ async fn basic_1() {
     });
 
     let client_node_dir = create_temp_dir();
-    run_command(format!(
+    simperby_test_suite::run_command(format!(
         "cd {client_node_dir} && mkdir repository && cd repository && cp -r {server_node_dir}/repository/repo {client_node_dir}/repository"
     ))
     .await;
@@ -78,7 +78,7 @@ async fn basic_1() {
         )
         .await
         .unwrap();
-    run_command(format!(
+    simperby_test_suite::run_command(format!(
         "cd {server_node_dir}/repository/repo && git branch -f work {agenda_proof}"
     ))
     .await;
