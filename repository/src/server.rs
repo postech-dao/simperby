@@ -1,6 +1,5 @@
 use log::info;
 use path_slash::PathExt as _;
-
 use std::{self, os::unix::prelude::PermissionsExt, path::Path};
 use tokio::fs;
 pub struct GitServer {
@@ -71,8 +70,6 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
     fs::set_permissions(&path_hook, std::fs::Permissions::from_mode(0o755))
         .await
         .unwrap();
-
-    //run_command(format!("chmod +x {path_hook}")).await;
 
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
@@ -167,8 +164,6 @@ mod tests {
         fs::File::create(&path_true).await.unwrap();
         fs::File::create(&path_false).await.unwrap();
         let content_true = r#"#!/bin/sh
-echo "$1"
-echo "$2"
 exit 0
 "#;
         let content_false = r#"#!/bin/sh
