@@ -36,6 +36,7 @@ impl RawRepositoryImplInner {
                     config.set_str("user.name", "name")?; // TODO: user.name value
                     config.set_str("user.email", "email")?; // TODO: user.email value
                     config.set_str("receive.advertisePushOptions", "true")?;
+                    config.set_str("sendpack.sideband", "false")?;
 
                     // Create an initial empty commit.
                     let mut index = repo.index()?;
@@ -68,6 +69,7 @@ impl RawRepositoryImplInner {
         let repo = Repository::clone(url, directory)?;
         let mut config = repo.config()?;
         config.set_str("receive.advertisePushOptions", "true")?;
+        config.set_str("sendpack.sideband", "false")?;
 
         Ok(Self { repo })
     }
