@@ -3,7 +3,7 @@ use secp256k1::{
     ecdsa::{RecoverableSignature, RecoveryId},
     Message, Secp256k1, SecretKey,
 };
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeTuple, Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use std::fmt;
 use thiserror::Error;
@@ -41,7 +41,15 @@ impl<const N: usize> Serialize for HexSerializedBytes<N> {
     where
         S: serde::ser::Serializer,
     {
-        serializer.serialize_str(hex::encode(self.data).as_str())
+        if serializer.is_human_readable() {
+            serializer.serialize_str(hex::encode(self.data).as_str())
+        } else {
+            let mut seq = serializer.serialize_tuple(N)?;
+            for e in self.data {
+                seq.serialize_element(&e)?;
+            }
+            seq.end()
+        }
     }
 }
 
