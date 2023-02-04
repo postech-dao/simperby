@@ -117,3 +117,71 @@ impl BlockHeader {
 
     // note that `repository_merkle_root` is calculated from `simperby-repository`.
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serde_spb;
+    use std::mem::size_of;
+
+    unsafe fn read<T: Clone>(offset: &mut usize, data: &[u8]) -> T {
+        let size = size_of::<T>();
+        let p = data[*offset..*offset + size].as_ptr() as *const T;
+        let x = (*p).clone();
+        *offset += size;
+        x
+    }
+
+    #[test]
+    fn decode_header() {
+        let header = simperby_test_suite::generate_standard_genesis(5)
+            .0
+            .genesis_info
+            .header;
+        let encoded = serde_spb::to_vec(&header).unwrap();
+
+        let mut offset = 0;
+
+        let author = unsafe { read::<PublicKey>(&mut offset, &encoded) };
+        let prev_block_finalization_proof_len = unsafe { read::<usize>(&mut offset, &encoded) };
+        let mut prev_block_finalization_proof = Vec::new();
+        for _ in 0..prev_block_finalization_proof_len {
+            prev_block_finalization_proof
+                .push(unsafe { read::<TypedSignature<BlockHeader>>(&mut offset, &encoded) });
+        }
+        let previous_hash = unsafe { read::<Hash256>(&mut offset, &encoded) };
+        let height = unsafe { read::<BlockHeight>(&mut offset, &encoded) };
+        let timestamp = unsafe { read::<Timestamp>(&mut offset, &encoded) };
+        let commit_merkle_root = unsafe { read::<Hash256>(&mut offset, &encoded) };
+        let repository_merkle_root = unsafe { read::<Hash256>(&mut offset, &encoded) };
+        let validator_set_len = unsafe { read::<usize>(&mut offset, &encoded) };
+        let mut validator_set = Vec::new();
+        for _ in 0..validator_set_len {
+            let pub_key = unsafe { read::<PublicKey>(&mut offset, &encoded) };
+            let voting_power = unsafe { read::<VotingPower>(&mut offset, &encoded) };
+            validator_set.push((pub_key, voting_power));
+        }
+        offset += 8; // skip version length (it's always 5)
+        let version = unsafe { read::<[u8; 5]>(&mut offset, &encoded) };
+        let version = String::from_utf8(version.to_vec()).unwrap();
+
+        let header_decoded = BlockHeader {
+            author,
+            prev_block_finalization_proof,
+            previous_hash,
+            height,
+            timestamp,
+            commit_merkle_root,
+            repository_merkle_root,
+            validator_set,
+            version,
+        };
+
+        // note that `header` is from `simperby-test-suite`, which is not compatible with
+        // this crate. Thus we compare the strings.
+        assert_eq!(
+            serde_spb::to_string(&header).unwrap(),
+            serde_spb::to_string(&header_decoded).unwrap()
+        );
+    }
+}
