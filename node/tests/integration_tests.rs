@@ -23,7 +23,7 @@ async fn setup_peer(path: &str, peers: &[Peer]) {
     let mut file = tokio::fs::File::create(format!("{path}/peers.json"))
         .await
         .unwrap();
-    file.write_all(&serde_spb::to_vec(&peers).unwrap())
+    file.write_all(serde_spb::to_string(&peers).unwrap().as_bytes())
         .await
         .unwrap();
     file.flush().await.unwrap();
