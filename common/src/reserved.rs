@@ -52,17 +52,15 @@ impl ReservedState {
                     .or_insert(member.consensus_voting_power);
             }
         }
-
-        // TODO handle error
-        Ok(self
-            .consensus_leader_order
-            .iter()
-            .filter(|name| validator_set.contains_key(*name))
-            .cloned()
-            .collect::<Vec<MemberName>>()
-            .iter()
-            .map(|name| (self.query_public_key(name).unwrap(), validator_set[name]))
-            .collect())
+        let mut result = Vec::new();
+        for (name, voting_power) in validator_set {
+            match self.query_public_key(&name) {
+                Some(public_key) => result.push((public_key, voting_power)),
+                None => return Err("validator does not exist by name".to_string()),
+            }
+        }
+        result.sort_by(|a, b| b.0.cmp(&a.0));
+        Ok(result)
     }
 
     pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
@@ -80,10 +78,15 @@ impl ReservedState {
                     .or_insert(member.consensus_voting_power);
             }
         }
-        Ok(governance_set
-            .iter()
-            .map(|(name, voting_power)| (self.query_public_key(name).unwrap(), *voting_power))
-            .collect())
+        let mut result = Vec::new();
+        for (name, voting_power) in governance_set {
+            match self.query_public_key(&name) {
+                Some(public_key) => result.push((public_key, voting_power)),
+                None => return Err("validator does not exist by name".to_string()),
+            }
+        }
+        result.sort_by(|a, b| b.0.cmp(&a.0));
+        Ok(result)
     }
 
     pub fn apply_delegate(&mut self, tx: &TxDelegate) -> Result<Self, String> {
@@ -92,122 +95,61 @@ impl ReservedState {
             Some(name) => name,
             None => return Result::Err("delegator does not exist by name".to_string()),
         };
-
         let delegatee_name = match self.query_name(&tx.delegatee.clone()) {
             Some(name) => name,
             None => return Result::Err("delegatee does not exist by name".to_string()),
         };
-
-        for member in &mut self.members {
-            if member.name == delegator_name {
-                match Self::update_delegator_delegatee_field(tx, &delegatee_name, member) {
-                    Ok(delegator_update_response) => {
-                        delegator_updated = delegator_update_response.updated;
-                    }
-                    Err(e) => {
-                        return Result::Err("delegator update failed".to_string() + e.as_str())
-                    }
+        for delegator in &mut self.members {
+            if delegator.name == delegator_name {
+                if tx.delegatee.to_string().is_empty() {
+                    return Result::Err("delegatee field cannot be empty".to_string());
+                }
+                if tx.governance {
+                    delegator.governance_delegatee = Option::from(delegatee_name.clone());
+                    delegator.consensus_delegatee = Option::from(delegatee_name.clone());
+                    delegator_updated = true;
+                } else {
+                    delegator.consensus_delegatee = Option::from(delegatee_name.clone());
+                    delegator_updated = true;
                 }
             }
         }
-
         if delegator_updated {
             Ok(self.clone())
         } else {
-            Err("Something has gone wrong. Nothing was updated".to_string())
-        }
-    }
-
-    fn update_delegator_delegatee_field(
-        tx: &TxDelegate,
-        delegatee_name: &MemberName,
-        now_member: &mut Member,
-    ) -> Result<TxDelegateUpdateDelegatorResponse, String> {
-        if tx.delegatee.to_string().is_empty() {
-            Result::Err("delegatee cannot be empty".to_string())
-        } else if tx.governance {
-            now_member.governance_delegatee = Option::from(delegatee_name.clone());
-            now_member.consensus_delegatee = Option::from(delegatee_name.clone());
-
-            Ok(TxDelegateUpdateDelegatorResponse {
-                updated: true,
-                consensus_delegatee: &now_member.consensus_delegatee,
-                governance_delegatee: &now_member.governance_delegatee,
-                delegated_consensus_voting_power: Option::from(now_member.consensus_voting_power),
-                delegated_governance_voting_power: Option::from(now_member.governance_voting_power),
-            })
-        } else {
-            now_member.consensus_delegatee = Option::from(delegatee_name.clone());
-
-            Ok(TxDelegateUpdateDelegatorResponse {
-                updated: true,
-                consensus_delegatee: &now_member.consensus_delegatee,
-                governance_delegatee: &now_member.governance_delegatee,
-                delegated_consensus_voting_power: Option::from(now_member.consensus_voting_power),
-                delegated_governance_voting_power: None,
-            })
+            Err("nothing was delegated. please check your transaction again.".to_string())
         }
     }
 
     pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
-        let mut delegator_updated = false;
         let delegator_name = match self.query_name(&tx.delegator.clone()) {
             Some(name) => name,
-            None => return Result::Err("delegator does not exist by name".to_string()),
+            None => return Err("delegator does not exist by name".to_string()),
         };
-
-        for member in &mut self.members {
-            if member.name == delegator_name {
-                match Self::remove_delegator_delegatee_field(tx, member) {
-                    Ok(delegator_update_response) => {
-                        delegator_updated = delegator_update_response.updated;
+        let mut delegator_updated = false;
+        for delegator in &mut self.members {
+            if delegator.name == delegator_name {
+                if let Some(_consensus_delegatee) = &delegator.consensus_delegatee {
+                    delegator.consensus_delegatee = None;
+                    if tx.governance {
+                        if let Some(_governance_delegatee) = &delegator.governance_delegatee {
+                            delegator.governance_delegatee = None;
+                            delegator_updated = true;
+                        } else {
+                            return Err("governance delegatee is not set".to_string());
+                        }
+                    } else {
+                        delegator_updated = true;
                     }
-                    Err(e) => {
-                        return Result::Err("delegator update failed".to_string() + e.as_str())
-                    }
+                } else {
+                    return Err("consensus delegatee is not set".to_string());
                 }
             }
         }
         if delegator_updated {
             Ok(self.clone())
         } else {
-            Err("Something has gone wrong. Nothing was undelegated".to_string())
-        }
-    }
-
-    fn remove_delegator_delegatee_field(
-        tx: &TxUndelegate,
-        now_member: &mut Member,
-    ) -> Result<TxUndelegateUpdateDelegatorResponse, String> {
-        let original_consensus_delegatee_clone = now_member.consensus_delegatee.clone();
-        let original_consensus_delegatee: &MemberName = match &original_consensus_delegatee_clone {
-            Some(consensus_delegatee) => consensus_delegatee,
-            None => return Result::Err("consensus delegatee is not set".to_string()),
-        };
-        now_member.consensus_delegatee = None;
-        if tx.governance {
-            let original_governance_delegatee_clone = now_member.governance_delegatee.clone();
-            let original_governance_delegatee: &MemberName =
-                match &original_governance_delegatee_clone {
-                    Some(governance_delegatee) => governance_delegatee,
-                    None => return Result::Err("governance delegatee is not set".to_string()),
-                };
-            now_member.governance_delegatee = None;
-            Ok(TxUndelegateUpdateDelegatorResponse {
-                updated: true,
-                consensus_delegatee: Option::Some(original_consensus_delegatee.clone()),
-                governance_delegatee: Option::Some(original_governance_delegatee.clone()),
-                undelegated_consensus_voting_power: None,
-                undelegated_governance_voting_power: Some(now_member.governance_voting_power),
-            })
-        } else {
-            Ok(TxUndelegateUpdateDelegatorResponse {
-                updated: true,
-                consensus_delegatee: Option::Some(original_consensus_delegatee.clone()),
-                governance_delegatee: None,
-                undelegated_consensus_voting_power: Some(now_member.consensus_voting_power),
-                undelegated_governance_voting_power: None,
-            })
+            Err("nothing was undelegated. please check your transaction again.".to_string())
         }
     }
 
