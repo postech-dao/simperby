@@ -1,4 +1,4 @@
-# Vetomint
+# Vetomint: the BFT Consensus Protocol for Simperby
 
 ## Summary
 

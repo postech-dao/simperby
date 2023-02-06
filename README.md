@@ -41,21 +41,16 @@ as it functions as a
 4. Multichain Interoperability
 5. Immutable, Verifiable, and Distributed Storage as a Git Repository
 
-## Simperby Super Simple Summary
+## Documentations
 
-See [docs](docs/ssss.md)
-
-## Protocol Overview
-
-See [docs](docs/protocol_overview.md)
-
-## Simperby: the Git-based Blockchain
-
-See [docs](docs/git.md)
-
-## Simperby: the DAO Spaceship for Multichain Journey
-
-See [docs](docs/multichain.md)
+- [Simperby Super Simple Summary](docs/ssss.md)
+- [Protocol Overview](docs/protocol_overview.md)
+- [Simperby: the Git-based Blockchain](docs/git.md)
+- [Simperby: the DAO Spaceship for Multichain Journey](docs/multichain.md)
+- [Simperby: Comparison to other DAO Solutions](docs/comparison.md)
+- [Vetomint: the BFT Consensus Protocol for Simperby](docs/vetomint.md)
+- [Simperby FAQ](docs/faq.md)
+- [Simperby User Manual](docs/manual.md)
 
 ## License
 
