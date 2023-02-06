@@ -162,21 +162,23 @@ promptly. To achieve this, the byzantine threshold must be no greater than
 $1-x$. If it were greater, byzatine validators could hinder the consensus by
 simply not broadcasting prevotes.
 
-Second, we want to ensure that, if more than 2/3 of the validators have casted
-non-nil prevotes, the proposal will be accepted regardless of the actions of
-malicious validators or the way messages are transferred. (The 2/3 condition is
-necessary for the safety of the subsequent Tendermint phases.)
-
-Suppose that 2/3 of the validators have casted non-nil prevotes, and suppose
-further that $1-x$ byzantine validators falsely broadcast nil prevotes.
-If $$(1-x) + (2/3 - \epsilon) \ge x$$ for some small $\epsilon > 0$, then a
-validator that receives $1-x$ nil prevotes from byzantine validators and
-$2/3 - \epsilon$ non-nil prevotes will early terminate and incorrectly
-conclude that the leader has been displaced.
-This is undesirable, so we must have   $$(1-x) + (2/3 - \epsilon) < x$$, which
-simplifies to $x \ge 5/6$.
-As we want to minimize the byzantine threshold as much as possible, the optimal
-choice is $x = 5/6$, and the byzantine threshold would be $1-x = 1/6$.
+Second, we want to ensure that, if more than 2/3 of the validators cast non-nil
+prevotes, the proposal will be accepted regardless of the actions of malicious
+validators or the way messages are transferred.
+(The 2/3 threshold is crucial to ensure the safety of subsequent Tendermint
+phases.)
+Let's consider a scenario where more than $2/3$ of the validators cast non-nil
+prevotes, however $1-x$ malicious validators falsify their prevotes with nil
+values, and the condition $(1-x) + 2/3 > x$ holds true.
+Then, a validator receiving $1-x$ nil prevotes (from malicious validators) and
+exactly $2/3$ non-nil prevotes will early terminate since the total received
+prevotes $(1-x) + 2/3$ exceeds the early termination threshold, namely $x$.
+As the portion of collected non-nil prevotes does not exceed 2/3, the validator
+will incorrectly conclude that the quorum has failed to met, which is not
+acceptable.
+To prevent this outcome, we must have $$(1-x) + 2/3 \le x$, or $x \ge 5/6$.  To
+minimize the byzantine threshold as much as possible, the optimal choice is
+$x=5/6$, resulting in a byzantine threshold of $1-x = 1/6$.
 
 Liveness is not ensured in Vetomint. However, this is not a design mistake of
 Vetomint, but rather an inherent issue with the threshold-based decision making:
