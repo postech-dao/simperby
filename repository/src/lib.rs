@@ -18,7 +18,6 @@ use simperby_common::*;
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
 use std::{collections::HashSet, fmt};
 use utils::{read_commits, retrieve_local_branches};
-
 pub type Branch = String;
 pub type Tag = String;
 
@@ -137,7 +136,17 @@ impl<T: RawRepository> DistributedRepository<T> {
             .raw
             .create_branch(FINALIZED_BRANCH_NAME.into(), self.raw.get_head().await?)
             .await;
-        self.raw.checkout(FINALIZED_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(FINALIZED_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the finalized branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
         let _ = self
@@ -146,7 +155,17 @@ impl<T: RawRepository> DistributedRepository<T> {
             .await;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
         let _ = self.raw.create_branch(FP_BRANCH_NAME.into(), result).await;
-        self.raw.checkout(FP_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(FP_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the fp branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         self.raw
             .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
                 height: 0,
@@ -209,12 +228,20 @@ impl<T: RawRepository> DistributedRepository<T> {
             {
                 let branch_commit = self.raw.locate_branch(branch.clone()).await?;
 
-                if finalized_branch_commit_hash
-                    != self
-                        .raw
-                        .find_merge_base(branch_commit, finalized_branch_commit_hash)
-                        .await?
-                {
+                let find_merge_base_result = self
+                    .raw
+                    .find_merge_base(branch_commit, finalized_branch_commit_hash)
+                    .await
+                    .map_err(|e| match e {
+                        raw::Error::NotFound(_) => {
+                            eyre!(IntegrityError::new(format!(
+                                "cannot find merge base for branch {branch} and finalized branch"
+                            )))
+                        }
+                        _ => eyre!(e),
+                    })?;
+
+                if finalized_branch_commit_hash != find_merge_base_result {
                     self.raw.delete_branch(branch.to_string()).await?;
                 }
             }
@@ -347,12 +374,20 @@ impl<T: RawRepository> DistributedRepository<T> {
             };
 
         // Check if the given block commit is a descendant of the current finalized branch
-        if self
+
+        let find_merge_base_result = self
             .raw
             .find_merge_base(current_finalized_commit, block_commit_hash)
-            .await?
-            != current_finalized_commit
-        {
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "cannot find merge base for branch {block_branch_name} and finalized branch"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
+        if current_finalized_commit != find_merge_base_result {
             return Err(eyre!(
                 "block commit is not a descendant of the current finalized branch"
             ));
@@ -385,7 +420,17 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw
             .move_branch(FP_BRANCH_NAME.to_string(), block_commit_hash)
             .await?;
-        self.raw.checkout(FP_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(FP_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the fp branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         self.raw
             .create_semantic_commit(format::fp_to_semantic_commit(&LastFinalizationProof {
                 height: last_block_header.height,
@@ -404,12 +449,20 @@ impl<T: RawRepository> DistributedRepository<T> {
             // Check if the branch is an agenda branch
             if branch.as_str().starts_with("a-") {
                 // Check if the agenda branch is rebased on top of the `finalized` branch
-                if self
+                let find_merge_base_result = self
                     .raw
                     .find_merge_base(last_header_commit_hash, branch_commit_hash)
-                    .await?
-                    != last_header_commit_hash
-                {
+                    .await
+                    .map_err(|e| match e {
+                        raw::Error::NotFound(_) => {
+                            eyre!(IntegrityError::new(format!(
+                                "cannot find merge base for branch {branch} and finalized branch"
+                            )))
+                        }
+                        _ => eyre!(e),
+                    })?;
+
+                if last_header_commit_hash != find_merge_base_result {
                     log::warn!(
                         "branch {} should be rebased on top of the {} branch",
                         branch,
@@ -443,12 +496,19 @@ impl<T: RawRepository> DistributedRepository<T> {
             // Check if the branch is a block branch
             if branch.as_str().starts_with("b-") {
                 // Check if the block branch is rebased on top of the `finalized` branch
-                if self
+                let find_merge_base_result = self
                     .raw
                     .find_merge_base(last_header_commit_hash, branch_commit_hash)
-                    .await?
-                    != last_header_commit_hash
-                {
+                    .await
+                    .map_err(|e| match e {
+                        raw::Error::NotFound(_) => {
+                            eyre!(IntegrityError::new(format!(
+                                "cannot find merge base for branch {branch} and finalized branch"
+                            )))
+                        }
+                        _ => eyre!(e),
+                    })?;
+                if last_header_commit_hash != find_merge_base_result {
                     log::warn!(
                         "branch {} should be rebased on top of the {} branch",
                         branch,
@@ -488,12 +548,20 @@ impl<T: RawRepository> DistributedRepository<T> {
         let agenda_branch_name =
             format!("a-{}", &agenda_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
         let agenda_commit_hash = self.raw.locate_branch(agenda_branch_name.clone()).await?;
-        if self
+        let find_merge_base_result = self
             .raw
             .find_merge_base(last_header_commit, agenda_commit_hash)
-            .await?
-            != last_header_commit
-        {
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "cannot find merge base for branch {agenda_branch_name} and finalized branch"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
+
+        if last_header_commit != find_merge_base_result {
             return Err(eyre!(
                 "branch {} should be rebased on {}",
                 agenda_branch_name,
@@ -614,7 +682,17 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&agenda_commit, reserved_state)?;
 
         self.raw.checkout_clean().await?;
-        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(WORK_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the work branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
         agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
@@ -684,7 +762,17 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check the validity of the commit sequence
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
-        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(WORK_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the work branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
@@ -724,7 +812,17 @@ impl<T: RawRepository> DistributedRepository<T> {
         let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
 
         self.raw.checkout_clean().await?;
-        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
+        self.raw
+            .checkout(WORK_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(format!(
+                        "failed to checkout to the work branch: {e}"
+                    )))
+                }
+                _ => eyre!(e),
+            })?;
         let result = self.raw.create_semantic_commit(semantic_commit).await?;
         let mut block_branch_name = block_commit.to_hash256().to_string();
         block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
