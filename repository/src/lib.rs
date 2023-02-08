@@ -646,7 +646,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
-        // Check if the commit is an agenda commit.
+        // Check if the commit is a block commit.
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();
             veto_tag_name.truncate(TAG_NAME_HASH_DIGITS);
