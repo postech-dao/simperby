@@ -127,7 +127,7 @@ pub struct CommitSequenceVerifier {
 }
 
 impl CommitSequenceVerifier {
-    /// Creates agenda new `CommitSequenceVerifier` with the given block header.
+    /// Creates a new `CommitSequenceVerifier` with the given block header.
     pub fn new(start_header: BlockHeader, reserved_state: ReservedState) -> Result<Self, Error> {
         Ok(Self {
             header: start_header.clone(),
