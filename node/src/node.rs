@@ -5,7 +5,7 @@ use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_network::NetworkConfig;
 use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
 use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
-use simperby_repository::DistributedRepository;
+use simperby_repository::{DistributedRepository, WORK_BRANCH_NAME};
 use std::collections::HashMap;
 
 fn get_timestamp() -> Timestamp {
@@ -146,8 +146,25 @@ impl SimperbyNode {
     }
 
     /// Synchronizes the `finalized` branch to the given commit.
-    pub async fn sync(&mut self, _commmit: CommitHash) -> Result<()> {
-        todo!()
+    pub async fn sync(&mut self, last_finalization_proof: LastFinalizationProof) -> Result<()> {
+        let work_branch_tip = self
+            .repository
+            .get_raw()
+            .locate_branch(WORK_BRANCH_NAME.into())
+            .await?;
+        let work_branch_tip_commit = self.repository.read_commit(work_branch_tip).await?;
+        if let Commit::Block(_) = work_branch_tip_commit {
+            self.repository
+                .sync(
+                    &work_branch_tip_commit.to_hash256(),
+                    &last_finalization_proof.proof,
+                )
+                .await
+        } else {
+            return Err(eyre!(
+                "last commit of the work branch is not a block commit"
+            ));
+        }
     }
 
     /// Cleans the repository, removing all the outdated commits.
@@ -183,9 +200,18 @@ impl SimperbyNode {
     /// Creates an extra-agenda transaction on the `work` branch.
     pub async fn create_extra_agenda_transaction(
         &mut self,
-        _tx: ExtraAgendaTransaction,
+        tx: ExtraAgendaTransaction,
     ) -> Result<()> {
-        unimplemented!()
+        match tx {
+            ExtraAgendaTransaction::Delegate(_) => {
+                self.repository.create_extra_agenda_transaction(&tx).await?;
+            }
+            ExtraAgendaTransaction::Undelegate(_) => {
+                self.repository.create_extra_agenda_transaction(&tx).await?;
+            }
+            ExtraAgendaTransaction::Report(_) => todo!("TxReport is not implemented yet"),
+        }
+        Ok(())
     }
 
     /// Votes on the agenda corresponding to the given `agenda_commit` and propagates the result.

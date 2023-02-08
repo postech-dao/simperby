@@ -136,11 +136,23 @@ pub async fn initialize(config: Config, path: &str) -> Result<SimperbyNode> {
 }
 
 /// Clones a remote repository and initializes a node.
-pub async fn clone(_config: Config, _path: &str, _url: &str) -> Result<SimperbyNode> {
-    todo!()
+pub async fn clone(config: Config, path: &str, url: &str) -> Result<SimperbyNode> {
+    RawRepositoryImpl::clone(&format!("{path}/repository/repo"), url)
+        .await
+        .unwrap();
+    SimperbyNode::initialize(config, path).await
 }
 
 /// Runs a server node indefinitely.
-pub async fn serve(_config: Config, _path: &str) -> Result<()> {
-    todo!()
+pub async fn serve(config: Config, path: &str) -> Result<()> {
+    if config.broadcast_interval_ms.is_some() {
+        let node = SimperbyNode::initialize(config.clone(), path).await?;
+        node.serve(
+            config
+                .broadcast_interval_ms
+                .expect("broadcast_interval_ms is None"),
+        )
+        .await?;
+    }
+    Ok(())
 }
