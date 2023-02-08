@@ -7,4 +7,3 @@ TODO
 ## Why would a DAO need an independent mainnet?
 
 TODO
- 
