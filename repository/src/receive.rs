@@ -96,8 +96,9 @@ pub async fn receive<T: RawRepository>(
         } else {
             return Ok(Err("fp commit must be on top of a block commit.".to_owned()));
         }
+    }
     // If the branch ends with a block, agenda, or agenda proof commit
-    } else {
+    else {
         if tip_commit_hash == last_finalized_commit_hash {
             return Ok(Err("the received commit is already finalized.".to_owned()));
         }
