@@ -359,7 +359,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .collect();
         let progress_responses = vetomint_copy.progress(events, timestamp)?;
         let final_result = self
-            .process_multiple_responses(progress_responses, timestamp)
+            .process_multiple_responses_and_broadcast(progress_responses, timestamp)
             .await?;
         // The change is applied here as we reached here without facing an error.
         self.state
@@ -473,7 +473,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .map_err(|_| eyre!("failed to commit consensus state to the storage"))
     }
 
-    async fn broadcast_consensus_message(
+    async fn add_consensus_message(
         &mut self,
         consensus_message: &ConsensusMessage,
     ) -> Result<(), Error> {
@@ -499,6 +499,18 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 break;
             }
         }
+        Ok(final_result)
+    }
+
+    async fn process_multiple_responses_and_broadcast(
+        &mut self,
+        responses: Vec<ConsensusResponse>,
+        timestamp: Timestamp,
+    ) -> Result<Vec<ProgressResult>, Error> {
+        let final_result = self
+            .process_multiple_responses(responses, timestamp)
+            .await?;
+        self.broadcast().await?;
         Ok(final_result)
     }
 
@@ -591,7 +603,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     valid_round,
                     block_hash,
                 };
-                self.broadcast_consensus_message(&consensus_message).await?;
+                self.add_consensus_message(&consensus_message).await?;
                 Ok(ProgressResult::Proposed(
                     round as u64,
                     block_hash,
@@ -625,7 +637,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     let result = ProgressResult::NilPreVoted(round as u64, timestamp);
                     (message, result)
                 };
-                self.broadcast_consensus_message(&consensus_message).await?;
+                self.add_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
             ConsensusResponse::BroadcastPrecommit { proposal, round } => {
@@ -655,7 +667,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                     let result = ProgressResult::NilPreCommitted(round as u64, timestamp);
                     (message, result)
                 };
-                self.broadcast_consensus_message(&consensus_message).await?;
+                self.add_consensus_message(&consensus_message).await?;
                 Ok(progress_result)
             }
             ConsensusResponse::FinalizeBlock { proposal, proof } => {
