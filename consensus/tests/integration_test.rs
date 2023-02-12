@@ -2,6 +2,7 @@ use common::{
     crypto::{Signature, TypedSignature},
     BlockHeight, FinalizationProof, PrivateKey, Timestamp,
 };
+use itertools::Itertools;
 #[allow(unused_imports)]
 use log::debug;
 use simperby_common::{
@@ -79,8 +80,7 @@ fn _verify_fp(_fp: FinalizationProof) {
     unimplemented!();
 }
 
-#[tokio::test]
-#[ignore]
+#[tokio::test(flavor = "multi_thread")]
 async fn single_server_propose_1() {
     setup_test();
     let (network_id, dms_key) = get_network_id_and_dms_key("single_server_propose_1");
@@ -147,7 +147,6 @@ async fn single_server_propose_1() {
     // [Step 1]
     // Action: The server node proposes a block
     // Expected: The server node will propose a block and prevotes on it.
-    // Initial block candidate is set to 0 by default, so we progress without setting a new candidate.
     let timestamp = get_timestamp();
     let mut result = Vec::new();
     result.extend(
@@ -167,7 +166,6 @@ async fn single_server_propose_1() {
     // Expected: Node 0, 1 will prevote, node 2, 3 will precommit.
     let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
-        println!("Checking node #{i}");
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
@@ -248,7 +246,6 @@ async fn single_server_propose_1() {
     let serve_task = tokio::spawn(async { server_node.serve(5_000).await });
     let mut finalization_proofs = Vec::new();
     for (i, other_node) in other_nodes.iter_mut().enumerate() {
-        println!("Checking node #{i}");
         other_node.fetch().await.unwrap();
         let timestamp = get_timestamp();
         let result = other_node.progress(timestamp).await.unwrap();
@@ -334,4 +331,109 @@ async fn single_server_propose_1() {
     let _ = serve_task.await.unwrap().unwrap();
 
     // Todo: verify finalization proofs
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn single_seperate_server_propose_1() {
+    setup_test();
+    let (network_id, dms_key) = get_network_id_and_dms_key("single_seperate_server_propose_1");
+
+    let voting_powers = vec![1, 1, 1, 1, 1];
+    let num_nodes = voting_powers.len();
+    let params = ConsensusParams {
+        timeout_ms: 60 * 1_000, // 1 minute
+        repeat_round_for_first_leader: 100,
+    };
+    let round_zero_timestamp = get_timestamp();
+
+    let (server_config, other_configs, peers) =
+        setup_server_client_nodes(network_id.clone(), num_nodes - 1).await;
+
+    let block_header = configs_to_block_header(
+        once(&server_config).chain(&other_configs).collect(),
+        voting_powers,
+    );
+
+    // Create active nodes (client nodes) that will be executed by CLI.
+    let mut nodes = Vec::new();
+    for config in once(&server_config).chain(other_configs.iter()) {
+        let consensus = Consensus::new(
+            create_test_dms(config.clone(), dms_key.clone(), peers.clone()).await,
+            create_storage(create_temp_dir()).await,
+            block_header.clone(),
+            params.clone(),
+            round_zero_timestamp,
+            Some(config.private_key.clone()),
+        )
+        .await
+        .unwrap();
+        nodes.push(consensus);
+    }
+
+    // Create a router node (a server node).
+    let server_node = Consensus::new(
+        // NOTE: Ongoing issue (#318).
+        // Check https://github.com/postech-dao/simperby/issues/318
+        // to see why `SharedKnownPeers::new_static` is used for the server node.
+        create_test_dms(
+            server_config.clone(),
+            dms_key,
+            SharedKnownPeers::new_static(vec![]),
+        )
+        .await,
+        create_storage(create_temp_dir()).await,
+        block_header,
+        params,
+        round_zero_timestamp,
+        Some(server_config.private_key.clone()),
+    )
+    .await
+    .unwrap();
+
+    // Serve for 1 hour.
+    let serve_task = tokio::spawn(async { server_node.serve(3_600 * 1_000).await.unwrap() });
+
+    let mut results: Vec<Vec<ProgressResult>> = vec![vec![], vec![], vec![], vec![], vec![]];
+
+    // Make a block to propose.
+    let dummy_block_hash = Hash256::hash("dummy_block");
+    for node in &mut nodes {
+        node.register_verified_block_hash(dummy_block_hash)
+            .await
+            .unwrap();
+    }
+
+    // Propose the block.
+    let proposer = &mut nodes[0];
+    proposer
+        .set_proposal_candidate(dummy_block_hash, get_timestamp())
+        .await
+        .unwrap();
+
+    // Fetch Progress Sleep Repeat.
+    // Five nodes, five trials.
+    for (_trial, i) in (0..5).into_iter().cartesian_product(0..5) {
+        let node = &mut nodes[i];
+        node.fetch().await.unwrap();
+        match node.progress(get_timestamp()).await {
+            Ok(r) => results[i].extend(r),
+            Err(e) => assert_eq!(e.to_string(), "operation on finalized state".to_string()),
+        }
+        sleep_ms(200).await;
+    }
+
+    // Check if the nodes have made consensus.
+    for result in results {
+        let last = result.last().unwrap();
+        match last {
+            ProgressResult::Finalized(block_hash, _timestamp, _finalization_proof) => {
+                assert_eq!(*block_hash, dummy_block_hash)
+            }
+            _ => panic!("expect finalization"),
+        }
+    }
+
+    // Clean up.
+    serve_task.abort();
+    let _ = serve_task.await;
 }
