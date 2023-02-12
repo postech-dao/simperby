@@ -241,7 +241,8 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         self.filter = filter;
     }
 
-    /// Fetches the unknown messages from the peers and updates the storage.
+    /// Fetches unknown messages from the peers using an RPC protocol,
+    /// and adds them to the local storage.
     pub async fn fetch(&mut self) -> Result<(), Error> {
         let mut tasks = Vec::new();
         let messages = self.read_messages().await?;
