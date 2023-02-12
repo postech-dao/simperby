@@ -448,7 +448,7 @@ impl<N: GossipNetwork, S: Storage> DistributedMessageSet<N, S> {
         };
         loop {
             if let Err(e) = Self::fetch(&mut *this.write().await).await {
-                log::warn!("failed to parse message from the gossip network: {}", e);
+                log::warn!("failed to parse message from the RPC-fetch: {}", e);
             }
             tokio::time::sleep(interval).await;
         }
