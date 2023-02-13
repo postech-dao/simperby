@@ -490,8 +490,8 @@ mod test {
                 name: format!("member{i}").to_string(),
                 governance_voting_power: *voting_power,
                 consensus_voting_power: *voting_power,
-                governance_delegations: None,
-                consensus_delegations: None,
+                governance_delegatee: None,
+                consensus_delegatee: None,
             });
         }
         members
@@ -581,8 +581,8 @@ mod test {
             name: format!("member{}", validator_keypair.len()),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: None,
-            consensus_delegations: None,
+            governance_delegatee: None,
+            consensus_delegatee: None,
         });
         reserved_state
             .consensus_leader_order
