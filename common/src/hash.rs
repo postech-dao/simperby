@@ -48,6 +48,18 @@ impl ToHash256 for ExtraAgendaTransaction {
     }
 }
 
+impl ToHash256 for DelegationTransactionData {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
+    }
+}
+
+impl ToHash256 for UndelegationTransactionData {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
+    }
+}
+
 impl ToHash256 for ChatLog {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_spb::to_vec(self).unwrap())
