@@ -66,8 +66,8 @@ pub fn generate_standard_genesis(
             name: format!("member-{i:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: None,
-            consensus_delegations: None,
+            governance_delegatee: None,
+            consensus_delegatee: None,
         })
         .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
@@ -125,12 +125,12 @@ pub fn generate_delegated_genesis(
             name: format!("member-{i:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: if i == 0 {
+            governance_delegatee: if i == 0 {
                 Some("member-0002".into())
             } else {
                 None
             },
-            consensus_delegations: if i == 0 {
+            consensus_delegatee: if i == 0 {
                 Some("member-0002".into())
             } else {
                 None

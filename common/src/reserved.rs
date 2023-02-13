@@ -24,7 +24,7 @@ impl ReservedState {
     pub fn get_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
         let mut validator_set = HashMap::new();
         for member in &self.members {
-            if let Some(delegatee) = &member.consensus_delegations {
+            if let Some(delegatee) = &member.consensus_delegatee {
                 validator_set
                     .entry(delegatee.clone())
                     .and_modify(|v| *v += member.consensus_voting_power)
@@ -47,7 +47,7 @@ impl ReservedState {
     pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
         let mut governance_set = HashMap::new();
         for member in &self.members {
-            if let Some(delegatee) = &member.governance_delegations {
+            if let Some(delegatee) = &member.governance_delegatee {
                 governance_set
                     .entry(delegatee.clone())
                     .and_modify(|v| *v += member.consensus_voting_power)
@@ -104,8 +104,8 @@ mod tests {
             name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: None,
-            consensus_delegations: None,
+            governance_delegatee: None,
+            consensus_delegatee: None,
         }
     }
 
@@ -119,8 +119,8 @@ mod tests {
             name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: None,
-            consensus_delegations: Some(format!("member-{delegatee_member_num:04}")),
+            governance_delegatee: None,
+            consensus_delegatee: Some(format!("member-{delegatee_member_num:04}")),
         }
     }
 
@@ -134,8 +134,8 @@ mod tests {
             name: format!("member-{member_num:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegations: Some(format!("member-{delegatee_member_num:04}")),
-            consensus_delegations: None,
+            governance_delegatee: Some(format!("member-{delegatee_member_num:04}")),
+            consensus_delegatee: None,
         }
     }
 
