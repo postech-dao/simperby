@@ -290,6 +290,7 @@ pub fn fp_from_semantic_commit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simperby_common::test_utils::generate_standard_genesis;
 
     #[test]
     fn format_transaction_commit() {
@@ -358,6 +359,66 @@ mod tests {
             agenda_proof,
             from_semantic_commit(
                 to_semantic_commit(&agenda_proof, None),
+                Some(reserved_state)
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    #[ignore = "apply delegation logic is not implemented yet"]
+    fn format_extra_agenda_transaction_commit1() {
+        let (reserved_state, keys) = generate_standard_genesis(4);
+        let delegation_transaction =
+            Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Delegate(TxDelegate {
+                delegator: keys[0].0.clone(),
+                delegatee: keys[1].0.clone(),
+                governance: true,
+                proof: TypedSignature::sign(
+                    &DelegationTransactionData {
+                        delegator: keys[0].0.clone(),
+                        delegatee: keys[1].0.clone(),
+                        governance: true,
+                        block_height: 0,
+                    },
+                    &keys[0].1,
+                )
+                .unwrap(),
+                timestamp: 0,
+            }));
+        assert_eq!(
+            delegation_transaction,
+            from_semantic_commit(
+                to_semantic_commit(&delegation_transaction, Some(reserved_state.clone())),
+                Some(reserved_state)
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    #[ignore = "apply undelegation logic is not implemented yet"]
+    fn format_extra_agenda_transaction_commit2() {
+        let (mut reserved_state, keys) = generate_standard_genesis(4);
+        reserved_state.members[0].governance_delegatee = Option::from("member-0000".to_string());
+        reserved_state.members[0].consensus_delegatee = Option::from("member-0000".to_string());
+        let undelegation_transaction =
+            Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Undelegate(TxUndelegate {
+                delegator: keys[0].0.clone(),
+                proof: TypedSignature::sign(
+                    &UndelegationTransactionData {
+                        delegator: keys[0].0.clone(),
+                        block_height: 0,
+                    },
+                    &keys[0].1,
+                )
+                .unwrap(),
+                timestamp: 0,
+            }));
+        assert_eq!(
+            undelegation_transaction,
+            from_semantic_commit(
+                to_semantic_commit(&undelegation_transaction, Some(reserved_state.clone())),
                 Some(reserved_state)
             )
             .unwrap()
