@@ -134,7 +134,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn genesis(&mut self) -> Result<(), Error> {
         let reserved_state = self.get_reserved_state().await?;
         let block_commit = Commit::Block(reserved_state.genesis_info.header.clone());
-        let semantic_commit = to_semantic_commit(&block_commit);
+        let semantic_commit = to_semantic_commit(&block_commit, None);
 
         self.raw.checkout_clean().await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
@@ -531,7 +531,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         };
 
         let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
-        let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit);
+        let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit, None);
         let agenda_proof_branch_name = format!(
             "a-{}",
             &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
@@ -614,7 +614,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             height: last_header.height + 1,
         };
         let agenda_commit = Commit::Agenda(agenda.clone());
-        let semantic_commit = to_semantic_commit(&agenda_commit);
+        let semantic_commit = to_semantic_commit(&agenda_commit, None);
 
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
@@ -747,7 +747,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         };
         let block_commit = Commit::Block(block_header.clone());
-        let semantic_commit = to_semantic_commit(&block_commit);
+        let semantic_commit = to_semantic_commit(&block_commit, None);
 
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;

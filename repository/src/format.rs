@@ -1,9 +1,17 @@
 use crate::raw::SemanticCommit;
 use eyre::{eyre, Error};
 use regex::Regex;
-use simperby_common::*;
+use simperby_common::{reserved::ReservedState, *};
 
-pub fn to_semantic_commit(commit: &Commit) -> SemanticCommit {
+/// Converts a commit to a semantic commit.
+///
+/// Note that extra-agenda transaction commit only requires `last_header` and `reserved_state`
+/// since other commits include height in the commit itself and `diff` of the `reserved_state`
+/// is not required.
+pub fn to_semantic_commit(
+    commit: &Commit,
+    reserved_state: Option<ReservedState>,
+) -> SemanticCommit {
     match commit {
         Commit::Agenda(agenda) => {
             let title = format!(">agenda: {}", agenda.height);
@@ -37,7 +45,52 @@ pub fn to_semantic_commit(commit: &Commit) -> SemanticCommit {
                 diff: Diff::None,
             }
         }
-        Commit::ExtraAgendaTransaction(_) => unimplemented!(),
+        Commit::ExtraAgendaTransaction(tx) => {
+            let body = serde_spb::to_string(tx).unwrap();
+            match tx {
+                ExtraAgendaTransaction::Delegate(tx) => {
+                    let delegator = reserved_state
+                        .clone()
+                        .expect("missing reserved state")
+                        .query_name(&tx.delegator)
+                        .ok_or_else(|| eyre!("delegator not found"))
+                        .unwrap();
+                    let delegatee = reserved_state
+                        .clone()
+                        .expect("missing reserved state")
+                        .query_name(&tx.delegatee)
+                        .ok_or_else(|| eyre!("delegatee not found"))
+                        .unwrap();
+                    let title = format!(">tx-delegate: {delegator} to {delegatee}");
+                    let diff = Diff::Reserved(Box::new(
+                        reserved_state
+                            .expect("missing reserved state")
+                            .apply_delegate(tx)
+                            .unwrap(),
+                    ));
+                    SemanticCommit { title, body, diff }
+                }
+                ExtraAgendaTransaction::Undelegate(tx) => {
+                    let delegator = reserved_state
+                        .clone()
+                        .expect("missing reserved state")
+                        .query_name(&tx.delegator)
+                        .ok_or_else(|| eyre!("delegator not found"))
+                        .unwrap();
+                    let title = format!(">tx-undelegate: {delegator}");
+                    let diff = Diff::Reserved(Box::new(
+                        reserved_state
+                            .expect("missing reserved state")
+                            .apply_undelegate(tx)
+                            .unwrap(),
+                    ));
+                    SemanticCommit { title, body, diff }
+                }
+                ExtraAgendaTransaction::Report(_) => {
+                    unimplemented!("report is not implemented yet.")
+                }
+            }
+        }
         Commit::ChatLog(_) => unimplemented!(),
     }
 }
@@ -161,7 +214,7 @@ mod tests {
         });
         assert_eq!(
             transaction,
-            from_semantic_commit(to_semantic_commit(&transaction)).unwrap()
+            from_semantic_commit(to_semantic_commit(&transaction, None)).unwrap()
         );
     }
 
@@ -175,7 +228,7 @@ mod tests {
         });
         assert_eq!(
             agenda,
-            from_semantic_commit(to_semantic_commit(&agenda)).unwrap()
+            from_semantic_commit(to_semantic_commit(&agenda, None)).unwrap()
         );
     }
 
@@ -197,7 +250,7 @@ mod tests {
         });
         assert_eq!(
             block,
-            from_semantic_commit(to_semantic_commit(&block)).unwrap()
+            from_semantic_commit(to_semantic_commit(&block, None)).unwrap()
         );
     }
 
@@ -210,7 +263,7 @@ mod tests {
         });
         assert_eq!(
             agenda_proof,
-            from_semantic_commit(to_semantic_commit(&agenda_proof)).unwrap()
+            from_semantic_commit(to_semantic_commit(&agenda_proof, None)).unwrap()
         );
     }
 
