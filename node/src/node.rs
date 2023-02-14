@@ -239,7 +239,11 @@ impl SimperbyNode {
             .get_raw()
             .read_semantic_commit(commit_hash)
             .await?;
-        let commit = simperby_repository::format::from_semantic_commit(semantic_commit.clone())?;
+        let reserved_state = self.repository.get_reserved_state().await?;
+        let commit = simperby_repository::format::from_semantic_commit(
+            semantic_commit.clone(),
+            Some(reserved_state),
+        )?;
         let result = match commit {
             Commit::Block(block_header) => CommitInfo::Block {
                 semantic_commit,

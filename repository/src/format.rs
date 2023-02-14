@@ -98,26 +98,37 @@ pub fn to_semantic_commit(
 /// Converts a semantic commit to a commit.
 ///
 /// TODO: retrieve author and timestamp from the commit metadata.
-pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, Error> {
-    let pattern = Regex::new(r"^>((agenda)|(block)|(agenda-proof)): (\d+)$").unwrap();
+pub fn from_semantic_commit(
+    semantic_commit: SemanticCommit,
+    reserved_state: Option<ReservedState>,
+) -> Result<Commit, Error> {
+    let pattern = Regex::new(
+        r"^>(((agenda)|(block)|(agenda-proof)): (\d+))|((tx-delegate): (\D+) to (\D+))|((tx-undelegate): (\D+))$"
+    )
+    .unwrap();
     let captures = pattern.captures(&semantic_commit.title);
     if let Some(captures) = captures {
-        let commit_type = captures.get(1).map(|m| m.as_str()).ok_or_else(|| {
-            eyre!(
-                "Failed to parse commit type from commit title: {}",
-                semantic_commit.title
-            )
-        })?;
-        let height = captures.get(5).map(|m| m.as_str()).ok_or_else(|| {
-            eyre!(
-                "Failed to parse commit height from commit title: {}",
-                semantic_commit.title
-            )
-        })?;
-        let height = height.parse::<u64>()?;
+        let commit_type = captures
+            .get(2)
+            .or_else(|| captures.get(8))
+            .or_else(|| captures.get(12))
+            .map(|m| m.as_str())
+            .ok_or_else(|| {
+                eyre!(
+                    "failed to parse commit type from the commit title: {}",
+                    semantic_commit.title
+                )
+            })?;
         match commit_type {
             "agenda" => {
                 let agenda: Agenda = serde_spb::from_str(&semantic_commit.body)?;
+                let height = captures.get(6).map(|m| m.as_str()).ok_or_else(|| {
+                    eyre!(
+                        "failed to parse height from the commit title: {}",
+                        semantic_commit.title
+                    )
+                })?;
+                let height = height.parse::<u64>()?;
                 if height != agenda.height {
                     return Err(eyre!(
                         "agenda height mismatch: expected {}, got {}",
@@ -129,6 +140,13 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
             }
             "block" => {
                 let block_header: BlockHeader = serde_spb::from_str(&semantic_commit.body)?;
+                let height = captures.get(6).map(|m| m.as_str()).ok_or_else(|| {
+                    eyre!(
+                        "failed to parse height from the commit title: {}",
+                        semantic_commit.title
+                    )
+                })?;
+                let height = height.parse::<u64>()?;
                 if height != block_header.height {
                     return Err(eyre!(
                         "block height mismatch: expected {}, got {}",
@@ -140,6 +158,13 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
             }
             "agenda-proof" => {
                 let agenda_proof: AgendaProof = serde_spb::from_str(&semantic_commit.body)?;
+                let height = captures.get(6).map(|m| m.as_str()).ok_or_else(|| {
+                    eyre!(
+                        "failed to parse height from the commit title: {}",
+                        semantic_commit.title
+                    )
+                })?;
+                let height = height.parse::<u64>()?;
                 if height != agenda_proof.height {
                     return Err(eyre!(
                         "agenda-proof height mismatch: expected {}, got {}",
@@ -148,6 +173,69 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                     ));
                 }
                 Ok(Commit::AgendaProof(agenda_proof))
+            }
+            "extra-agenda-tx" => {
+                let tx: ExtraAgendaTransaction = serde_spb::from_str(&semantic_commit.body)?;
+                let reserved_state =
+                    reserved_state.ok_or_else(|| eyre!("missing reserved state"))?;
+                match tx {
+                    ExtraAgendaTransaction::Delegate(ref tx) => {
+                        let delegator = captures.get(9).map(|m| m.as_str()).ok_or_else(|| {
+                            eyre!(
+                                "failed to parse delegator from the commit title: {}",
+                                semantic_commit.title
+                            )
+                        })?;
+                        let tx_delegator = reserved_state
+                            .query_name(&tx.delegator)
+                            .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
+                        if delegator != tx_delegator {
+                            return Err(eyre!(
+                                "delegator mismatch: expected {}, got {}",
+                                delegator,
+                                tx.delegator
+                            ));
+                        }
+                        let delegatee = captures.get(10).map(|m| m.as_str()).ok_or_else(|| {
+                            eyre!(
+                                "failed to parse delegatee from the commit title: {}",
+                                semantic_commit.title
+                            )
+                        })?;
+                        let tx_delegatee = reserved_state
+                            .query_name(&tx.delegatee)
+                            .ok_or_else(|| eyre!("delegatee not found from the reserved state"))?;
+                        if delegatee != tx_delegatee {
+                            return Err(eyre!(
+                                "delegatee mismatch: expected {}, got {}",
+                                delegatee,
+                                tx.delegatee
+                            ));
+                        }
+                    }
+                    ExtraAgendaTransaction::Undelegate(ref tx) => {
+                        let delegator = captures.get(13).map(|m| m.as_str()).ok_or_else(|| {
+                            eyre!(
+                                "failed to parse delegator from the commit title: {}",
+                                semantic_commit.title
+                            )
+                        })?;
+                        let tx_delegator = reserved_state
+                            .query_name(&tx.delegator)
+                            .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
+                        if delegator != tx_delegator {
+                            return Err(eyre!(
+                                "delegator mismatch: expected {}, got {}",
+                                delegator,
+                                tx.delegator
+                            ));
+                        }
+                    }
+                    ExtraAgendaTransaction::Report(_) => {
+                        unimplemented!("report is not implemented yet.")
+                    }
+                }
+                Ok(Commit::ExtraAgendaTransaction(tx))
             }
             _ => Err(eyre!("unknown commit type: {}", commit_type)),
         }
@@ -205,6 +293,7 @@ mod tests {
 
     #[test]
     fn format_transaction_commit() {
+        let (reserved_state, _) = generate_standard_genesis(4);
         let transaction = Commit::Transaction(Transaction {
             author: PublicKey::zero(),
             timestamp: 0,
@@ -214,12 +303,14 @@ mod tests {
         });
         assert_eq!(
             transaction,
-            from_semantic_commit(to_semantic_commit(&transaction, None)).unwrap()
+            from_semantic_commit(to_semantic_commit(&transaction, None), Some(reserved_state))
+                .unwrap()
         );
     }
 
     #[test]
     fn format_agenda_commit() {
+        let (reserved_state, _) = generate_standard_genesis(4);
         let agenda = Commit::Agenda(Agenda {
             height: 3,
             author: PublicKey::zero(),
@@ -228,12 +319,13 @@ mod tests {
         });
         assert_eq!(
             agenda,
-            from_semantic_commit(to_semantic_commit(&agenda, None)).unwrap()
+            from_semantic_commit(to_semantic_commit(&agenda, None), Some(reserved_state)).unwrap()
         );
     }
 
     #[test]
     fn format_block_commit() {
+        let (reserved_state, _) = generate_standard_genesis(4);
         let block = Commit::Block(BlockHeader {
             height: 3,
             author: PublicKey::zero(),
@@ -250,12 +342,13 @@ mod tests {
         });
         assert_eq!(
             block,
-            from_semantic_commit(to_semantic_commit(&block, None)).unwrap()
+            from_semantic_commit(to_semantic_commit(&block, None), Some(reserved_state)).unwrap()
         );
     }
 
     #[test]
     fn format_agenda_proof_commit() {
+        let (reserved_state, _) = generate_standard_genesis(4);
         let agenda_proof = Commit::AgendaProof(AgendaProof {
             height: 3,
             agenda_hash: Hash256::hash("hello1"),
@@ -263,7 +356,11 @@ mod tests {
         });
         assert_eq!(
             agenda_proof,
-            from_semantic_commit(to_semantic_commit(&agenda_proof, None)).unwrap()
+            from_semantic_commit(
+                to_semantic_commit(&agenda_proof, None),
+                Some(reserved_state)
+            )
+            .unwrap()
         );
     }
 
