@@ -177,7 +177,7 @@ mod tests {
             version,
         };
 
-        // note that `header` is from `simperby-test-suite`, which is not compatible with
+        // Note that `header` is from `simperby-test-suite`, which is not compatible with
         // this crate. Thus we compare the strings.
         assert_eq!(
             serde_spb::to_string(&header).unwrap(),
