@@ -45,6 +45,8 @@ pub enum CommitError {
     Raw(#[from] raw::Error),
     #[error("failed to parse commit ({1}): {0}")]
     Commit(eyre::Error, CommitHash),
+    #[error("reserved state error: {0}")]
+    ReservedState(#[from] super::Error),
 }
 
 /// Reads the git commits to `Commit`s, from the very next commit of ancestor to descendant.
@@ -56,6 +58,7 @@ pub async fn read_commits<T: RawRepository>(
     ancestor: CommitHash,
     descendant: CommitHash,
 ) -> Result<Vec<(Commit, CommitHash)>, CommitError> {
+    let reserved_state = this.get_reserved_state().await?;
     let commits = this.raw.query_commit_path(ancestor, descendant).await?;
     let commits = stream::iter(commits.iter().cloned().map(|c| {
         let raw = &this.raw;
@@ -68,7 +71,7 @@ pub async fn read_commits<T: RawRepository>(
     let commits = commits
         .into_iter()
         .map(|(commit, hash)| {
-            from_semantic_commit(commit)
+            from_semantic_commit(commit, Some(reserved_state.clone()))
                 .map_err(|e| (e, hash))
                 .map(|x| (x, hash))
         })
