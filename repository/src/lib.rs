@@ -766,8 +766,89 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Creates an extra-agenda transaction commit on top of the `work` branch.
     pub async fn create_extra_agenda_transaction(
         &mut self,
-        _transaction: &ExtraAgendaTransaction,
+        transaction: &ExtraAgendaTransaction,
     ) -> Result<CommitHash, Error> {
-        unimplemented!()
+        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let reserved_state = self.get_reserved_state().await?;
+
+        // Check if the `work` branch is rebased on top of the `finalized` branch.
+        if self
+            .raw
+            .find_merge_base(last_header_commit, work_commit)
+            .await?
+            != last_header_commit
+        {
+            return Err(eyre!(
+                "branch {} should be rebased on {}",
+                WORK_BRANCH_NAME,
+                FINALIZED_BRANCH_NAME
+            ));
+        }
+
+        // Construct a commit list starting from the next commit of the last finalized block to the `branch_commit`(the most recent commit of the branch)
+        let ancestor_commits = self.raw.list_ancestors(work_commit, Some(256)).await?;
+        let position = ancestor_commits
+            .iter()
+            .position(|c| *c == last_header_commit)
+            .expect("TODO: handle the case where it exceeds the limit.");
+        let commits = stream::iter(ancestor_commits.iter().take(position).rev().cloned().map(
+            |c| {
+                let raw = &self.raw;
+                async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
+            },
+        ))
+        .buffered(256)
+        .collect::<Vec<_>>()
+        .await;
+        let mut commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
+        // Add most recent commit of the branch to the list since it is not included in the ancestor commits
+        commits.push((
+            self.raw.read_semantic_commit(work_commit).await?,
+            work_commit,
+        ));
+        let commits = commits
+            .into_iter()
+            .map(|(commit, hash)| {
+                from_semantic_commit(commit, reserved_state.clone())
+                    .map_err(|e| (e, hash))
+                    .map(|x| (x, hash))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|(error, hash)| eyre!("failed to convert the commit {}: {}", hash, error))?;
+
+        // Check the validity of the commit sequence
+        let last_header = self.get_last_finalized_block_header().await?;
+        let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
+            .map_err(|e| eyre!("verification error on commit {}: {}", last_header_commit, e))?;
+        for (commit, hash) in commits.iter() {
+            verifier
+                .apply_commit(commit)
+                .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
+        }
+
+        // Check whether the commit sequence is in agenda proof phase or extra-agenda transaction phase
+        let (last_commit, _) = commits
+            .last()
+            .ok_or_else(|| eyre!("work branch does not contain any commit"))?;
+        match last_commit {
+            Commit::AgendaProof(_) => {}
+            Commit::ExtraAgendaTransaction(_) => {}
+            x => {
+                return Err(eyre!(
+                    "an extra-agenda transaction commit cannot be created on top of a commit of type {:?}",
+                    x
+                ))
+            }
+        }
+
+        let extra_agenda_tx_commit = Commit::ExtraAgendaTransaction(transaction.clone());
+
+        let semantic_commit = to_semantic_commit(&extra_agenda_tx_commit, reserved_state)?;
+
+        self.raw.checkout_clean().await?;
+        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
+        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        Ok(result)
     }
 }
