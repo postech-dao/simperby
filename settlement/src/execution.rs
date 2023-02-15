@@ -50,7 +50,11 @@ pub fn create_execution_transaction(
             format!("ex-transfer-nft: {}", execution.target_chain)
         }
     };
-    let body = serde_spb::to_string(&execution).unwrap();
+    let body = format!(
+        "{}\n---\n{}",
+        serde_spb::to_string(&execution).unwrap(),
+        Hash256::hash(serde_spb::to_vec(&execution).unwrap())
+    );
     Ok(Transaction {
         author,
         timestamp,
@@ -62,7 +66,22 @@ pub fn create_execution_transaction(
 
 /// Reads an execution transaction and tries to extract an execution message.
 pub fn convert_transaction_to_execution(transaction: &Transaction) -> Result<Execution, String> {
-    let execution: Execution = serde_spb::from_str(&transaction.body).map_err(|e| e.to_string())?;
+    let segments = transaction.body.split("\n---\n").collect::<Vec<_>>();
+    if segments.len() != 2 {
+        return Err(format!(
+            "Invalid body: expected 2 segments, got {}",
+            segments.len()
+        ));
+    }
+    let execution: Execution = serde_spb::from_str(segments[0]).map_err(|e| e.to_string())?;
+    let hash = Hash256::hash(serde_spb::to_vec(&execution).unwrap());
+    if format!("{hash}") != segments[1] {
+        return Err(format!(
+            "Invalid body: expected hash {hash}, got {}",
+            segments[1]
+        ));
+    }
+
     if !transaction.head.starts_with("ex-") {
         return Err("Invalid head".to_string());
     }
