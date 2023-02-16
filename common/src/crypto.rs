@@ -267,7 +267,7 @@ impl fmt::Display for Signature {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PublicKey {
-    key: HexSerializedBytes<33>,
+    key: HexSerializedBytes<65>,
 }
 
 impl std::convert::AsRef<[u8]> for PublicKey {
@@ -292,7 +292,7 @@ impl PublicKey {
     pub fn from_array_uncompressed(array: [u8; 65]) -> Result<Self, Error> {
         let key = secp256k1::PublicKey::from_slice(array.as_ref())
             .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
-            .serialize();
+            .serialize_uncompressed();
         Ok(PublicKey {
             key: HexSerializedBytes { data: key },
         })
@@ -301,7 +301,7 @@ impl PublicKey {
     pub fn from_array(array: [u8; 33]) -> Result<Self, Error> {
         let key = secp256k1::PublicKey::from_slice(array.as_ref())
             .map_err(|_| Error::InvalidFormat(format!("given bytes: {}", hex::encode(array))))?
-            .serialize();
+            .serialize_uncompressed();
         Ok(PublicKey {
             key: HexSerializedBytes { data: key },
         })
@@ -396,7 +396,7 @@ mod tests {
         let encoded = serde_spb::to_string(&signature).unwrap();
         assert_eq!(encoded.len(), 132);
         let encoded = serde_spb::to_string(&public_key).unwrap();
-        assert_eq!(encoded.len(), 68);
+        assert_eq!(encoded.len(), 132);
         let encoded = serde_spb::to_string(&private_key).unwrap();
         assert_eq!(encoded.len(), 66);
     }
