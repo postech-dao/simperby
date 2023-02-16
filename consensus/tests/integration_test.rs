@@ -355,7 +355,7 @@ async fn single_seperate_server_propose_1() {
         voting_powers,
     );
 
-    // Create active nodes (client nodes) that will be executed by CLI.
+    // Create client nodes that will be executed by CLI.
     let mut nodes = Vec::new();
     for config in once(&server_config).chain(other_configs.iter()) {
         let consensus = Consensus::new(
@@ -371,7 +371,7 @@ async fn single_seperate_server_propose_1() {
         nodes.push(consensus);
     }
 
-    // Create a router node (a server node).
+    // Create a server node.
     let server_node = Consensus::new(
         // NOTE: Ongoing issue (#318).
         // Check https://github.com/postech-dao/simperby/issues/318
@@ -411,8 +411,8 @@ async fn single_seperate_server_propose_1() {
         .await
         .unwrap();
 
-    // Fetch Progress Sleep Repeat.
-    // Five nodes, five trials.
+    // The following loop mimics how the actual users will manipulate the node with CLI.
+    // Fetch, progress, sleep, and repeat five times.
     for (_trial, i) in (0..5).into_iter().cartesian_product(0..5) {
         let node = &mut nodes[i];
         node.fetch().await.unwrap();
