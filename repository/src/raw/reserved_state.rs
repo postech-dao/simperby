@@ -86,11 +86,12 @@ pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simperby_common::test_utils::generate_standard_genesis;
     use tempfile::TempDir;
 
     #[tokio::test]
     async fn format_reserved_state() {
-        let (reserved_state, _) = simperby_test_suite::generate_standard_genesis(10);
+        let (reserved_state, _) = generate_standard_genesis(10);
 
         let td = TempDir::new().unwrap();
         let path = td.path();
