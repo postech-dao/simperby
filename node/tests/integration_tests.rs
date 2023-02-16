@@ -32,7 +32,7 @@ async fn setup_peer(path: &str, peers: &[Peer]) {
 #[tokio::test]
 async fn normal_1() {
     setup_test();
-    let (rs, keys) = generate_standard_genesis(5);
+    let (rs, keys) = test_utils::generate_standard_genesis(5);
     let chain_name = "normal_1".to_owned();
 
     let configs = keys

@@ -2,7 +2,7 @@ use super::SemanticCommit;
 use crate::raw::Error;
 use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
 
-use simperby_common::{Diff, ToHash256};
+use simperby_common::{test_utils::generate_standard_genesis, Diff, ToHash256};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -457,7 +457,7 @@ async fn reserved_state() {
     let path = td.path();
     let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-    let (rs, _) = simperby_test_suite::generate_standard_genesis(10);
+    let (rs, _) = generate_standard_genesis(10);
 
     repo.checkout(MAIN.into()).await.unwrap();
     let commit_hash = repo

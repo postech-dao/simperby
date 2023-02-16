@@ -8,7 +8,7 @@ async fn basic_1() {
     setup_test();
     let port = dispense_port();
 
-    let (rs, keys) = generate_standard_genesis(4);
+    let (rs, keys) = test_utils::generate_standard_genesis(4);
     let config = Config {
         mirrors: Vec::new(),
         long_range_attack_distance: 1,

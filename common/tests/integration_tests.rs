@@ -6,7 +6,7 @@ use simperby_test_suite::*;
 #[test]
 fn basic1() {
     let member_number = 10;
-    let (rs, keys) = generate_standard_genesis(member_number);
+    let (rs, keys) = test_utils::generate_standard_genesis(member_number);
     let genesis_info = rs.genesis_info.clone();
     let genesis_header = rs.genesis_info.header.clone();
 
@@ -73,7 +73,7 @@ fn basic2() {
     setup_test();
     let member_number = 10;
     let (reserved_state, keys): (ReservedState, Vec<(PublicKey, PrivateKey)>) =
-        generate_delegated_genesis(member_number);
+        test_utils::generate_delegated_genesis(member_number);
     let genesis_info = reserved_state.genesis_info.clone();
     let genesis_header = reserved_state.genesis_info.header.clone();
 

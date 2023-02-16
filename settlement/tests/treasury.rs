@@ -121,7 +121,7 @@ impl MythereumTreasuryContract {
 
 #[test]
 fn relay_1() {
-    let (reserved_state, keys) = simperby_test_suite::generate_standard_genesis(4);
+    let (reserved_state, keys) = test_utils::generate_standard_genesis(4);
     let genesis_info = reserved_state.genesis_info.clone();
     let genesis_header = reserved_state.genesis_info.header.clone();
 

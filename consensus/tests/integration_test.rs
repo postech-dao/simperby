@@ -7,6 +7,7 @@ use log::debug;
 use simperby_common::{
     self as common,
     crypto::{Hash256, PublicKey},
+    test_utils::get_timestamp,
     BlockHeader, VotingPower,
 };
 use simperby_consensus::{Consensus, ConsensusMessage, Precommit, Prevote, ProgressResult};

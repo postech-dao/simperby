@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn decode_header() {
-        let header = simperby_test_suite::generate_standard_genesis(5)
+        let header = test_utils::generate_standard_genesis(5)
             .0
             .genesis_info
             .header;
