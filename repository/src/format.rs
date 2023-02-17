@@ -8,39 +8,42 @@ use simperby_common::{reserved::ReservedState, *};
 /// Note that extra-agenda transaction commit only requires `last_header` and `reserved_state`
 /// since other commits include height in the commit itself and `diff` of the `reserved_state`
 /// is not required.
-pub fn to_semantic_commit(commit: &Commit, mut reserved_state: ReservedState) -> SemanticCommit {
+pub fn to_semantic_commit(
+    commit: &Commit,
+    mut reserved_state: ReservedState,
+) -> Result<SemanticCommit, Error> {
     match commit {
         Commit::Agenda(agenda) => {
             let title = format!(">agenda: {}", agenda.height);
             let body = serde_spb::to_string(agenda).unwrap();
-            SemanticCommit {
+            Ok(SemanticCommit {
                 title,
                 body,
                 diff: Diff::None,
-            }
+            })
         }
         Commit::Block(block_header) => {
             let title = format!(">block: {}", block_header.height);
             let body = serde_spb::to_string(block_header).unwrap();
-            SemanticCommit {
+            Ok(SemanticCommit {
                 title,
                 body,
                 diff: Diff::None,
-            }
+            })
         }
-        Commit::Transaction(transaction) => SemanticCommit {
+        Commit::Transaction(transaction) => Ok(SemanticCommit {
             title: transaction.head.clone(),
             body: transaction.body.clone(),
             diff: transaction.diff.clone(),
-        },
+        }),
         Commit::AgendaProof(agenda_proof) => {
             let title = format!(">agenda-proof: {}", agenda_proof.height);
             let body = serde_spb::to_string(agenda_proof).unwrap();
-            SemanticCommit {
+            Ok(SemanticCommit {
                 title,
                 body,
                 diff: Diff::None,
-            }
+            })
         }
         Commit::ExtraAgendaTransaction(tx) => {
             let body = serde_spb::to_string(tx).unwrap();
@@ -49,16 +52,14 @@ pub fn to_semantic_commit(commit: &Commit, mut reserved_state: ReservedState) ->
                     let delegator = reserved_state
                         .clone()
                         .query_name(&tx.delegator)
-                        .ok_or_else(|| eyre!("delegator not found"))
-                        .unwrap();
+                        .ok_or_else(|| eyre!("delegator not found"))?;
                     let delegatee = reserved_state
                         .clone()
                         .query_name(&tx.delegatee)
-                        .ok_or_else(|| eyre!("delegatee not found"))
-                        .unwrap();
+                        .ok_or_else(|| eyre!("delegatee not found"))?;
                     let title = format!(">tx-delegate: {delegator} to {delegatee}");
                     let diff = Diff::Reserved(Box::new(reserved_state.apply_delegate(tx).unwrap()));
-                    SemanticCommit { title, body, diff }
+                    Ok(SemanticCommit { title, body, diff })
                 }
                 ExtraAgendaTransaction::Undelegate(tx) => {
                     let delegator = reserved_state
@@ -69,7 +70,7 @@ pub fn to_semantic_commit(commit: &Commit, mut reserved_state: ReservedState) ->
                     let title = format!(">tx-undelegate: {delegator}");
                     let diff =
                         Diff::Reserved(Box::new(reserved_state.apply_undelegate(tx).unwrap()));
-                    SemanticCommit { title, body, diff }
+                    Ok(SemanticCommit { title, body, diff })
                 }
                 ExtraAgendaTransaction::Report(_) => {
                     unimplemented!("report is not implemented yet.")
@@ -288,7 +289,7 @@ mod tests {
         assert_eq!(
             transaction,
             from_semantic_commit(
-                to_semantic_commit(&transaction, reserved_state.clone()),
+                to_semantic_commit(&transaction, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
@@ -307,7 +308,7 @@ mod tests {
         assert_eq!(
             agenda,
             from_semantic_commit(
-                to_semantic_commit(&agenda, reserved_state.clone()),
+                to_semantic_commit(&agenda, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
@@ -334,7 +335,7 @@ mod tests {
         assert_eq!(
             block,
             from_semantic_commit(
-                to_semantic_commit(&block, reserved_state.clone()),
+                to_semantic_commit(&block, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
@@ -352,7 +353,7 @@ mod tests {
         assert_eq!(
             agenda_proof,
             from_semantic_commit(
-                to_semantic_commit(&agenda_proof, reserved_state.clone()),
+                to_semantic_commit(&agenda_proof, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
@@ -383,7 +384,7 @@ mod tests {
         assert_eq!(
             delegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&delegation_transaction, reserved_state.clone()),
+                to_semantic_commit(&delegation_transaction, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
@@ -412,7 +413,7 @@ mod tests {
         assert_eq!(
             undelegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&undelegation_transaction, reserved_state.clone()),
+                to_semantic_commit(&undelegation_transaction, reserved_state.clone()).unwrap(),
                 reserved_state
             )
             .unwrap()
