@@ -71,7 +71,7 @@ pub async fn read_commits<T: RawRepository>(
     let commits = commits
         .into_iter()
         .map(|(commit, hash)| {
-            from_semantic_commit(commit, Some(reserved_state.clone()))
+            from_semantic_commit(commit, reserved_state.clone())
                 .map_err(|e| (e, hash))
                 .map(|x| (x, hash))
         })

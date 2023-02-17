@@ -8,10 +8,7 @@ use simperby_common::{reserved::ReservedState, *};
 /// Note that extra-agenda transaction commit only requires `last_header` and `reserved_state`
 /// since other commits include height in the commit itself and `diff` of the `reserved_state`
 /// is not required.
-pub fn to_semantic_commit(
-    commit: &Commit,
-    reserved_state: Option<ReservedState>,
-) -> SemanticCommit {
+pub fn to_semantic_commit(commit: &Commit, mut reserved_state: ReservedState) -> SemanticCommit {
     match commit {
         Commit::Agenda(agenda) => {
             let title = format!(">agenda: {}", agenda.height);
@@ -51,39 +48,27 @@ pub fn to_semantic_commit(
                 ExtraAgendaTransaction::Delegate(tx) => {
                     let delegator = reserved_state
                         .clone()
-                        .expect("missing reserved state")
                         .query_name(&tx.delegator)
                         .ok_or_else(|| eyre!("delegator not found"))
                         .unwrap();
                     let delegatee = reserved_state
                         .clone()
-                        .expect("missing reserved state")
                         .query_name(&tx.delegatee)
                         .ok_or_else(|| eyre!("delegatee not found"))
                         .unwrap();
                     let title = format!(">tx-delegate: {delegator} to {delegatee}");
-                    let diff = Diff::Reserved(Box::new(
-                        reserved_state
-                            .expect("missing reserved state")
-                            .apply_delegate(tx)
-                            .unwrap(),
-                    ));
+                    let diff = Diff::Reserved(Box::new(reserved_state.apply_delegate(tx).unwrap()));
                     SemanticCommit { title, body, diff }
                 }
                 ExtraAgendaTransaction::Undelegate(tx) => {
                     let delegator = reserved_state
                         .clone()
-                        .expect("missing reserved state")
                         .query_name(&tx.delegator)
                         .ok_or_else(|| eyre!("delegator not found"))
                         .unwrap();
                     let title = format!(">tx-undelegate: {delegator}");
-                    let diff = Diff::Reserved(Box::new(
-                        reserved_state
-                            .expect("missing reserved state")
-                            .apply_undelegate(tx)
-                            .unwrap(),
-                    ));
+                    let diff =
+                        Diff::Reserved(Box::new(reserved_state.apply_undelegate(tx).unwrap()));
                     SemanticCommit { title, body, diff }
                 }
                 ExtraAgendaTransaction::Report(_) => {
@@ -100,7 +85,7 @@ pub fn to_semantic_commit(
 /// TODO: retrieve author and timestamp from the commit metadata.
 pub fn from_semantic_commit(
     semantic_commit: SemanticCommit,
-    reserved_state: Option<ReservedState>,
+    reserved_state: ReservedState,
 ) -> Result<Commit, Error> {
     let pattern = Regex::new(
         r"^>(((agenda)|(block)|(agenda-proof)): (\d+))|((tx-delegate): (\D+) to (\D+))|((tx-undelegate): (\D+))$"
@@ -176,8 +161,6 @@ pub fn from_semantic_commit(
             }
             "extra-agenda-tx" => {
                 let tx: ExtraAgendaTransaction = serde_spb::from_str(&semantic_commit.body)?;
-                let reserved_state =
-                    reserved_state.ok_or_else(|| eyre!("missing reserved state"))?;
                 match tx {
                     ExtraAgendaTransaction::Delegate(ref tx) => {
                         let delegator = captures.get(9).map(|m| m.as_str()).ok_or_else(|| {
@@ -304,8 +287,11 @@ mod tests {
         });
         assert_eq!(
             transaction,
-            from_semantic_commit(to_semantic_commit(&transaction, None), Some(reserved_state))
-                .unwrap()
+            from_semantic_commit(
+                to_semantic_commit(&transaction, reserved_state.clone()),
+                reserved_state
+            )
+            .unwrap()
         );
     }
 
@@ -320,7 +306,11 @@ mod tests {
         });
         assert_eq!(
             agenda,
-            from_semantic_commit(to_semantic_commit(&agenda, None), Some(reserved_state)).unwrap()
+            from_semantic_commit(
+                to_semantic_commit(&agenda, reserved_state.clone()),
+                reserved_state
+            )
+            .unwrap()
         );
     }
 
@@ -343,7 +333,11 @@ mod tests {
         });
         assert_eq!(
             block,
-            from_semantic_commit(to_semantic_commit(&block, None), Some(reserved_state)).unwrap()
+            from_semantic_commit(
+                to_semantic_commit(&block, reserved_state.clone()),
+                reserved_state
+            )
+            .unwrap()
         );
     }
 
@@ -358,8 +352,8 @@ mod tests {
         assert_eq!(
             agenda_proof,
             from_semantic_commit(
-                to_semantic_commit(&agenda_proof, None),
-                Some(reserved_state)
+                to_semantic_commit(&agenda_proof, reserved_state.clone()),
+                reserved_state
             )
             .unwrap()
         );
@@ -389,8 +383,8 @@ mod tests {
         assert_eq!(
             delegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&delegation_transaction, Some(reserved_state.clone())),
-                Some(reserved_state)
+                to_semantic_commit(&delegation_transaction, reserved_state.clone()),
+                reserved_state
             )
             .unwrap()
         );
@@ -418,8 +412,8 @@ mod tests {
         assert_eq!(
             undelegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&undelegation_transaction, Some(reserved_state.clone())),
-                Some(reserved_state)
+                to_semantic_commit(&undelegation_transaction, reserved_state.clone()),
+                reserved_state
             )
             .unwrap()
         );
