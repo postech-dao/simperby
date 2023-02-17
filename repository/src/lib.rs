@@ -134,7 +134,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn genesis(&mut self) -> Result<(), Error> {
         let reserved_state = self.get_reserved_state().await?;
         let block_commit = Commit::Block(reserved_state.genesis_info.header.clone());
-        let semantic_commit = to_semantic_commit(&block_commit, None);
+        let semantic_commit = to_semantic_commit(&block_commit, reserved_state.clone());
 
         self.raw.checkout_clean().await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
@@ -166,8 +166,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let reserved_state = self.get_reserved_state().await?;
-        let commit = format::from_semantic_commit(semantic_commit, Some(reserved_state))
-            .map_err(|e| eyre!(e))?;
+        let commit =
+            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
         if let Commit::Block(block_header) = commit {
             Ok(block_header)
         } else {
@@ -180,7 +180,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<Commit, Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let reserved_state = self.get_reserved_state().await?;
-        format::from_semantic_commit(semantic_commit, Some(reserved_state)).map_err(|e| eyre!(e))
+        format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))
     }
 
     /// Returns the reserved state from the `finalized` branch.
@@ -511,8 +511,9 @@ impl<T: RawRepository> DistributedRepository<T> {
         let reserved_state = self.get_reserved_state().await?;
         let finalized_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let commits = utils::read_commits(self, finalized_commit_hash, agenda_commit_hash).await?;
-        let mut verifier = CommitSequenceVerifier::new(finalized_header.clone(), reserved_state)
-            .map_err(|e| eyre!("failed to create a verifier: {}", e))?;
+        let mut verifier =
+            CommitSequenceVerifier::new(finalized_header.clone(), reserved_state.clone())
+                .map_err(|e| eyre!("failed to create a verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
@@ -534,7 +535,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         };
 
         let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
-        let agenda_proof_semantic_commit = format::to_semantic_commit(&agenda_proof_commit, None);
+        let agenda_proof_semantic_commit =
+            format::to_semantic_commit(&agenda_proof_commit, reserved_state);
         let agenda_proof_branch_name = format!(
             "a-{}",
             &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
@@ -587,7 +589,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
         // Check the validity of the commit sequence
         let reserved_state = self.get_reserved_state().await?;
-        let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state)
+        let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         for (commit, hash) in commits.iter() {
@@ -617,7 +619,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             height: last_header.height + 1,
         };
         let agenda_commit = Commit::Agenda(agenda.clone());
-        let semantic_commit = to_semantic_commit(&agenda_commit, None);
+        let semantic_commit = to_semantic_commit(&agenda_commit, reserved_state);
 
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
@@ -633,8 +635,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn vote(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let reserved_state = self.get_reserved_state().await?;
-        let commit = format::from_semantic_commit(semantic_commit, Some(reserved_state))
-            .map_err(|e| eyre!(e))?;
+        let commit =
+            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
             let mut vote_tag_name = commit.to_hash256().to_string();
@@ -651,8 +653,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
         let reserved_state = self.get_reserved_state().await?;
-        let commit = format::from_semantic_commit(semantic_commit, Some(reserved_state))
-            .map_err(|e| eyre!(e))?;
+        let commit =
+            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
         // Check if the commit is a block commit.
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();
@@ -754,7 +756,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         };
         let block_commit = Commit::Block(block_header.clone());
-        let semantic_commit = to_semantic_commit(&block_commit, None);
+        let semantic_commit = to_semantic_commit(&block_commit, reserved_state);
 
         self.raw.checkout_clean().await?;
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
