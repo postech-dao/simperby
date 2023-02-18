@@ -176,7 +176,7 @@ prevotes $(1-x) + 2/3$ exceeds the early termination threshold, namely $x$.
 As the portion of collected non-nil prevotes does not exceed 2/3, the validator
 will incorrectly conclude that the quorum has failed to met, which is not
 acceptable.
-To prevent this outcome, we must have $$(1-x) + 2/3 \le x$, or $x \ge 5/6$.  To
+To prevent this outcome, we must have $(1-x) + 2/3 \le x$, or $x \ge 5/6$.  To
 minimize the byzantine threshold as much as possible, the optimal choice is
 $x=5/6$, resulting in a byzantine threshold of $1-x = 1/6$.
 
