@@ -33,105 +33,11 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
         Commands::Clone { url } => {
             clone(config, &path, &url).await?;
         }
-        Commands::Sync {
-            last_finalization_proof,
-        } => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node
-                .sync(
-                    serde_spb::from_str(&last_finalization_proof)
-                        .map_err(|_| eyre!("invalid last finalization proof for sync"))?,
-                )
-                .await?;
-        }
-        Commands::Clean { hard } => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node.clean(hard).await?;
-        }
-        Commands::Create(CreateCommands::TxDelegate {
-            delegator,
-            delegatee,
-            governance,
-            proof,
-        }) => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node
-                .create_extra_agenda_transaction(ExtraAgendaTransaction::Delegate(TxDelegate {
-                    delegator: serde_spb::from_str(&delegator)
-                        .map_err(|_| eyre!("invalid delegator for a delegation transaction"))?,
-                    delegatee: serde_spb::from_str(&delegatee)
-                        .map_err(|_| eyre!("invalid delegatee for a delegation transaction"))?,
-                    governance,
-                    proof: serde_spb::from_str(&proof)
-                        .map_err(|_| eyre!("invalid proof for a delegation transaction"))?,
-                    timestamp: get_timestamp(),
-                }))
-                .await?;
-        }
-        Commands::Create(CreateCommands::TxUndelegate { delegator, proof }) => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node
-                .create_extra_agenda_transaction(ExtraAgendaTransaction::Undelegate(TxUndelegate {
-                    delegator: serde_spb::from_str(&delegator)
-                        .map_err(|_| eyre!("invalid delegator for an undelegation transaction"))?,
-                    proof: serde_spb::from_str(&proof)
-                        .map_err(|_| eyre!("invalid proof for an undelegation transaction"))?,
-                    timestamp: get_timestamp(),
-                }))
-                .await?;
-        }
-        Commands::Create(CreateCommands::TxReport) => todo!("TxReport is not implemented yet"),
-        Commands::Create(CreateCommands::Block) => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node.create_block().await?;
-        }
-        Commands::Create(CreateCommands::Agenda) => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node.create_agenda().await?;
-        }
-        Commands::Vote { commit } => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node
-                .vote(
-                    serde_spb::from_str(&commit)
-                        .map_err(|_| eyre!("invalid agenda commit hash to vote on"))?,
-                )
-                .await?;
-        }
-        Commands::Veto { commit } => {
-            let mut simperby_node = initialize(config, &path).await?;
-            if commit.is_none() {
-                simperby_node.veto_round().await?;
-            } else {
-                simperby_node
-                    .veto_block(
-                        serde_spb::from_str(&commit.expect("commit is not none"))
-                            .map_err(|_| eyre!("invalid block commit hash to veto on"))?,
-                    )
-                    .await?;
-            }
-        }
-        Commands::Consensus { show } => {
-            if show {
-                // TODO: show the status of the consensus instead of making a progress.
-            } else {
-                let mut simperby_node = initialize(config, &path).await?;
-                simperby_node.progress_for_consensus().await?;
-            }
-        }
         Commands::Git => todo!(),
         Commands::Show { commit } => show(config, &path, commit).await?,
         Commands::Network => todo!(),
         Commands::Serve => {
             serve(config, &path).await?;
-        }
-        Commands::Update => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node.fetch().await?;
-        }
-        Commands::Broadcast => {
-            let mut simperby_node = initialize(config, &path).await?;
-            simperby_node.broadcast().await?;
         }
         Commands::Chat { .. } => todo!("chat is not implemented yet"),
         Commands::Sign(SignCommands::TxDelegate {
@@ -183,6 +89,92 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
         }
         Commands::CheckPush { .. } => todo!("check push is not implemented yet"),
         Commands::NotifyPush { .. } => todo!("notify push is not implemented yet"),
+        // Commands that require `initialize` to be called.
+        _ => {
+            let mut simperby_node = initialize(config, &path).await?;
+            if let Commands::Sync {
+                last_finalization_proof,
+            } = args.command
+            {
+                simperby_node
+                    .sync(
+                        serde_spb::from_str(&last_finalization_proof)
+                            .map_err(|_| eyre!("invalid last finalization proof for sync"))?,
+                    )
+                    .await?;
+            } else if let Commands::Clean { hard } = args.command {
+                simperby_node.clean(hard).await?;
+            } else if let Commands::Create(CreateCommands::TxDelegate {
+                delegator,
+                delegatee,
+                governance,
+                proof,
+            }) = args.command
+            {
+                simperby_node
+                    .create_extra_agenda_transaction(ExtraAgendaTransaction::Delegate(TxDelegate {
+                        delegator: serde_spb::from_str(&delegator)
+                            .map_err(|_| eyre!("invalid delegator for a delegation transaction"))?,
+                        delegatee: serde_spb::from_str(&delegatee)
+                            .map_err(|_| eyre!("invalid delegatee for a delegation transaction"))?,
+                        governance,
+                        proof: serde_spb::from_str(&proof)
+                            .map_err(|_| eyre!("invalid proof for a delegation transaction"))?,
+                        timestamp: get_timestamp(),
+                    }))
+                    .await?;
+            } else if let Commands::Create(CreateCommands::TxUndelegate { delegator, proof }) =
+                args.command
+            {
+                simperby_node
+                    .create_extra_agenda_transaction(ExtraAgendaTransaction::Undelegate(
+                        TxUndelegate {
+                            delegator: serde_spb::from_str(&delegator).map_err(|_| {
+                                eyre!("invalid delegator for an undelegation transaction")
+                            })?,
+                            proof: serde_spb::from_str(&proof).map_err(|_| {
+                                eyre!("invalid proof for an undelegation transaction")
+                            })?,
+                            timestamp: get_timestamp(),
+                        },
+                    ))
+                    .await?;
+            } else if let Commands::Create(CreateCommands::TxReport) = args.command {
+                todo!("TxReport is not implemented yet")
+            } else if let Commands::Create(CreateCommands::Block) = args.command {
+                simperby_node.create_block().await?;
+            } else if let Commands::Create(CreateCommands::Agenda) = args.command {
+                simperby_node.create_agenda().await?;
+            } else if let Commands::Vote { commit } = args.command {
+                simperby_node
+                    .vote(
+                        serde_spb::from_str(&commit)
+                            .map_err(|_| eyre!("invalid agenda commit hash to vote on"))?,
+                    )
+                    .await?;
+            } else if let Commands::Veto { commit } = args.command {
+                if commit.is_none() {
+                    simperby_node.veto_round().await?;
+                } else {
+                    simperby_node
+                        .veto_block(
+                            serde_spb::from_str(&commit.expect("commit is not none"))
+                                .map_err(|_| eyre!("invalid block commit hash to veto on"))?,
+                        )
+                        .await?;
+                }
+            } else if let Commands::Consensus { show } = args.command {
+                if show {
+                    // TODO: show the status of the consensus instead of making a progress.
+                } else {
+                    simperby_node.progress_for_consensus().await?;
+                }
+            } else if let Commands::Update = args.command {
+                simperby_node.fetch().await?;
+            } else if let Commands::Broadcast = args.command {
+                simperby_node.broadcast().await?;
+            }
+        }
     }
     Ok(())
 }
