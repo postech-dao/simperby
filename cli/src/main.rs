@@ -54,11 +54,13 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             };
             println!(
                 "{:?}",
-                TypedSignature::<DelegationTransactionData>::sign(
-                    &delegation_transaction_data,
-                    &config.private_key,
+                serde_spb::to_string(
+                    &TypedSignature::<DelegationTransactionData>::sign(
+                        &delegation_transaction_data,
+                        &config.private_key,
+                    )
+                    .map_err(|_| eyre!("failed to sign"))?
                 )
-                .map_err(|_| eyre!("failed to sign"))?
             );
         }
         Commands::Sign(SignCommands::TxUndelegate { target_height }) => {
@@ -68,11 +70,13 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             };
             println!(
                 "{:?}",
-                TypedSignature::<UndelegationTransactionData>::sign(
-                    &undelegation_transaction_data,
-                    &config.private_key,
+                serde_spb::to_string(
+                    &TypedSignature::<UndelegationTransactionData>::sign(
+                        &undelegation_transaction_data,
+                        &config.private_key,
+                    )
+                    .map_err(|_| eyre!("failed to sign"))?
                 )
-                .map_err(|_| eyre!("failed to sign"))?
             );
         }
         Commands::Sign(SignCommands::Custom { hash }) => {
@@ -84,7 +88,10 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             );
             println!(
                 "{}",
-                Signature::sign(hash, &config.private_key).map_err(|_| eyre!("failed to sign"))?
+                hex::encode(
+                    Signature::sign(hash, &config.private_key)
+                        .map_err(|_| eyre!("failed to sign"))?
+                )
             );
         }
         Commands::CheckPush { .. } => todo!("check push is not implemented yet"),
