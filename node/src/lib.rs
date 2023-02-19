@@ -147,12 +147,7 @@ pub async fn clone(config: Config, path: &str, url: &str) -> Result<SimperbyNode
 pub async fn serve(config: Config, path: &str) -> Result<()> {
     if config.broadcast_interval_ms.is_some() {
         let node = SimperbyNode::initialize(config.clone(), path).await?;
-        node.serve(
-            config
-                .broadcast_interval_ms
-                .expect("broadcast_interval_ms is None"),
-        )
-        .await?;
+        node.serve(5000).await?;
     }
     Ok(())
 }
