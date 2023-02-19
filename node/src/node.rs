@@ -202,15 +202,7 @@ impl SimperbyNode {
         &mut self,
         tx: ExtraAgendaTransaction,
     ) -> Result<()> {
-        match tx {
-            ExtraAgendaTransaction::Delegate(_) => {
-                self.repository.create_extra_agenda_transaction(&tx).await?;
-            }
-            ExtraAgendaTransaction::Undelegate(_) => {
-                self.repository.create_extra_agenda_transaction(&tx).await?;
-            }
-            ExtraAgendaTransaction::Report(_) => todo!("TxReport is not implemented yet"),
-        }
+        self.repository.create_extra_agenda_transaction(&tx).await?;
         Ok(())
     }
 
