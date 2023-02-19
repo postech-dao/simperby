@@ -145,7 +145,7 @@ impl SimperbyNode {
         &self.network_config
     }
 
-    /// Synchronizes the `finalized` branch to the given commit.
+    /// Synchronizes the `finalized` branch to the last block of the `work` branch.
     pub async fn sync(&mut self, last_finalization_proof: LastFinalizationProof) -> Result<()> {
         let work_branch_tip = self
             .repository
