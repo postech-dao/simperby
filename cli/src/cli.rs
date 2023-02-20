@@ -102,8 +102,8 @@ pub enum Commands {
     #[command(subcommand)]
     Create(CreateCommands),
     /// Vote on the agenda, broadcasting to the network.
-    /// It will also leave a `vote` tag on the commit (with some postfix).
-    Vote { commit: String },
+    /// It will also leave a `vote` tag on the commit that the given revision points to (with some postfix).
+    Vote { revision: String },
     /// Veto the round.
     ///
     /// It will be broadcasted to the network as a nil-vote
@@ -111,10 +111,10 @@ pub enum Commands {
     /// You can check whether the round is vetoed by running `consensus --show`.
     Veto {
         /// If specified, it vetoes a specific block proposal,
-        /// leaving a `veto` tag on the commit (with some postfix).
-        /// It fails if the given commit is already set to `proposal`.
-        /// If the given commit is already set to `veto`, it will be removed.
-        commit: Option<String>,
+        /// leaving a `veto` tag on the commit that the given revision points to (with some postfix).
+        /// It fails if the commit is already set to `proposal`.
+        /// If the commit is already set to `veto`, it will be removed.
+        revision: Option<String>,
     },
     /// Make a progress on the consensus.
     ///
@@ -132,8 +132,8 @@ pub enum Commands {
     // ----- Information Commands ----- //
     /// Print the information about the Git server that this node is hosting.
     Git,
-    /// Show the overall information of the given commit.
-    Show { commit: String },
+    /// Show the overall information of the commit that the given revision points to.
+    Show { revision: String },
     /// Show the current status of the p2p network.
     Network,
 
@@ -166,8 +166,8 @@ pub enum Commands {
     Sign(SignCommands),
     /// A special command triggered by the Git hook, which is used to verify the push request.
     CheckPush {
-        /// The hash of the tip commit of the branch that is being pushed.
-        commit: String,
+        /// The revision of the branch that is being pushed.
+        revision: String,
         /// The name of the branch that is being pushed.
         branch_name: String,
         /// The Unix timestamp of the push request. This is for preventing replay attacks.
