@@ -22,54 +22,67 @@ pub struct ReservedState {
 
 impl ReservedState {
     pub fn get_validator_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut validator_set = HashMap::new();
-        for member in &self.members {
-            if let Some(delegatee) = &member.consensus_delegatee {
-                validator_set
-                    .entry(delegatee.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            } else {
-                validator_set
-                    .entry(member.name.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            }
-        }
-        let mut result = Vec::new();
-        for (name, voting_power) in validator_set {
-            let public_key = self.query_public_key(&name).ok_or_else(|| {
-                format!("The public key of {name} is not found in the genesis info.")
-            })?;
-            result.push((public_key, voting_power));
-        }
-        result.sort_by(|a, b| b.0.cmp(&a.0));
-        Ok(result)
+        let validator_set = self
+            .members
+            .iter()
+            .map(|member| {
+                let delegatee_name = member
+                    .consensus_delegatee
+                    .as_ref()
+                    .map_or_else(|| member.name.as_str(), |name| name.as_str());
+                let public_key = self
+                    .query_public_key(&delegatee_name.to_string())
+                    .ok_or_else(|| {
+                        format!("the public key of {delegatee_name} is not found in the reserved state.")
+                    })?;
+                Ok((public_key, member.consensus_voting_power))
+            })
+            .try_fold(
+                HashMap::new(),
+                |mut map, result: Result<(crypto::PublicKey, u64), String>| {
+                    let (public_key, voting_power) = result?;
+                    map.entry(public_key)
+                        .and_modify(|v| *v += voting_power)
+                        .or_insert(voting_power);
+                    Ok::<HashMap<crypto::PublicKey, u64>, String>(map)
+                },
+            )?
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        Ok(validator_set)
     }
 
     pub fn get_governance_set(&self) -> Result<Vec<(PublicKey, VotingPower)>, String> {
-        let mut governance_set = HashMap::new();
-        for member in &self.members {
-            if let Some(delegatee) = &member.governance_delegatee {
-                governance_set
-                    .entry(delegatee.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            } else {
-                governance_set
-                    .entry(member.name.clone())
-                    .and_modify(|v| *v += member.consensus_voting_power)
-                    .or_insert(member.consensus_voting_power);
-            }
-        }
-        let mut result = Vec::new();
-        for (name, voting_power) in governance_set {
-            let public_key = self.query_public_key(&name).ok_or_else(|| {
-                format!("The public key of {name} is not found in the genesis info.")
-            })?;
-            result.push((public_key, voting_power));
-        }
-        Ok(result)
+        let governance_set = self
+            .members
+            .iter()
+            .map(|member| {
+                let delegatee_name = member
+                    .governance_delegatee
+                    .as_ref()
+                    .map_or_else(|| member.name.as_str(), |name| name.as_str());
+                let public_key = self
+                    .query_public_key(&delegatee_name.to_string())
+                    .ok_or_else(|| {
+                        format!("the public key of {delegatee_name} is not found in the reserved state.")
+                    })?;
+                Ok((public_key, member.consensus_voting_power))
+            })
+            .try_fold(
+                HashMap::new(),
+                |mut map, result: Result<(crypto::PublicKey, u64), String>| {
+                    let (public_key, voting_power) = result?;
+                    map.entry(public_key)
+                        .and_modify(|v| *v += voting_power)
+                        .or_insert(voting_power);
+                    Ok::<HashMap<crypto::PublicKey, u64>, String>(map)
+                },
+            )?
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        Ok(governance_set)
     }
 
     pub fn apply_delegate(&mut self, tx: &TxDelegate) -> Result<Self, String> {
@@ -77,11 +90,11 @@ impl ReservedState {
             delegator: tx.delegator.clone(),
             delegatee: tx.delegatee.clone(),
             governance: tx.governance,
-            timestamp: tx.timestamp as BlockHeight,
+            block_height: tx.timestamp as BlockHeight,
         };
         match tx.proof.verify(&data) {
             Ok(_) => true,
-            Err(_) => return Err("proof verification failed".to_string()),
+            Err(_) => return Err("delegation proof verification failed".to_string()),
         };
         let delegator_name = match self.query_name(&tx.delegator.clone()) {
             Some(name) => name,
@@ -107,11 +120,11 @@ impl ReservedState {
     pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
         let data = UndelegationTransactionData {
             delegator: tx.delegator.clone(),
-            timestamp: tx.timestamp as BlockHeight,
+            block_height: tx.timestamp as BlockHeight,
         };
         match tx.proof.verify(&data) {
             Ok(_) => true,
-            Err(_) => return Err("proof verification failed".to_string()),
+            Err(_) => return Err("undelegation proof verification failed".to_string()),
         };
         let delegator_name = match self.query_name(&tx.delegator.clone()) {
             Some(name) => name,
@@ -152,6 +165,7 @@ impl ReservedState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::*;
     use simperby_test_suite::setup_test;
     use std::collections::HashSet;
 
@@ -396,97 +410,25 @@ mod tests {
         );
     }
 
-    fn setup_tx_delegate_test() -> (PublicKey, PrivateKey, PublicKey, Member, ReservedState) {
-        let keys = (0..4)
-            .into_iter()
-            .map(|i| generate_keypair(format!("{i}")))
-            .collect::<Vec<_>>();
-
-        let delegator_public_key = keys[0].0.clone();
-        let delegator_private_key = keys[0].1.clone();
-        let delegatee_public_key = keys[1].0.clone();
-
-        let delegator = Member {
-            public_key: delegator_public_key.clone(),
-            name: "delegator".to_string(),
-            consensus_voting_power: 10,
-            governance_voting_power: 10,
-            consensus_delegatee: None,
-            governance_delegatee: None,
-        };
-
-        let delegatee = Member {
-            public_key: delegatee_public_key.clone(),
-            name: "delegatee".to_string(),
-            consensus_voting_power: 20,
-            governance_voting_power: 20,
-            consensus_delegatee: None,
-            governance_delegatee: None,
-        };
-
-        let members = vec![
-            delegator.clone(),
-            delegatee.clone(),
-            create_member(keys.clone(), 2),
-        ];
-
-        let genesis_header = BlockHeader {
-            author: PublicKey::zero(),
-            prev_block_finalization_proof: Vec::new(),
-            previous_hash: Hash256::zero(),
-            height: 0,
-            timestamp: 0,
-            commit_merkle_root: Hash256::zero(),
-            repository_merkle_root: Hash256::zero(),
-            validator_set: members
-                .iter()
-                .map(|member| (member.public_key.clone(), member.consensus_voting_power))
-                .collect::<Vec<_>>(),
-            version: "0.1.0".to_string(),
-        };
-
-        let genesis_info = GenesisInfo {
-            header: genesis_header.clone(),
-            genesis_proof: keys
-                .iter()
-                .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
-                .collect::<Vec<_>>(),
-            chain_name: "test-chain".to_string(),
-        };
-
-        let state = ReservedState {
-            genesis_info,
-            members: vec![delegator.clone(), delegatee.clone()],
-            consensus_leader_order: vec![delegator.name, delegatee.name.to_string()],
-            version: "".to_string(),
-        };
-        (
-            delegator_public_key,
-            delegator_private_key,
-            delegatee_public_key,
-            delegatee,
-            state,
-        )
-    }
-
     #[test]
     fn test_apply_delegate_on_governance_success() {
         // given
         setup_test();
-        let (
-            delegator_public_key,
-            delegator_private_key,
-            delegatee_public_key,
-            delegatee,
-            mut state,
-        ) = setup_tx_delegate_test();
+        let (mut state, keys) = generate_delegated_genesis(3);
+
+        // member-0001 to member-0002
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[1].0.clone();
+
+        let delegatee = state.members[2].clone();
 
         // when
         let data: DelegationTransactionData = DelegationTransactionData {
             delegator: delegator_public_key.clone(),
             delegatee: delegatee_public_key.clone(),
             governance: true,
-            timestamp: 0u64,
+            block_height: 0u64,
         };
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
 
@@ -506,21 +448,14 @@ mod tests {
         let new_state_governance_set = new_state.get_governance_set();
 
         assert_eq!(
-            new_state.members[0].governance_delegatee.as_ref().unwrap(),
+            new_state.members[1].governance_delegatee.as_ref().unwrap(),
             &delegatee.name
         );
-        assert_eq!(new_state.members[0].consensus_voting_power, 10);
-        assert_eq!(new_state.members[0].governance_voting_power, 10);
+
         assert_eq!(
-            new_state.members[0].consensus_delegatee,
-            Some(delegatee.clone().name)
+            new_state.members[1].consensus_delegatee.as_ref().unwrap(),
+            &delegatee.name
         );
-        assert_eq!(
-            new_state.members[0].governance_delegatee,
-            Some(delegatee.clone().name)
-        );
-        assert_eq!(new_state.members[1].consensus_voting_power, 20);
-        assert_eq!(new_state.members[1].governance_voting_power, 20);
 
         assert_eq!(
             new_state_validator_set
@@ -529,7 +464,7 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            30
+            3
         );
 
         assert_eq!(
@@ -539,7 +474,7 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            30
+            3
         );
     }
 
@@ -547,20 +482,19 @@ mod tests {
     fn test_apply_delegate_on_consensus_success() {
         // given
         setup_test();
-        let (
-            delegator_public_key,
-            delegator_private_key,
-            delegatee_public_key,
-            delegatee,
-            mut state,
-        ) = setup_tx_delegate_test();
+        let (mut state, keys) = generate_delegated_genesis(3);
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee_public_key = keys[1].0.clone();
+
+        let delegatee = state.members[2].clone();
 
         // when
         let data: DelegationTransactionData = DelegationTransactionData {
             delegator: delegator_public_key.clone(),
             delegatee: delegatee_public_key.clone(),
             governance: false,
-            timestamp: 0u64,
+            block_height: 0u64,
         };
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
 
@@ -581,18 +515,11 @@ mod tests {
         let new_state_governance_set = new_state.get_governance_set();
 
         assert_eq!(
-            new_state.members[0].consensus_delegatee.as_ref().unwrap(),
+            new_state.members[1].consensus_delegatee.as_ref().unwrap(),
             &delegatee.name
         );
-        assert_eq!(new_state.members[0].consensus_voting_power, 10);
-        assert_eq!(new_state.members[0].governance_voting_power, 10);
-        assert_eq!(
-            new_state.members[0].consensus_delegatee,
-            Some(delegatee.name)
-        );
-        assert_eq!(new_state.members[0].governance_delegatee, None);
-        assert_eq!(new_state.members[1].consensus_voting_power, 20);
-        assert_eq!(new_state.members[1].governance_voting_power, 20);
+
+        assert_eq!(new_state.members[1].governance_delegatee, None);
 
         assert_eq!(
             new_state_validator_set
@@ -601,7 +528,7 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            30
+            3
         );
 
         assert_eq!(
@@ -611,93 +538,24 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            20
+            2
         );
-    }
-
-    fn setup_tx_undelegate_test() -> (PublicKey, PrivateKey, Member, ReservedState) {
-        let keys = (0..4)
-            .into_iter()
-            .map(|i| generate_keypair(format!("{i}")))
-            .collect::<Vec<_>>();
-
-        let delegator_public_key = keys[0].0.clone();
-        let delegator_private_key = keys[0].1.clone();
-        let delegatee_public_key = keys[1].0.clone();
-
-        let delegator = Member {
-            public_key: delegator_public_key.clone(),
-            name: "delegator".to_string(),
-            consensus_voting_power: 10,
-            governance_voting_power: 10, // delegated
-            consensus_delegatee: Some("delegatee".to_string()),
-            governance_delegatee: Some("delegatee".to_string()),
-        };
-
-        let delegatee = Member {
-            public_key: delegatee_public_key,
-            name: "delegatee".to_string(),
-            consensus_voting_power: 20,
-            governance_voting_power: 20,
-            consensus_delegatee: None,
-            governance_delegatee: None,
-        };
-
-        let members = vec![
-            delegator.clone(),
-            delegatee.clone(),
-            create_member(keys.clone(), 2),
-        ];
-
-        let genesis_header = BlockHeader {
-            author: PublicKey::zero(),
-            prev_block_finalization_proof: Vec::new(),
-            previous_hash: Hash256::zero(),
-            height: 0,
-            timestamp: 0,
-            commit_merkle_root: Hash256::zero(),
-            repository_merkle_root: Hash256::zero(),
-            validator_set: members
-                .iter()
-                .map(|member| (member.public_key.clone(), member.consensus_voting_power))
-                .collect::<Vec<_>>(),
-            version: "0.1.0".to_string(),
-        };
-
-        let genesis_info = GenesisInfo {
-            header: genesis_header.clone(),
-            genesis_proof: keys
-                .iter()
-                .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
-                .collect::<Vec<_>>(),
-            chain_name: "test-chain".to_string(),
-        };
-
-        let state = ReservedState {
-            genesis_info,
-            members: vec![delegator.clone(), delegatee.clone()],
-            consensus_leader_order: vec![delegator.name, delegatee.name.to_string()],
-            version: "".to_string(),
-        };
-        (
-            delegator_public_key,
-            delegator_private_key,
-            delegatee,
-            state,
-        )
     }
 
     #[test]
     fn test_apply_undelegate_success() {
         // given
         setup_test();
-        let (delegator_public_key, delegator_private_key, delegatee, mut state) =
-            setup_tx_undelegate_test();
+        let (mut state, keys) = generate_undelegated_genesis(3);
+        let delegator_public_key = keys[0].0.clone();
+        let delegator_private_key = keys[0].1.clone();
+
+        let delegatee = state.members[2].clone();
 
         // when
         let data = UndelegationTransactionData {
             delegator: delegator_public_key.clone(),
-            timestamp: 0u64 as BlockHeight,
+            block_height: 0u64 as BlockHeight,
         };
 
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
@@ -715,12 +573,8 @@ mod tests {
         let new_state_validator_set = new_state.get_validator_set();
         let new_state_governance_set = new_state.get_governance_set();
 
-        assert_eq!(new_state.members[0].consensus_voting_power, 10);
-        assert_eq!(new_state.members[0].governance_voting_power, 10);
         assert_eq!(new_state.members[0].consensus_delegatee, None);
         assert_eq!(new_state.members[0].governance_delegatee, None);
-        assert_eq!(new_state.members[1].consensus_voting_power, 20);
-        assert_eq!(new_state.members[1].governance_voting_power, 20);
 
         assert_eq!(
             new_state_validator_set
@@ -729,7 +583,7 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            20
+            1
         );
 
         assert_eq!(
@@ -739,7 +593,7 @@ mod tests {
                 .find(|v| v.0 == delegatee.public_key)
                 .unwrap()
                 .1,
-            20
+            1
         );
     }
 }
