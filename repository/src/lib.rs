@@ -180,8 +180,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))
     }
 
-    /// Returns the reserved state from the `finalized` branch.
-    pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
+    pub async fn get_commit_hash_by_height(
+        &self,
+        _height: BlockHeight,
+    ) -> Result<CommitHash, Error> {
+        unimplemented!()
+    }
+
+    /// Returns the reserved state at the given commit hash.
+    pub async fn get_reserved_state(
+        &self,
+        commit_hash: CommitHash,
+    ) -> Result<ReservedState, Error> {
         self.raw.read_reserved_state().await.map_err(|e| eyre!(e))
     }
 
