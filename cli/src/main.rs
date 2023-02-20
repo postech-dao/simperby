@@ -6,18 +6,9 @@ use cli::*;
 use eyre::{eyre, Result};
 use simperby_common::utils::get_timestamp;
 use simperby_node::{
-    clone, genesis, initialize, serve, simperby_common::*, simperby_repository::CommitHash,
+    clone, genesis, initialize, serve, simperby_common::*, simperby_repository::raw::RawRepository,
     CommitInfo, Config,
 };
-
-fn to_commit_hash(s: &str) -> Result<CommitHash> {
-    let hash = hex::decode(s).map_err(|_| eyre!("invalid hash"))?;
-    let hash = hash
-        .as_slice()
-        .try_into()
-        .map_err(|_| eyre!("a hash must be in 20 bytes"))?;
-    Ok(CommitHash { hash })
-}
 
 async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
     match args.command {
@@ -29,7 +20,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             clone(config, &path, &url).await?;
         }
         Commands::Git => todo!(),
-        Commands::Show { commit } => show(config, &path, commit).await?,
+        Commands::Show { revision } => show(config, &path, revision).await?,
         Commands::Network => todo!(),
         Commands::Serve => {
             serve(config, &path).await?;
@@ -169,24 +160,22 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                 Commands::Create(CreateCommands::Agenda) => {
                     simperby_node.create_agenda().await?;
                 }
-                Commands::Vote { commit } => {
-                    simperby_node
-                        .vote(
-                            serde_spb::from_str(&commit)
-                                .map_err(|_| eyre!("invalid agenda commit hash to vote on"))?,
-                        )
+                Commands::Vote { revision } => {
+                    let commit_hash = simperby_node
+                        .get_raw_repo()
+                        .retrieve_commit_hash(revision)
                         .await?;
+                    simperby_node.vote(commit_hash).await?;
                 }
-                Commands::Veto { commit } => {
-                    if commit.is_none() {
+                Commands::Veto { revision } => {
+                    if revision.is_none() {
                         simperby_node.veto_round().await?;
                     } else {
-                        simperby_node
-                            .veto_block(
-                                serde_spb::from_str(&commit.expect("commit is not none"))
-                                    .map_err(|_| eyre!("invalid block commit hash to veto on"))?,
-                            )
+                        let commit_hash = simperby_node
+                            .get_raw_repo()
+                            .retrieve_commit_hash(revision.expect("has been checked to be Some"))
                             .await?;
+                        simperby_node.veto_block(commit_hash).await?;
                     }
                 }
                 Commands::Consensus { show } => {
@@ -246,9 +235,13 @@ async fn main() -> eyre::Result<()> {
 /// For an agenda, show the governance status.
 /// For a block, show the consensus status projected on this block.
 /// For an extra-agenda transaction and a chat log, TODO.
-async fn show(config: Config, path: &str, commit_hash: String) -> Result<()> {
+async fn show(config: Config, path: &str, revision_selection: String) -> Result<()> {
     let node = simperby_node::initialize(config, path).await?;
-    let result = node.show(to_commit_hash(&commit_hash)?).await?;
+    let commit_hash = node
+        .get_raw_repo()
+        .retrieve_commit_hash(revision_selection)
+        .await?;
+    let result = node.show(commit_hash).await?;
     match result {
         CommitInfo::Block { block_header, .. } => {
             println!("hash: {}", block_header.to_hash256());
