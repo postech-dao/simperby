@@ -97,13 +97,6 @@ pub fn generate_delegated_genesis(
             },
         })
         .collect::<Vec<_>>();
-    // remove key of member-0000
-    let keys = keys
-        .into_iter()
-        .enumerate()
-        .filter(|(i, _)| *i != 0)
-        .map(|(_, key)| key)
-        .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
         author: PublicKey::zero(),
         prev_block_finalization_proof: Vec::new(),
