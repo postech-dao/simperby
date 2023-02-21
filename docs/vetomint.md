@@ -23,7 +23,7 @@ collected so far.
 
 1. Assuming that all non-byzantine validators cast prevotes/precommits and the
 messages are delivered before the timeout expiration, the system is never
-blocked by timeout by possible disuptes.
+blocked by timeout by possible disputes.
 2. The system is guaranteed to be safe if the byzantine voting power is less
    than $1/3$. i.e., The byzantine threshold for safety is $1/3$.
 3. If the byzantine voting power is less than $1/6$ and all non-byzantine
@@ -46,7 +46,7 @@ Since all validators of Simperby are designed to run their own nodes and
 Simperby puts significant burden on proposers (see [protocol
 overview](./protocol_overview.md)), the stable leader policy significantly
 improves the usability.  
-Unlike all other validators that turn on their node occassionally for voting,
+Unlike all other validators that turn on their node occasionally for voting,
 the leader should stay its node turned on for on-demand block production and
 managing the chatting service.  
 Not all validators are willing to take this burden, so it is desirable to choose
@@ -128,7 +128,7 @@ however, the lack of *early termination* becomes a severe issue. For example, it
 might be the case where the half of validators have casted non-nil prevotes and
 the other half have casted nil prevotes. In such a case, if it were the original
 Tendermint, although all validators have made decisions, validators can do
-nothihg but wait for the upcoming timeout expiration, which can be intolerably
+nothing but wait for the upcoming timeout expiration, which can be intolerably
 long.
 
 To prevent such issues, we add a new early termination rule to Tendermint. If a
@@ -157,9 +157,9 @@ To further explain the importance of the choice of 5/6, we will present an
 early termination threshold. We will demonstrate that $x = 5/6$ is optimal.
 
 First, the early termination rule is intended to prevent the consensus from
-getting stuck by timeout, as long as all non-byzantine validators particpate
+getting stuck by timeout, as long as all non-byzantine validators participate
 promptly. To achieve this, the byzantine threshold must be no greater than
-$1-x$. If it were greater, byzatine validators could hinder the consensus by
+$1-x$. If it were greater, byzantine validators could hinder the consensus by
 simply not broadcasting prevotes.
 
 Second, we want to ensure that, if more than 2/3 of the validators cast non-nil
