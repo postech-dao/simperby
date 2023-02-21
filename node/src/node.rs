@@ -162,8 +162,8 @@ impl SimperbyNode {
     }
 
     /// Cleans the repository, removing all the outdated commits.
-    pub async fn clean(&mut self, _hard: bool) -> Result<()> {
-        self.repository.clean().await
+    pub async fn clean(&mut self, hard: bool) -> Result<()> {
+        self.repository.clean(hard).await
     }
 
     /// Creates a block commit on the `work` branch.

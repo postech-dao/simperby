@@ -204,53 +204,83 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// It will leave only
     /// - the `finalized` branch
     /// - the `work` branch
-    /// - the `fp` branch.
+    /// - the `fp` branch
+    /// when `hard` is `true`,
     ///
-    /// and
+    /// and when `hard` is `false`,
     /// - the `p` branch
     /// - the `a-#` branches
     /// - the `b-#` branches
-    /// if only the branches are not outdated (branched from the last finalized commit).
-    pub async fn clean(&mut self) -> Result<(), Error> {
-        let finalized_branch_commit_hash =
-            self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-
-        let branches = self.raw.list_branches().await?;
-
-        // delete outdated p branch, a-# branches, b-# branches
-        for branch in branches {
+    /// will be left as well
+    /// if only the branches have valid commit sequences
+    /// and are not outdated (branched from the last finalized commit).
+    pub async fn clean(&mut self, hard: bool) -> Result<(), Error> {
+        let finalized_branch_commit_hash = self
+            .raw
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await
+            .map_err(|e| match e {
+                raw::Error::NotFound(_) => {
+                    eyre!(IntegrityError::new(
+                        "cannot locate `finalized` branch".to_string()
+                    ))
+                }
+                _ => eyre!(e),
+            })?;
+        let branches = retrieve_local_branches(&self.raw).await?;
+        let last_header = self.get_last_finalized_block_header().await?;
+        for (branch, branch_commit_hash) in branches {
             if !(branch.as_str() == WORK_BRANCH_NAME
                 || branch.as_str() == FINALIZED_BRANCH_NAME
                 || branch.as_str() == FP_BRANCH_NAME)
             {
-                let branch_commit = self.raw.locate_branch(branch.clone()).await?;
-
-                let find_merge_base_result = self
-                    .raw
-                    .find_merge_base(branch_commit, finalized_branch_commit_hash)
-                    .await
-                    .map_err(|e| match e {
-                        raw::Error::NotFound(_) => {
-                            eyre!(IntegrityError::new(format!(
+                if hard {
+                    self.raw.delete_branch(branch.to_string()).await?;
+                } else {
+                    // Delete outdated branch
+                    let find_merge_base_result = self
+                        .raw
+                        .find_merge_base(branch_commit_hash, finalized_branch_commit_hash)
+                        .await
+                        .map_err(|e| match e {
+                            raw::Error::NotFound(_) => {
+                                eyre!(IntegrityError::new(format!(
                                 "cannot find merge base for branch {branch} and finalized branch"
                             )))
-                        }
-                        _ => eyre!(e),
-                    })?;
+                            }
+                            _ => eyre!(e),
+                        })?;
 
-                if finalized_branch_commit_hash != find_merge_base_result {
-                    self.raw.delete_branch(branch.to_string()).await?;
+                    if finalized_branch_commit_hash != find_merge_base_result {
+                        self.raw.delete_branch(branch.to_string()).await?;
+                    }
+
+                    // Delete branch with invalid commit sequence
+                    self.raw.checkout(branch.to_string()).await?;
+                    let reserved_state = self.get_reserved_state().await?;
+                    let commits =
+                        read_commits(self, finalized_branch_commit_hash, branch_commit_hash)
+                            .await?;
+                    let mut verifier =
+                        CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
+                            .map_err(|e| {
+                                eyre!("failed to create a commit sequence verifier: {}", e)
+                            })?;
+                    for (commit, _) in commits.iter() {
+                        if verifier.apply_commit(commit).is_err() {
+                            self.raw.delete_branch(branch.to_string()).await?;
+                        }
+                    }
                 }
             }
         }
 
-        // remove remote branches
+        // Remove remote repositories
+        // Note that remote branches are automatically removed when the remote repository is removed.
         let remote_list = self.raw.list_remotes().await?;
         for (remote_name, _) in remote_list {
             self.raw.remove_remote(remote_name).await?;
         }
-
-        // TODO : CSV
 
         Ok(())
     }
