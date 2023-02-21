@@ -91,7 +91,7 @@ fn basic2() {
     csv.apply_commit(&Commit::Transaction(tx.clone())).unwrap();
     let agenda = Agenda {
         height: 1,
-        author: keys[0].0.clone(), // Note that keys[0] is member-0001
+        author: keys[1].0.clone(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
     };
@@ -99,14 +99,14 @@ fn basic2() {
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {
         height: 1,
         agenda_hash: agenda.to_hash256(),
-        proof: keys
+        proof: keys[1..]
             .iter()
             .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
             .collect::<Vec<_>>(),
     }))
     .unwrap();
     let block_header = BlockHeader {
-        author: keys[0].0.clone(), // Note that keys[0] is member-0001
+        author: keys[1].0.clone(),
         prev_block_finalization_proof: genesis_info.genesis_proof,
         previous_hash: genesis_info.header.to_hash256(),
         height: 1,
@@ -115,7 +115,6 @@ fn basic2() {
             &csv.get_total_commits()[1..],
         ),
         repository_merkle_root: Hash256::zero(),
-        // Note that validator set here is from member-0001 to member-0009
         validator_set: reserved_state.get_validator_set().unwrap(),
         version: genesis_info.header.version,
     };
