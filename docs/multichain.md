@@ -88,7 +88,7 @@ interoperability for the DAO that uses Simperby.
 Also, considering that a Simperby chain has no contracts or business logic but
 is only capable of recording explicitly approved data, there is nothing to
 execute automatically on the Simperby side. That is, the multichain
-communication system **doesn't have to be bidrectional**. Things happening
+communication system **doesn't have to be bidirectional**. Things happening
 (finalized) in the settlement chain might be delivered to the Simperby chain in
 the same way (embedding a light client) but that's just pointless; there's
 nothing to programmatically respond to such events because Simperby does not

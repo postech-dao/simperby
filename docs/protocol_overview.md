@@ -246,7 +246,7 @@ agenda, and included directly by the proposer, ex officio.
 You might notice that the role of the consensus leader is very important in the
 Simperby governance.
 
-### Responsibiliy
+### Responsibility
 
 The leader should be **responsible**.
 
