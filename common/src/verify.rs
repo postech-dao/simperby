@@ -377,7 +377,7 @@ impl CommitSequenceVerifier {
                             Error::InvalidArgument(format!("invalid delegation: {e}"))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
-                            last_extra_agenda_timestamp: tx.transaction_data.timestamp,
+                            last_extra_agenda_timestamp: tx.data.timestamp,
                         };
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
@@ -386,7 +386,7 @@ impl CommitSequenceVerifier {
                             Error::InvalidArgument(format!("invalid undelegation: {e}"))
                         })?;
                         self.phase = Phase::ExtraAgendaTransaction {
-                            last_extra_agenda_timestamp: tx.transaction_data.timestamp,
+                            last_extra_agenda_timestamp: tx.data.timestamp,
                         };
                     }
                     ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
@@ -405,12 +405,12 @@ impl CommitSequenceVerifier {
                             Error::InvalidArgument(format!("invalid delegation: {e}"))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
-                        if tx.transaction_data.timestamp < *last_extra_agenda_timestamp {
+                        if tx.data.timestamp < *last_extra_agenda_timestamp {
                             return Err(Error::InvalidArgument(
-                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.transaction_data.timestamp)
+                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.data.timestamp)
                             ));
                         }
-                        *last_extra_agenda_timestamp = tx.transaction_data.timestamp;
+                        *last_extra_agenda_timestamp = tx.data.timestamp;
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
                         // Update reserved reserved_state by applying undelegation
@@ -418,12 +418,12 @@ impl CommitSequenceVerifier {
                             Error::InvalidArgument(format!("invalid undelegation: {e}"))
                         })?;
                         // Check if extra-agenda transactions are in chronological order
-                        if tx.transaction_data.timestamp < *last_extra_agenda_timestamp {
+                        if tx.data.timestamp < *last_extra_agenda_timestamp {
                             return Err(Error::InvalidArgument(
-                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.transaction_data.timestamp)
+                                format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.data.timestamp)
                             ));
                         }
-                        *last_extra_agenda_timestamp = tx.transaction_data.timestamp;
+                        *last_extra_agenda_timestamp = tx.data.timestamp;
                     }
                     ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }

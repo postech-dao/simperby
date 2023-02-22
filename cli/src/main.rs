@@ -125,7 +125,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Delegate(
                             TxDelegate {
-                                transaction_data: DelegationTransactionData {
+                                data: DelegationTransactionData {
                                     delegator: serde_spb::from_str(&delegator).map_err(|_| {
                                         eyre!("invalid delegator for a delegation transaction")
                                     })?,
@@ -151,7 +151,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Undelegate(
                             TxUndelegate {
-                                transaction_data: UndelegationTransactionData {
+                                data: UndelegationTransactionData {
                                     delegator: serde_spb::from_str(&delegator).map_err(|_| {
                                         eyre!("invalid delegator for an undelegation transaction")
                                     })?,

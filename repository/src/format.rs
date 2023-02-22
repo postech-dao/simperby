@@ -51,11 +51,11 @@ pub fn to_semantic_commit(
                 ExtraAgendaTransaction::Delegate(tx) => {
                     let delegator = reserved_state
                         .clone()
-                        .query_name(&tx.transaction_data.delegator)
+                        .query_name(&tx.data.delegator)
                         .ok_or_else(|| eyre!("delegator not found"))?;
                     let delegatee = reserved_state
                         .clone()
-                        .query_name(&tx.transaction_data.delegatee)
+                        .query_name(&tx.data.delegatee)
                         .ok_or_else(|| eyre!("delegatee not found"))?;
                     let title = format!(">tx-delegate: {delegator} to {delegatee}");
                     let diff = Diff::Reserved(Box::new(reserved_state.apply_delegate(tx).unwrap()));
@@ -64,7 +64,7 @@ pub fn to_semantic_commit(
                 ExtraAgendaTransaction::Undelegate(tx) => {
                     let delegator = reserved_state
                         .clone()
-                        .query_name(&tx.transaction_data.delegator)
+                        .query_name(&tx.data.delegator)
                         .ok_or_else(|| eyre!("delegator not found"))
                         .unwrap();
                     let title = format!(">tx-undelegate: {delegator}");
@@ -171,13 +171,13 @@ pub fn from_semantic_commit(
                             )
                         })?;
                         let tx_delegator = reserved_state
-                            .query_name(&tx.transaction_data.delegator)
+                            .query_name(&tx.data.delegator)
                             .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
                         if delegator != tx_delegator {
                             return Err(eyre!(
                                 "delegator mismatch: expected {}, got {}",
                                 delegator,
-                                tx.transaction_data.delegator
+                                tx.data.delegator
                             ));
                         }
                         let delegatee = captures.get(10).map(|m| m.as_str()).ok_or_else(|| {
@@ -187,13 +187,13 @@ pub fn from_semantic_commit(
                             )
                         })?;
                         let tx_delegatee = reserved_state
-                            .query_name(&tx.transaction_data.delegatee)
+                            .query_name(&tx.data.delegatee)
                             .ok_or_else(|| eyre!("delegatee not found from the reserved state"))?;
                         if delegatee != tx_delegatee {
                             return Err(eyre!(
                                 "delegatee mismatch: expected {}, got {}",
                                 delegatee,
-                                tx.transaction_data.delegatee
+                                tx.data.delegatee
                             ));
                         }
                     }
@@ -205,13 +205,13 @@ pub fn from_semantic_commit(
                             )
                         })?;
                         let tx_delegator = reserved_state
-                            .query_name(&tx.transaction_data.delegator)
+                            .query_name(&tx.data.delegator)
                             .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
                         if delegator != tx_delegator {
                             return Err(eyre!(
                                 "delegator mismatch: expected {}, got {}",
                                 delegator,
-                                tx.transaction_data.delegator
+                                tx.data.delegator
                             ));
                         }
                     }
@@ -373,7 +373,7 @@ mod tests {
         };
         let delegation_transaction =
             Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Delegate(TxDelegate {
-                transaction_data: delegation_transaction_data.clone(),
+                data: delegation_transaction_data.clone(),
                 proof: TypedSignature::sign(&delegation_transaction_data, &keys[0].1).unwrap(),
             }));
         assert_eq!(
@@ -399,7 +399,7 @@ mod tests {
         };
         let undelegation_transaction =
             Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Undelegate(TxUndelegate {
-                transaction_data: undelegation_transaction_data.clone(),
+                data: undelegation_transaction_data.clone(),
                 proof: TypedSignature::sign(&undelegation_transaction_data, &keys[0].1).unwrap(),
             }));
         assert_eq!(
