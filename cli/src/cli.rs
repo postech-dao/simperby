@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use simperby_node::simperby_common::BlockHeight;
 
 /**
 Welcome to the Simperby CLI!
@@ -20,11 +21,16 @@ pub enum CreateCommands {
         delegatee: String,
         /// Whether to delegate the governance voting power too.
         governance: bool,
+        block_height: BlockHeight,
         proof: String,
     },
     /// An extra-agenda transaction that undelegates the consensus voting power and
     /// the governance voting power (if delegated).
-    TxUndelegate { delegator: String, proof: String },
+    TxUndelegate {
+        delegator: String,
+        block_height: BlockHeight,
+        proof: String,
+    },
     /// An extra-agenda transaction that reports a misbehaving validator.
     TxReport, // TODO
     /// A block waiting for finalization.

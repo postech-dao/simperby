@@ -51,6 +51,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     .map_err(|_| eyre!("invalid delegatee for a delegation transaction"))?,
                 governance,
                 block_height: target_height,
+                timestamp: get_timestamp(),
             };
             println!(
                 "{:?}",
@@ -67,6 +68,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             let undelegation_transaction_data = UndelegationTransactionData {
                 delegator: config.public_key,
                 block_height: target_height,
+                timestamp: get_timestamp(),
             };
             println!(
                 "{:?}",
@@ -117,37 +119,48 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     delegator,
                     delegatee,
                     governance,
+                    block_height,
                     proof,
                 }) => {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Delegate(
                             TxDelegate {
-                                delegator: serde_spb::from_str(&delegator).map_err(|_| {
-                                    eyre!("invalid delegator for a delegation transaction")
-                                })?,
-                                delegatee: serde_spb::from_str(&delegatee).map_err(|_| {
-                                    eyre!("invalid delegatee for a delegation transaction")
-                                })?,
-                                governance,
+                                transaction_data: DelegationTransactionData {
+                                    delegator: serde_spb::from_str(&delegator).map_err(|_| {
+                                        eyre!("invalid delegator for a delegation transaction")
+                                    })?,
+                                    delegatee: serde_spb::from_str(&delegatee).map_err(|_| {
+                                        eyre!("invalid delegatee for a delegation transaction")
+                                    })?,
+                                    governance,
+                                    block_height,
+                                    timestamp: get_timestamp(),
+                                },
                                 proof: serde_spb::from_str(&proof).map_err(|_| {
                                     eyre!("invalid proof for a delegation transaction")
                                 })?,
-                                timestamp: get_timestamp(),
                             },
                         ))
                         .await?;
                 }
-                Commands::Create(CreateCommands::TxUndelegate { delegator, proof }) => {
+                Commands::Create(CreateCommands::TxUndelegate {
+                    delegator,
+                    block_height,
+                    proof,
+                }) => {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Undelegate(
                             TxUndelegate {
-                                delegator: serde_spb::from_str(&delegator).map_err(|_| {
-                                    eyre!("invalid delegator for an undelegation transaction")
-                                })?,
+                                transaction_data: UndelegationTransactionData {
+                                    delegator: serde_spb::from_str(&delegator).map_err(|_| {
+                                        eyre!("invalid delegator for an undelegation transaction")
+                                    })?,
+                                    block_height,
+                                    timestamp: get_timestamp(),
+                                },
                                 proof: serde_spb::from_str(&proof).map_err(|_| {
                                     eyre!("invalid proof for an undelegation transaction")
                                 })?,
-                                timestamp: get_timestamp(),
                             },
                         ))
                         .await?;
