@@ -73,7 +73,7 @@ fn basic2() {
     setup_test();
     let member_number = 10;
     let (reserved_state, keys): (ReservedState, Vec<(PublicKey, PrivateKey)>) =
-        test_utils::generate_delegated_genesis(member_number);
+        test_utils::generate_delegated_genesis(member_number, true);
     let genesis_info = reserved_state.genesis_info.clone();
     let genesis_header = reserved_state.genesis_info.header.clone();
 
