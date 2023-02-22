@@ -68,14 +68,18 @@ pub fn generate_standard_genesis(
 
 /// Generates a standard test chain config returning the genesis reserved-state
 /// and the associated key pairs of the members.
+///
+/// member-0000 delegates to member-0002 for governance and consensus if `governance` is true and
+/// member-0000 delegates to member-0002 for consensus only if `governance` is false.
 pub fn generate_delegated_genesis(
     member_number: usize,
+    governance: bool,
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {
     let keys = (0..member_number)
         .into_iter()
         .map(|i| generate_keypair(format!("{i}")))
         .collect::<Vec<_>>();
-    // member-0000 delegates to member-0002 both for governance and consensus
+    // member-0000 delegates to member-0002
     let members = keys
         .iter()
         .enumerate()
@@ -85,7 +89,7 @@ pub fn generate_delegated_genesis(
             name: format!("member-{i:04}"),
             governance_voting_power: 1,
             consensus_voting_power: 1,
-            governance_delegatee: if i == 0 {
+            governance_delegatee: if i == 0 && governance {
                 Some("member-0002".into())
             } else {
                 None
