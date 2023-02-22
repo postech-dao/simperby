@@ -115,19 +115,14 @@ pub enum ExtraAgendaTransaction {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TxDelegate {
-    pub delegator: PublicKey,
-    pub delegatee: PublicKey,
-    /// Whether to delegate the governance voting power too.
-    pub governance: bool,
+    pub transaction_data: DelegationTransactionData,
     pub proof: TypedSignature<DelegationTransactionData>,
-    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TxUndelegate {
-    pub delegator: PublicKey,
+    pub transaction_data: UndelegationTransactionData,
     pub proof: TypedSignature<UndelegationTransactionData>,
-    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -139,14 +134,17 @@ pub struct TxReport {
 pub struct DelegationTransactionData {
     pub delegator: PublicKey,
     pub delegatee: PublicKey,
+    /// Whether to delegate the governance voting power too.
     pub governance: bool,
     pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct UndelegationTransactionData {
     pub delegator: PublicKey,
     pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
