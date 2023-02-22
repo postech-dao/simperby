@@ -115,13 +115,13 @@ pub enum ExtraAgendaTransaction {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TxDelegate {
-    pub transaction_data: DelegationTransactionData,
+    pub data: DelegationTransactionData,
     pub proof: TypedSignature<DelegationTransactionData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TxUndelegate {
-    pub transaction_data: UndelegationTransactionData,
+    pub data: UndelegationTransactionData,
     pub proof: TypedSignature<UndelegationTransactionData>,
 }
 
