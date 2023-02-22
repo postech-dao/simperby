@@ -1,56 +1,36 @@
 # Simperby
 
-A simple, permissioned, and BFT blockchain for decentralized organizations.
-
-## TL;DR
-
-Simperby is a blockchain engine that provides
-
-1. **Consensus**: a safe and live mechanism to finalize the state of
-  the organization, which is tolerant to byzantine faults.
-2. **Governance**: a democratic mechanism to make decisions on the organization,
-  which can be finalized by the consensus.
-3. **Communication Channel**: a mechanism to communicate with each other
-  in a decentralized, verifiable, fault-tolerant way.
-4. **Git Repository**: a distributed Git repository that every member can
-  fetch and verify, and also can push commits with governance approval.
-
-Also, Simperby is provided as an **extremely lightweight CLI** software.
-It *does NOT run in the background*.
-All the operations except `simperby run` and `simperby serve`
-are done *synchronously and explicitly*
-(i.e. performs the given operation and returns the result immediately).
-
-## DAO
-
-Simperby is the best solution for **decentralized organizations**
-which is required to be
-
-1. Completely Standalone, Sovereign and Self-hosted
-2. Governed by Permissioned Members
-3. Decentralized and Distributed
-4. Safe and Fault Tolerant
-5. Verifiable and Transparent
-
-If you build a chain with Simperby, it instantly becomes **a DAO**,
-as it functions as a
-
-1. Standalone P2P Communication Channel
-2. Governance Platform
-3. Solid Consensus and Finality Machine
-4. Multichain Interoperability
-5. Immutable, Verifiable, and Distributed Storage as a Git Repository
+The ultimate BFT blockchain engine for decentralized organizations with powerful
+trustless interoperability.
 
 ## Documentations
 
-- [Simperby Super Simple Summary](docs/ssss.md)
+### Summary
+
+- **READ THIS FIRST:** [Simperby Super Simple Summary](docs/ssss.md)
+
+### Introduction
+
+- [Why DAO? (WIP)](docs/dao.md)
+- [Simperby: the DAO Spaceship for Multichain Journey](docs/multichain.md)
+- [Simperby: Comparison to other DAO Solutions (WIP)](docs/comparison.md)
+- [Simperby FAQ (WIP)](docs/faq.md)
+
+### Technology
+
 - [Protocol Overview](docs/protocol_overview.md)
 - [Simperby: the Git-based Blockchain](docs/git.md)
-- [Simperby: the DAO Spaceship for Multichain Journey](docs/multichain.md)
-- [Simperby: Comparison to other DAO Solutions](docs/comparison.md)
 - [Vetomint: the BFT Consensus Protocol for Simperby](docs/vetomint.md)
-- [Simperby FAQ](docs/faq.md)
-- [Simperby User Manual](docs/manual.md)
+
+### Development
+
+- [Simperby Development Guide](docs/dev.md)
+- [Rust SDK (WIP)](./README.md)
+- [Good First Issues (WIP)](./README.md)
+
+### User Manual
+
+- [Simperby User Manual (WIP)](docs/manual.md)
 
 ## License
 
@@ -58,8 +38,6 @@ This project is licensed under the [MIT license](./LICENSE).
 
 ### Contribution
 
-See [DEV-GUIDE.md](./DEV-GUIDE.md).
-
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Simperby by you, shall be licensed as MIT,
-without any additional terms or conditions.
+for inclusion in Simperby by you, shall be licensed as MIT, without any
+additional terms or conditions.
