@@ -786,38 +786,8 @@ impl<T: RawRepository> DistributedRepository<T> {
             ));
         }
 
-        // Construct a commit list starting from the next commit of the last finalized block to the `branch_commit`(the most recent commit of the branch)
-        let ancestor_commits = self.raw.list_ancestors(work_commit, Some(256)).await?;
-        let position = ancestor_commits
-            .iter()
-            .position(|c| *c == last_header_commit)
-            .expect("TODO: handle the case where it exceeds the limit.");
-        let commits = stream::iter(ancestor_commits.iter().take(position).rev().cloned().map(
-            |c| {
-                let raw = &self.raw;
-                async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
-            },
-        ))
-        .buffered(256)
-        .collect::<Vec<_>>()
-        .await;
-        let mut commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
-        // Add most recent commit of the branch to the list since it is not included in the ancestor commits
-        commits.push((
-            self.raw.read_semantic_commit(work_commit).await?,
-            work_commit,
-        ));
-        let commits = commits
-            .into_iter()
-            .map(|(commit, hash)| {
-                from_semantic_commit(commit, reserved_state.clone())
-                    .map_err(|e| (e, hash))
-                    .map(|x| (x, hash))
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|(error, hash)| eyre!("failed to convert the commit {}: {}", hash, error))?;
-
         // Check the validity of the commit sequence
+        let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| eyre!("verification error on commit {}: {}", last_header_commit, e))?;
