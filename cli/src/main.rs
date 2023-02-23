@@ -4,6 +4,7 @@ mod genesis;
 use clap::Parser;
 use cli::*;
 use eyre::{eyre, Result};
+use simperby_common::utils::get_timestamp;
 use simperby_node::{
     clone, genesis, initialize, serve, simperby_common::*, simperby_repository::CommitHash,
     CommitInfo, Config,
@@ -16,12 +17,6 @@ fn to_commit_hash(s: &str) -> Result<CommitHash> {
         .try_into()
         .map_err(|_| eyre!("a hash must be in 20 bytes"))?;
     Ok(CommitHash { hash })
-}
-
-fn get_timestamp() -> Timestamp {
-    let now = std::time::SystemTime::now();
-    let since_the_epoch = now.duration_since(std::time::UNIX_EPOCH).unwrap();
-    since_the_epoch.as_millis() as Timestamp
 }
 
 async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {

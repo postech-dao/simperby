@@ -1,5 +1,6 @@
 use super::*;
 use eyre::eyre;
+use simperby_common::utils::get_timestamp;
 use simperby_consensus::{Consensus, ConsensusParameters, ProgressResult};
 use simperby_network::primitives::{GossipNetwork, Storage};
 use simperby_network::NetworkConfig;
@@ -7,13 +8,6 @@ use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
 use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
 use simperby_repository::{DistributedRepository, WORK_BRANCH_NAME};
 use std::collections::HashMap;
-
-fn get_timestamp() -> Timestamp {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as Timestamp
-}
 
 pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
     config: Config,

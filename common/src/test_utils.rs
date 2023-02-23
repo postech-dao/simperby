@@ -1,13 +1,5 @@
 use crate::*;
 
-/// Generates a timestamp in the same as the node does.
-pub fn get_timestamp() -> Timestamp {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as Timestamp
-}
-
 /// Generates a standard test chain config returning the genesis reserved-state
 /// and the associated key pairs of the members.
 pub fn generate_standard_genesis(
