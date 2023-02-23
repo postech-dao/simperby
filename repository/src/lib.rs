@@ -508,7 +508,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commits = utils::read_commits(self, finalized_commit_hash, agenda_commit_hash).await?;
         let mut verifier =
             CommitSequenceVerifier::new(finalized_header.clone(), reserved_state.clone())
-                .map_err(|e| eyre!("failed to create a verifier: {}", e))?;
+                .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
@@ -690,7 +690,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
         let reserved_state = self.get_reserved_state().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
-            .map_err(|e| eyre!("verification error on commit {}: {}", last_header_commit, e))?;
+            .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
@@ -790,7 +790,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
-            .map_err(|e| eyre!("verification error on commit {}: {}", last_header_commit, e))?;
+            .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
             verifier
                 .apply_commit(commit)
