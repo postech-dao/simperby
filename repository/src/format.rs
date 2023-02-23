@@ -4,10 +4,6 @@ use regex::Regex;
 use simperby_common::{reserved::ReservedState, *};
 
 /// Converts a commit to a semantic commit.
-///
-/// Note that extra-agenda transaction commit only requires `last_header` and `reserved_state`
-/// since other commits include height in the commit itself and `diff` of the `reserved_state`
-/// is not required.
 pub fn to_semantic_commit(
     commit: &Commit,
     mut reserved_state: ReservedState,
