@@ -113,7 +113,7 @@ enum Phase {
     Block,
 }
 
-/// Verifies whether the given sequence of commits can be agenda subset of agenda finalized chain.
+/// Verifies whether the given sequence of commits can be a partial sequence of a valid finalized chain.
 ///
 /// It may accept sequences that contain more than one `BlockHeader`.
 #[derive(Debug, Clone)]
