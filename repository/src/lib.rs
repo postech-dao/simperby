@@ -593,20 +593,13 @@ impl<T: RawRepository> DistributedRepository<T> {
                 .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
 
-        // Check whether the commit sequence is in the transaction phase.
+        // Create agenda commit
         let mut transactions = Vec::new();
-
         for (commit, _) in commits {
             if let Commit::Transaction(t) = commit {
                 transactions.push(t.clone());
-            } else {
-                return Err(eyre!(
-                    "branch {} is not in the transaction phase",
-                    WORK_BRANCH_NAME
-                ));
             }
         }
-
         let agenda = Agenda {
             author,
             timestamp: get_timestamp(),
@@ -614,6 +607,10 @@ impl<T: RawRepository> DistributedRepository<T> {
             height: last_header.height + 1,
         };
         let agenda_commit = Commit::Agenda(agenda.clone());
+        verifier.apply_commit(&agenda_commit).map_err(|_| {
+            eyre!("agenda commit cannot be created on top of the current commit sequence")
+        })?;
+
         let semantic_commit = to_semantic_commit(&agenda_commit, reserved_state)?;
 
         self.raw.checkout_clean().await?;
@@ -697,37 +694,6 @@ impl<T: RawRepository> DistributedRepository<T> {
                 .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
 
-        // Check whether the commit sequence is in the agenda proof phase or
-        // extra-agenda transaction phase.
-        // TODO: WHAT THE FUCK ARE YOU DOING HERE???
-        let (last_commit, _) = commits
-            .last()
-            .ok_or_else(|| eyre!("branch doesn't contain any commit"))?
-            .clone();
-        match last_commit {
-            Commit::AgendaProof(_) => (),
-            Commit::ExtraAgendaTransaction(_) => (),
-            x => return Err(eyre!("a block can't be made on top of a commit {:?}", x)),
-        }
-
-        let mut transactions = Vec::new();
-
-        for (commit, _) in commits.clone() {
-            match commit {
-                Commit::Transaction(t) => transactions.push(t.clone()),
-                Commit::Agenda(_) => {}
-                Commit::AgendaProof(_) => {}
-                Commit::ExtraAgendaTransaction(_) => {}
-                Commit::ChatLog(_) => {}
-                _ => {
-                    return Err(eyre!(
-                    "branch {} is not in the agenda proof phase or extra-agenda transaction phase",
-                    WORK_BRANCH_NAME
-                ))
-                }
-            }
-        }
-
         // Verify `finalization_proof`
         let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
         let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
@@ -751,6 +717,10 @@ impl<T: RawRepository> DistributedRepository<T> {
             version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
         };
         let block_commit = Commit::Block(block_header.clone());
+        verifier.apply_commit(&block_commit).map_err(|_| {
+            eyre!("block commit cannot be created on top of the current commit sequence")
+        })?;
+
         let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
 
         self.raw.checkout_clean().await?;
@@ -797,22 +767,12 @@ impl<T: RawRepository> DistributedRepository<T> {
                 .map_err(|e| eyre!("verification error on commit {}: {}", hash, e))?;
         }
 
-        // Check whether the commit sequence is in agenda proof phase or extra-agenda transaction phase
-        let (last_commit, _) = commits
-            .last()
-            .ok_or_else(|| eyre!("work branch does not contain any commit"))?;
-        match last_commit {
-            Commit::AgendaProof(_) => {}
-            Commit::ExtraAgendaTransaction(_) => {}
-            x => {
-                return Err(eyre!(
-                    "an extra-agenda transaction commit cannot be created on top of a commit of type {:?}",
-                    x
-                ))
-            }
-        }
-
         let extra_agenda_tx_commit = Commit::ExtraAgendaTransaction(transaction.clone());
+        verifier.apply_commit(&extra_agenda_tx_commit).map_err(|_| {
+            eyre!(
+                "extra-agenda transaction commit cannot be created on top of the current commit sequence"
+            )
+        })?;
 
         let semantic_commit = to_semantic_commit(&extra_agenda_tx_commit, reserved_state)?;
 
