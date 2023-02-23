@@ -121,7 +121,7 @@ pub struct CommitSequenceVerifier {
     header: BlockHeader,
     phase: Phase,
     reserved_state: ReservedState,
-    next_block_commits: Vec<Commit>,
+    commits_for_next_block: Vec<Commit>,
     total_commits: Vec<Commit>,
 }
 
@@ -132,7 +132,7 @@ impl CommitSequenceVerifier {
             header: start_header.clone(),
             phase: Phase::Block,
             reserved_state,
-            next_block_commits: vec![],
+            commits_for_next_block: vec![],
             total_commits: vec![Commit::Block(start_header)],
         })
     }
@@ -184,7 +184,7 @@ impl CommitSequenceVerifier {
                 verify_header_to_header(&self.header, block_header)?;
                 // Verify commit merkle root
                 let commit_merkle_root =
-                    BlockHeader::calculate_commit_merkle_root(&self.next_block_commits);
+                    BlockHeader::calculate_commit_merkle_root(&self.commits_for_next_block);
                 if commit_merkle_root != block_header.commit_merkle_root {
                     return Err(Error::InvalidArgument(format!(
                         "invalid commit merkle root: expected {}, got {}",
@@ -193,7 +193,7 @@ impl CommitSequenceVerifier {
                 };
                 self.header = block_header.clone();
                 self.phase = Phase::Block;
-                self.next_block_commits = vec![];
+                self.commits_for_next_block = vec![];
             }
             (
                 Commit::Block(block_header),
@@ -211,7 +211,7 @@ impl CommitSequenceVerifier {
                 }
                 // Verify commit hash
                 let commit_merkle_root =
-                    BlockHeader::calculate_commit_merkle_root(&self.next_block_commits);
+                    BlockHeader::calculate_commit_merkle_root(&self.commits_for_next_block);
                 if commit_merkle_root != block_header.commit_merkle_root {
                     return Err(Error::InvalidArgument(format!(
                         "invalid commit merkle root: expected {}, got {}",
@@ -220,7 +220,7 @@ impl CommitSequenceVerifier {
                 };
                 self.header = block_header.clone();
                 self.phase = Phase::Block;
-                self.next_block_commits = vec![];
+                self.commits_for_next_block = vec![];
             }
             (Commit::Transaction(tx), Phase::Block) => {
                 // Update reserved_state for reserved-diff transactions.
@@ -435,7 +435,7 @@ impl CommitSequenceVerifier {
                 ));
             }
         }
-        self.next_block_commits.push(commit.clone());
+        self.commits_for_next_block.push(commit.clone());
         self.total_commits.push(commit.clone());
         Ok(())
     }
@@ -787,7 +787,9 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 2,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &csv.commits_for_next_block,
+            ),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -828,7 +830,9 @@ mod test {
             previous_hash: Hash256::zero(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &csv.commits_for_next_block,
+            ),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -869,7 +873,9 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &csv.commits_for_next_block,
+            ),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -910,7 +916,9 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: -1,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &csv.commits_for_next_block,
+            ),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
@@ -998,7 +1006,9 @@ mod test {
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
-            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(&csv.next_block_commits),
+            commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+                &csv.commits_for_next_block,
+            ),
             repository_merkle_root: Hash256::zero(),
             validator_set: validator_keypair
                 .iter()
