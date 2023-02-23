@@ -1,7 +1,7 @@
 use crate::reserved::ReservedState;
 use crate::*;
-use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -63,8 +63,7 @@ pub fn verify_finalization_proof(
     block_finalization_proof: &FinalizationProof,
 ) -> Result<(), Error> {
     let total_voting_power: VotingPower = header.validator_set.iter().map(|(_, v)| v).sum();
-    // TODO: change to `HashSet` after `PublicKey` supports `Hash`.
-    let mut voted_validators = BTreeSet::new();
+    let mut voted_validators = HashSet::new();
     for signature in block_finalization_proof {
         signature
             .verify(header)
