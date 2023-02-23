@@ -6,6 +6,7 @@ pub mod reserved;
 pub mod serde_spb;
 pub mod test_utils;
 pub mod types;
+pub mod utils;
 pub mod verify;
 
 pub use crypto::*;

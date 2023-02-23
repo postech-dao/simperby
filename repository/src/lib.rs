@@ -12,6 +12,7 @@ use log::{info, warn};
 use raw::RawRepository;
 use serde::{Deserialize, Serialize};
 use simperby_common::reserved::ReservedState;
+use simperby_common::utils::get_timestamp;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
@@ -103,12 +104,6 @@ pub struct DistributedRepository<T> {
     raw: T,
     config: Config,
     peers: SharedKnownPeers,
-}
-
-fn get_timestamp() -> Timestamp {
-    let now = std::time::SystemTime::now();
-    let since_the_epoch = now.duration_since(std::time::UNIX_EPOCH).unwrap();
-    since_the_epoch.as_millis() as Timestamp
 }
 
 impl<T: RawRepository> DistributedRepository<T> {
