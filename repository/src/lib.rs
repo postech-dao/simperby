@@ -11,9 +11,9 @@ use futures::prelude::*;
 use log::{info, warn};
 use raw::RawRepository;
 use serde::{Deserialize, Serialize};
-use simperby_common::reserved::ReservedState;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
+use simperby_common::{reserved::ReservedState, verify::verify_finalization_proof};
 use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
 use std::{collections::HashSet, fmt};
 use utils::{read_commits, retrieve_local_branches};
@@ -304,13 +304,175 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Checks the validity of the repository, starting from the given height.
     ///
     /// It checks
-    /// 1. all the reserved branches and tags
-    /// 2. the finalization proof in the `fp` branch.
-    /// 3. the existence of merge commits
-    /// 4. the canonical history of the `finalized` branch.
+    /// 1. all the reserved branches and tags,
+    /// 2. the finalization proof in the `fp` branch,
+    /// 3. the existence of merge commits,
+    /// 4. the canonical history of the `finalized` branch,
     /// 5. the reserved state in a valid format.
-    pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
-        unimplemented!()
+    pub async fn check(&self, starting_height: BlockHeight) -> Result<bool, Error> {
+        let last_header = self.get_last_finalized_block_header().await?;
+        if last_header.height < starting_height {
+            return Err(eyre!(
+                "starting height {} is higher than the last finalized block height {}",
+                starting_height,
+                last_header.height
+            ));
+        }
+
+        // Construct a commit list starting from the block commit of the `starting_height`
+        // to the `last_commit_hash`(the most recent commit of the `finalized` branch)
+        let inital_commit_hash = self.raw.get_initial_commit().await?;
+        let last_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let all_commits = read_commits(self, inital_commit_hash, last_commit_hash).await?;
+        let starting_block_commit_position = all_commits
+            .iter()
+            .position(|(commit, _)| {
+                if let Commit::Block(block_header) = commit {
+                    block_header.height == starting_height
+                } else {
+                    false
+                }
+            })
+            .ok_or_else(|| {
+                eyre!(IntegrityError {
+                    msg: format!("cannot find the commit of the block at height {starting_height}")
+                })
+            })?;
+        let commits = all_commits
+            .into_iter()
+            .skip(starting_block_commit_position)
+            .collect::<Vec<_>>();
+
+        // Check the existence of merge commits
+        if self
+            .raw
+            .find_merge_base(inital_commit_hash, last_commit_hash)
+            .await?
+            != last_commit_hash
+        {
+            return Ok(false);
+        }
+
+        // TODO: Get the reserved state of the `starting_height` block and verify
+        // to check the canonical history of the `finalized` branch.
+        // Note that whether the reserved state in a valid format is also checked
+        // by the `CommitSequenceVerifier`. (See #166)
+        let starting_block_header = match &commits[0].0 {
+            Commit::Block(block_header) => block_header.clone(),
+            _ => {
+                panic!("has been checked to be a block commit")
+            }
+        };
+        let reserved_state = self.get_reserved_state().await?; // TODO: get the reserved state of the `starting_height` block
+        let mut verifier =
+            CommitSequenceVerifier::new(starting_block_header.clone(), reserved_state)
+                .map_err(|e| eyre!("failed to create a CommitSequenceVerifier: {}", e))?;
+        for (commit, commit_hash) in &commits {
+            // Check all the reserved branches
+            let branches = self.raw.get_branches(*commit_hash).await?;
+            for branch in branches {
+                match commit {
+                    Commit::Agenda(_) => {
+                        if branch
+                            != format!(
+                                "a-{:?}",
+                                commit
+                                    .to_hash256()
+                                    .to_string()
+                                    .truncate(BRANCH_NAME_HASH_DIGITS)
+                            )
+                        {
+                            return Ok(false);
+                        }
+                    }
+                    Commit::AgendaProof(_) => {
+                        if branch
+                            != format!(
+                                "a-{:?}",
+                                commit
+                                    .to_hash256()
+                                    .to_string()
+                                    .truncate(BRANCH_NAME_HASH_DIGITS)
+                            )
+                        {
+                            return Ok(false);
+                        }
+                    }
+                    Commit::Block(_) => {
+                        if branch
+                            != format!(
+                                "b-{:?}",
+                                commit
+                                    .to_hash256()
+                                    .to_string()
+                                    .truncate(BRANCH_NAME_HASH_DIGITS)
+                            )
+                        {
+                            return Ok(false);
+                        }
+                    }
+                    _ => {
+                        return Ok(false);
+                    }
+                }
+            }
+
+            // Check all the reserved tags
+            let tags = self.raw.get_tag(*commit_hash).await?;
+            for tag in tags {
+                match commit {
+                    Commit::Agenda(_) => {
+                        if tag
+                            != format!(
+                                "vote-{:?}",
+                                commit
+                                    .to_hash256()
+                                    .to_string()
+                                    .truncate(TAG_NAME_HASH_DIGITS)
+                            )
+                        {
+                            return Ok(false);
+                        }
+                    }
+                    Commit::Block(_) => {
+                        if tag
+                            != format!(
+                                "veto-{:?}",
+                                commit
+                                    .to_hash256()
+                                    .to_string()
+                                    .truncate(TAG_NAME_HASH_DIGITS)
+                            )
+                        {
+                            return Ok(false);
+                        }
+                    }
+                    _ => {
+                        return Ok(false);
+                    }
+                }
+            }
+
+            // Check the finalization proof in the `fp` branch
+            let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
+            let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
+            let last_finalization_proof = fp_from_semantic_commit(fp_semantic_commit)?;
+            if last_finalization_proof.height != last_header.height {
+                return Ok(false);
+            }
+            if verify_finalization_proof(&last_header, &last_finalization_proof.proof).is_err() {
+                return Ok(false);
+            }
+
+            // Check the canonical history of the `finalized` branch
+            if verifier.apply_commit(commit).is_err() {
+                return Ok(false);
+            }
+
+            // TODO: Check the reserved state in a valid format. (See #335)
+        }
+
+        Ok(true)
     }
 
     /// Synchronizes the `finalized` branch to the given commit.
