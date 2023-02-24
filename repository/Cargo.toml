@@ -20,11 +20,9 @@ url = "2.0"
 regex = "1.7.0"
 path-slash = "0.2.1"
 hex = "0.4.3"
+clap = { version = "4.0", features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.8.5"
 path-slash = "0.2.1"
 simperby-test-suite = { path = "../test-suite" }
-
-[dependencies.libgit2-sys]
-version = "0.14.0"

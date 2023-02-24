@@ -35,6 +35,12 @@ pub struct CommitHash {
     pub hash: [u8; 20],
 }
 
+impl ToHash256 for CommitHash {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(self.hash)
+    }
+}
+
 impl Serialize for CommitHash {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -216,6 +222,30 @@ impl DistributedRepository {
     /// Returns the list of `(branch name, result of sync())`.
     pub async fn sync_all(&mut self) -> Result<Vec<(String, Result<(), String>)>, Error> {
         sync_all(&mut *self.raw.write().await).await
+    }
+
+    /// Tests if the given push request is acceptable.
+    pub async fn test_push_eligibility(
+        &self,
+        commit_hash: CommitHash,
+        branch_name: String,
+        timestamp: Timestamp,
+        signature: TypedSignature<(CommitHash, String, Timestamp)>,
+        _timestamp_to_test: Timestamp,
+    ) -> Result<bool, Error> {
+        let reserved_state = self.get_reserved_state().await?;
+        // TODO: elaborate this to consider `Member::expelled`.
+        let is_eligible = reserved_state
+            .members
+            .iter()
+            .any(|member| member.public_key == *signature.signer());
+        let is_eligible = is_eligible
+            && signature
+                .verify(&(commit_hash, branch_name, timestamp))
+                .is_ok();
+        // TODO: put the threshold in the config.
+        // let is_eligible = is_eligible && (timestamp_to_test - timestamp).abs() <= 1000;
+        Ok(is_eligible)
     }
 
     /// Cleans all the outdated commits, remote repositories and branches.
