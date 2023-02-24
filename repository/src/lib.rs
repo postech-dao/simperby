@@ -267,6 +267,98 @@ impl DistributedRepository {
         clean(&mut *self.raw.write().await, hard).await
     }
 
+    /// Broadcasts all the local messages.
+    pub async fn broadcast(&mut self) -> Result<(), Error> {
+        utils::add_remotes(self, &self.peers.read().await).await?;
+        let agendas = self.get_agendas().await?;
+        let blocks = self.get_blocks().await?;
+        let remotes = self.raw.list_remotes().await?;
+
+        for (remote_name, _) in remotes {
+            for &(commit_hash, _) in &agendas {
+                let timestamp = get_timestamp();
+                let branch = &commit_hash
+                    .to_hash256()
+                    .aggregate(&timestamp.to_hash256())
+                    .to_string()[0..BRANCH_NAME_HASH_DIGITS];
+                let signature = TypedSignature::sign(
+                    &(commit_hash, branch.to_owned(), timestamp as u64),
+                    self.private_key.as_ref().unwrap(),
+                )?;
+                let signer = serde_spb::to_string(signature.signer())?.replace("\"", "\\\"");
+                let signature =
+                    serde_spb::to_string(&signature.get_raw_signature())?.replace("\"", "\\\"");
+
+                self.raw.create_branch(branch.into(), commit_hash).await?;
+                self.raw
+                    .push_option(
+                        remote_name.clone(),
+                        branch.into(),
+                        Some(format!(
+                            "{commit_hash} {branch} {timestamp} {signature} {signer}"
+                        )),
+                    )
+                    .await?;
+                self.raw.delete_branch(branch.into()).await?;
+            }
+
+            for &(commit_hash, _) in &blocks {
+                let timestamp = get_timestamp();
+                let branch = &commit_hash
+                    .to_hash256()
+                    .aggregate(&timestamp.to_hash256())
+                    .to_string()[0..BRANCH_NAME_HASH_DIGITS];
+                let signature = TypedSignature::sign(
+                    &(commit_hash, branch.to_owned(), timestamp as u64),
+                    self.private_key.as_ref().unwrap(),
+                )?;
+                let signer = serde_spb::to_string(signature.signer())?.replace("\"", "\\\"");
+                let signature =
+                    serde_spb::to_string(&signature.get_raw_signature())?.replace("\"", "\\\"");
+
+                self.raw.create_branch(branch.into(), commit_hash).await?;
+                self.raw
+                    .push_option(
+                        remote_name.clone(),
+                        branch.into(),
+                        Some(format!(
+                            "{commit_hash} {branch} {timestamp} {signature} {signer}"
+                        )),
+                    )
+                    .await?;
+                self.raw.delete_branch(branch.into()).await?;
+            }
+
+            // Push fp and finalized branch.
+            let commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
+            let timestamp = get_timestamp();
+            let branch = &commit_hash
+                .to_hash256()
+                .aggregate(&timestamp.to_hash256())
+                .to_string()[0..BRANCH_NAME_HASH_DIGITS];
+            let signature = TypedSignature::sign(
+                &(commit_hash, branch.to_owned(), timestamp as u64),
+                self.private_key.as_ref().unwrap(),
+            )?;
+            let signer = serde_spb::to_string(signature.signer())?.replace("\"", "\\\"");
+            let signature =
+                serde_spb::to_string(&signature.get_raw_signature())?.replace("\"", "\\\"");
+
+            self.raw.create_branch(branch.into(), commit_hash).await?;
+            self.raw
+                .push_option(
+                    remote_name.clone(),
+                    branch.into(),
+                    Some(format!(
+                        "{commit_hash} {branch} {timestamp} {signature} {signer}"
+                    )),
+                )
+                .await?;
+            self.raw.delete_branch(branch.into()).await?;
+        }
+        Ok(())
+    }
+
     // ---------------
     // DMS-related operations
     // ---------------
