@@ -4,15 +4,11 @@ value="$GIT_PUSH_OPTION_0"
 simperby_executable_path="$SIMPERBY_EXECUTABLE_PATH"
 simperby_root_path="$SIMPERBY_ROOT_PATH"
 
-#read oldRev newRev refname
-#branch="$(echo $refname | awk '{split($0,a,"/"); print a[3]}')"
-
 if [ "$push_option_count" -ne 1 ]; then
 	echo "The number of push options is not 1"
 	exit 1
 fi
 
-# Read the string into an array
 count="$(echo "$value" | awk '{print NF}')"
 if [ "$count" -ne 5 ]; then
     echo "The number of arguments to Cli is not 5"

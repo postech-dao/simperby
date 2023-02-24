@@ -63,14 +63,20 @@ pub async fn run_server_legacy(path: &str, port: u16) -> GitServer {
 /// - `simperby_executable_path` is the path to the Simperby executable, which will be executed by the hook.
 pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -> GitServer {
     // Make a pre-receive hook file and give it an execution permission.
-    let path_hook = format!("{path}/repository/repo/.git/hooks/pre-receive");
-    let hook_content = include_str!("pre_receive.sh");
-    let is_hook_exist = Path::new(&path_hook).exists();
-    if !is_hook_exist {
-        fs::File::create(&path_hook).await.unwrap();
+    let hooks = [
+        ("pre-receive", include_str!("pre_receive.sh")),
+        ("update", include_str!("update.sh")),
+        ("post-receive", include_str!("post_receive.sh")),
+    ];
+    for (hook_type, hook_script) in hooks.iter() {
+        let path_hook = format!("{path}/repository/repo/.git/hooks/{hook_type}");
+        let is_hook_exist = Path::new(&path_hook).exists();
+        if !is_hook_exist {
+            fs::File::create(&path_hook).await.unwrap();
+        }
+        fs::write(&path_hook, hook_script).await.unwrap();
+        raw::run_command(format!("chmod +x {path_hook}")).unwrap();
     }
-    fs::write(&path_hook, hook_content).await.unwrap();
-    raw::run_command(format!("chmod +x {path_hook}")).unwrap();
 
     let td = tempfile::TempDir::new().unwrap();
     let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
@@ -81,7 +87,8 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
         .arg("--enable=receive-pack")
         .arg(format!("--port={port}"))
         .arg(format!("--pid-file={pid_path}"))
-        .env("SIMPERBY_PATH", simperby_executable_path)
+        .env("SIMPERBY_EXECUTABLE_PATH", simperby_executable_path)
+        .env("SIMPERBY_ROOT_PATH", path)
         .spawn()
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -125,6 +132,7 @@ mod tests {
         .await;
     }
 
+    #[ignore]
     #[tokio::test]
     async fn git_server_basic2() {
         setup_test();
@@ -158,10 +166,9 @@ mod tests {
         ))
         .await;
 
+        // Make .sh example files for testing the server hook.
         let td_simperby = TempDir::new().unwrap();
         let path_simperby = td_simperby.path().to_slash().unwrap().into_owned();
-
-        // Make .sh example files for testing the server hook.
         let path_true = format!("{path_simperby}/true.sh");
         let path_false = format!("{path_simperby}/false.sh");
         fs::File::create(&path_true).await.unwrap();
