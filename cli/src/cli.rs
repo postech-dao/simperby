@@ -102,7 +102,7 @@ pub enum Commands {
     #[command(subcommand)]
     Create(CreateCommands),
     /// Vote on the agenda, broadcasting to the network.
-    /// It will also leave a `vote` tag on the commit that the given revision points to (with some postfix).
+    /// It will also leave a `vote` tag on the given commit (with some postfix).
     Vote { revision: String },
     /// Veto the round.
     ///
@@ -111,7 +111,7 @@ pub enum Commands {
     /// You can check whether the round is vetoed by running `consensus --show`.
     Veto {
         /// If specified, it vetoes a specific block proposal,
-        /// leaving a `veto` tag on the commit that the given revision points to (with some postfix).
+        /// leaving a `veto` tag on the given commit (with some postfix).
         /// It fails if the commit is already set to `proposal`.
         /// If the commit is already set to `veto`, it will be removed.
         revision: Option<String>,
@@ -132,7 +132,7 @@ pub enum Commands {
     // ----- Information Commands ----- //
     /// Print the information about the Git server that this node is hosting.
     Git,
-    /// Show the overall information of the commit that the given revision points to.
+    /// Show the overall information of the given commit.
     Show { revision: String },
     /// Show the current status of the p2p network.
     Network,
