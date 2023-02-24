@@ -201,7 +201,7 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         let branches = self.raw.list_branches().await?;
 
-        // delete outdated p branch, a-# branches, b-# branches
+        // Delete outdated p branch, a-# branches, b-# branches
         for branch in branches {
             if !(branch.as_str() == WORK_BRANCH_NAME
                 || branch.as_str() == FINALIZED_BRANCH_NAME
@@ -217,16 +217,31 @@ impl<T: RawRepository> DistributedRepository<T> {
                 {
                     self.raw.delete_branch(branch.to_string()).await?;
                 }
+
+                // Only accept csv acceptable branches
+                let reserved_state = self.get_reserved_state().await?;
+                let commits =
+                    read_commits(self, finalized_branch_commit_hash, branch_commit).await?;
+                let last_header = self.get_last_finalized_block_header().await?;
+                let mut verifier =
+                    CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
+                        .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
+                for (commit, _hash) in commits.iter() {
+                    if verifier.apply_commit(commit).is_err() {
+                        self.raw
+                            .delete_branch(branch.to_string())
+                            .await
+                            .expect("failed to delete a branch");
+                    }
+                }
             }
         }
 
-        // remove remote branches
+        // Remove remote branches
         let remote_list = self.raw.list_remotes().await?;
         for (remote_name, _) in remote_list {
             self.raw.remove_remote(remote_name).await?;
         }
-
-        // TODO : CSV
 
         Ok(())
     }
