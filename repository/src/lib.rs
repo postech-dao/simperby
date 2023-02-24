@@ -107,6 +107,7 @@ pub struct DistributedRepository {
     /// We keep the `RawRepository` in a `RwLock` for possible concurrent accesses in some operations.
     raw: Arc<RwLock<RawRepository>>,
     _config: Config,
+    private_key: Option<PrivateKey>,
 }
 
 impl DistributedRepository {
@@ -114,10 +115,15 @@ impl DistributedRepository {
         Arc::clone(&self.raw)
     }
 
-    pub async fn new(raw: Arc<RwLock<RawRepository>>, config: Config) -> Result<Self, Error> {
+    pub async fn new(
+        raw: Arc<RwLock<RawRepository>>,
+        config: Config,
+        private_key: Option<PrivateKey>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             raw,
             _config: config,
+            private_key,
         })
     }
 

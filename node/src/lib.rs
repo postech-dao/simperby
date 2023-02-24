@@ -118,6 +118,7 @@ pub async fn genesis(config: Config, path: &str) -> Result<()> {
             mirrors: config.public_repo_url.clone(),
             long_range_attack_distance: 3,
         },
+        None,
     )
     .await?;
     repository.genesis().await?;
