@@ -22,6 +22,7 @@ async fn basic_1() {
                 .unwrap(),
         )),
         config.clone(),
+        None,
     )
     .await
     .unwrap();
@@ -51,6 +52,7 @@ async fn basic_1() {
                 .unwrap(),
         )),
         config.clone(),
+        None,
     )
     .await
     .unwrap();

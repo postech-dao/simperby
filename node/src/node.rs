@@ -36,6 +36,7 @@ impl SimperbyNode {
                 mirrors: config.public_repo_url.clone(),
                 long_range_attack_distance: 3,
             },
+            Some(config.private_key.clone()),
         )
         .await?;
 
