@@ -6,7 +6,7 @@ use simperby_node::simperby_core::BlockHeight;
 Welcome to the Simperby CLI!
 */
 #[derive(Debug, Parser)]
-#[clap(name = "git")]
+#[clap(name = "simperby")]
 #[clap(about = "A Simperby client CLI", long_about = None)]
 pub struct Cli {
     pub path: std::path::PathBuf,
