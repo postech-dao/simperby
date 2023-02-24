@@ -46,10 +46,16 @@ async fn normal_1() {
     let server_dir = create_temp_dir();
     setup_peer(&server_dir, &[]).await;
     setup_pre_genesis_repository(&server_dir, rs.clone()).await;
+    // Add push configs to server repository.
     run_command(format!(
-        "cd {server_dir}/repository/repo && git config receive.pack true"
+        "cd {server_dir}/repository/repo && git config receive.advertisePushOptions true"
     ))
     .await;
+    run_command(format!(
+        "cd {server_dir}/repository/repo && git config sendpack.sideband false"
+    ))
+    .await;
+
     genesis(configs[0].clone(), &server_dir).await.unwrap();
     let mut proposer_node = initialize(configs[0].clone(), &server_dir).await.unwrap();
     let mut other_nodes = Vec::new();

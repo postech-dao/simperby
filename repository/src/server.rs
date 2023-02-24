@@ -46,6 +46,7 @@ pub async fn run_server_legacy(path: &str, port: u16) -> GitServer {
         .arg("--export-all")
         .arg(format!("--port={port}"))
         .arg(format!("--pid-file={pid_path}"))
+        .arg("--enable=receive-pack")
         .spawn()
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
