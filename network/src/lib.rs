@@ -66,8 +66,10 @@ pub struct ClientNetworkConfig {
 pub struct ServerNetworkConfig {
     /// The unique id for distinguishing the network.
     pub network_id: String,
-    /// The map of `identifier->port` where an `identifier` represent each network services
-    /// (.e.g, gossip-consensus, RPC-governance, discovery, ..)
+    /// The map of `identifier->port` where an `identifier` represents each network service
+    /// (e.g. gossip-consensus, RPC-governance, discovery, ...)
+    /// The server advertises this port mappings on the peer discovery protocol,
+    /// so that other peers can know on which port the server provides a specific service.
     pub ports: HashMap<String, u16>,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
