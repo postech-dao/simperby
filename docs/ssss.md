@@ -70,6 +70,8 @@ explicitly nominated nodes**.
   - Governance and consensus proposals are stored as Git branches.
   - The canonical history of the chain is presented as a designated Git branch.
 
+For details on the storage, refer to the [documentation](./git.md).
+
 ### Interoperability
 
 - Native support for trustless message delivery that establishes **multichain
@@ -87,6 +89,8 @@ explicitly nominated nodes**.
   organization without requiring a trusted third party.
 - **Treasury contracts** for the supported blockchains are available out of the
   box.
+
+For details on this protocol, refer to the [documentation](./multichain.md).
 
 ### Sporadic & Lightweight Node Operation
 
