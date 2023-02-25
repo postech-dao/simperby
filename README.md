@@ -1,5 +1,19 @@
 # Simperby
 
+[![Discord][discord-image]][discord-link]
+[![Contributors][contributors-image]][contributors-link]
+[![License][license-image]][license-link]
+[![Twitter][twitter-image]][twitter-link]
+
+[discord-image]: https://img.shields.io/discord/941206496203669545
+[discord-link]: https://discord.gg/tf9v5hHpzW
+[contributors-image]: https://img.shields.io/github/contributors/postech-dao/simperby
+[contributors-link]: https://github.com/postech-dao/simperby/graphs/contributors
+[license-image]: https://img.shields.io/github/license/postech-dao/simperby
+[license-link]: https://github.com/postech-dao/simperby/blob/main/LICENSE
+[twitter-image]: https://img.shields.io/twitter/follow/postech_dao?style=social
+[twitter-link]: https://twitter.com/postech_dao
+
 The ultimate BFT blockchain engine for decentralized organizations with powerful
 trustless interoperability.
 
