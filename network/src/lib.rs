@@ -1,4 +1,5 @@
 pub mod dms;
+pub mod dms2;
 #[cfg(never)]
 mod peer_discovery;
 pub mod primitives;
@@ -30,8 +31,39 @@ pub struct Peer {
 }
 
 /// Configuration to access the Simperby P2P network.
+///
+/// TODO: remove this and replace with `ClientNetworkConfig` and `ServerNetworkConfig`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
+    /// The unique id for distinguishing the network.
+    pub network_id: String,
+    /// The map of `identifier->port` where an `identifier` represent each network services
+    /// (.e.g, gossip-consensus, RPC-governance, discovery, ..)
+    pub ports: HashMap<String, u16>,
+    /// The set of the members of the network.
+    pub members: Vec<PublicKey>,
+    /// The public key of this node.
+    pub public_key: PublicKey,
+    /// The private key of this node.
+    pub private_key: PrivateKey,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientNetworkConfig {
+    /// The unique id for distinguishing the network.
+    pub network_id: String,
+    /// The set of the members of the network.
+    pub members: Vec<PublicKey>,
+    /// The public key of this node.
+    pub public_key: PublicKey,
+    /// The private key of this node.
+    pub private_key: PrivateKey,
+    /// The peer nodes to broadcast the message.
+    pub peers: Vec<Peer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerNetworkConfig {
     /// The unique id for distinguishing the network.
     pub network_id: String,
     /// The map of `identifier->port` where an `identifier` represent each network services
