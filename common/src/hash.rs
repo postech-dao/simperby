@@ -6,6 +6,36 @@ impl ToHash256 for String {
     }
 }
 
+impl ToHash256 for u64 {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(self.to_le_bytes())
+    }
+}
+
+impl<T1, T2> ToHash256 for (T1, T2)
+where
+    T1: ToHash256,
+    T2: ToHash256,
+{
+    fn to_hash256(&self) -> Hash256 {
+        self.0.to_hash256().aggregate(&self.1.to_hash256())
+    }
+}
+
+impl<T1, T2, T3> ToHash256 for (T1, T2, T3)
+where
+    T1: ToHash256,
+    T2: ToHash256,
+    T3: ToHash256,
+{
+    fn to_hash256(&self) -> Hash256 {
+        self.0
+            .to_hash256()
+            .aggregate(&self.1.to_hash256())
+            .aggregate(&self.2.to_hash256())
+    }
+}
+
 impl ToHash256 for Member {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_spb::to_vec(self).unwrap())
