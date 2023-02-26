@@ -23,16 +23,16 @@ pub enum ExecutionMessage {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TransferFungibleToken {
-    pub token_address: String,
+    pub token_address: HexSerializedVec,
     pub amount: u128,
-    pub receiver_address: String,
+    pub receiver_address: HexSerializedVec,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TransferNonFungibleToken {
-    pub collection_address: String,
-    pub token_index: String,
-    pub receiver_address: String,
+    pub collection_address: HexSerializedVec,
+    pub token_index: HexSerializedVec,
+    pub receiver_address: HexSerializedVec,
 }
 
 /// Creates an execution transaction that will be delivered to the target chain once finalized.
