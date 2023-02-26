@@ -12,22 +12,36 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+fn string_to_hex(s: &str) -> HexSerializedVec {
+    HexSerializedVec::from(s.as_bytes().to_vec())
+}
+
 pub struct TetherContract {
-    balances: HashMap<String, u128>,
+    balances: HashMap<HexSerializedVec, u128>,
 }
 
 /// The interface for a fungible token, like the ERC20 standard.
 pub trait MRC20 {
-    fn get_balance(&self, address: &str) -> u128;
-    fn transfer(&mut self, context: &mut GlobalContext, to: &str, amount: u128) -> bool;
+    fn get_balance(&self, address: &HexSerializedVec) -> u128;
+    fn transfer(
+        &mut self,
+        context: &mut GlobalContext,
+        to: &HexSerializedVec,
+        amount: u128,
+    ) -> bool;
 }
 
 impl MRC20 for TetherContract {
-    fn get_balance(&self, address: &str) -> u128 {
+    fn get_balance(&self, address: &HexSerializedVec) -> u128 {
         *self.balances.get(address).unwrap_or(&0)
     }
 
-    fn transfer(&mut self, context: &mut GlobalContext, to: &str, amount: u128) -> bool {
+    fn transfer(
+        &mut self,
+        context: &mut GlobalContext,
+        to: &HexSerializedVec,
+        amount: u128,
+    ) -> bool {
         let from_balance = self.get_balance(&context.caller);
         if from_balance < amount {
             return false;
@@ -35,14 +49,14 @@ impl MRC20 for TetherContract {
         let to_balance = self.get_balance(to);
         self.balances
             .insert(context.caller.clone(), from_balance - amount);
-        self.balances.insert(to.to_string(), to_balance + amount);
+        self.balances.insert(to.clone(), to_balance + amount);
         true
     }
 }
 
 pub struct GlobalContext {
     pub tether: Rc<RefCell<TetherContract>>,
-    pub caller: String,
+    pub caller: HexSerializedVec,
 }
 
 pub struct MythereumTreasuryContract {
@@ -102,12 +116,12 @@ impl MythereumTreasuryContract {
                 amount,
                 receiver_address,
             }) => {
-                if token_address != "tether-address" {
+                if token_address != string_to_hex("tether-address") {
                     unimplemented!()
                 }
                 let tether_rc = Rc::clone(&context.tether);
                 let mut tether = tether_rc.borrow_mut();
-                context.caller = "treasury-address".to_string();
+                context.caller = string_to_hex("treasury-address");
                 if !tether.transfer(context, &receiver_address, amount) {
                     return Err("Insufficient balance".to_string());
                 }
@@ -135,9 +149,9 @@ fn relay_1() {
             target_chain: "mythereum".to_string(),
             contract_sequence: 0,
             message: ExecutionMessage::TransferFungibleToken(TransferFungibleToken {
-                token_address: "tether-address".to_string(),
+                token_address: string_to_hex("tether-address"),
                 amount: 100,
-                receiver_address: "receiver-address".to_string(),
+                receiver_address: string_to_hex("receiver-address"),
             }),
         },
         PublicKey::zero(),
@@ -149,9 +163,9 @@ fn relay_1() {
             target_chain: "mythereum".to_string(),
             contract_sequence: 1,
             message: ExecutionMessage::TransferFungibleToken(TransferFungibleToken {
-                token_address: "tether-address".to_string(),
+                token_address: string_to_hex("tether-address"),
                 amount: 200,
-                receiver_address: "receiver-address".to_string(),
+                receiver_address: string_to_hex("receiver-address"),
             }),
         },
         PublicKey::zero(),
@@ -199,12 +213,12 @@ fn relay_1() {
 
     // Setup Mythereum
     let tether = Rc::new(RefCell::new(TetherContract {
-        balances: vec![("treasury-address".to_owned(), 299)]
+        balances: vec![(string_to_hex("treasury-address"), 299)]
             .into_iter()
             .collect(),
     }));
     let mut context = GlobalContext {
-        caller: "some-eoa".to_string(),
+        caller: string_to_hex("some-eoa"),
         tether,
     };
     let mut treasury = MythereumTreasuryContract {
