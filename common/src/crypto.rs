@@ -81,6 +81,73 @@ impl<'de, const N: usize> Deserialize<'de> for HexSerializedBytes<N> {
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub struct HexSerializedVec {
+    pub data: Vec<u8>,
+}
+
+impl From<Vec<u8>> for HexSerializedVec {
+    fn from(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for HexSerializedVec {
+    fn from(data: [u8; N]) -> Self {
+        Self {
+            data: data.to_vec(),
+        }
+    }
+}
+
+impl<const N: usize> From<HexSerializedBytes<N>> for HexSerializedVec {
+    fn from(data: HexSerializedBytes<N>) -> Self {
+        Self {
+            data: data.data.to_vec(),
+        }
+    }
+}
+
+impl Serialize for HexSerializedVec {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(hex::encode(&self.data).as_str())
+        } else {
+            let mut seq = serializer.serialize_tuple(self.data.len())?;
+            for e in &self.data {
+                seq.serialize_element(&e)?;
+            }
+            seq.end()
+        }
+    }
+}
+
+impl fmt::Debug for HexSerializedVec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.data).as_str())
+    }
+}
+
+impl fmt::Display for HexSerializedVec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.data).as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for HexSerializedVec {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        let data = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        Ok(HexSerializedVec { data })
+    }
+}
+
 /// A cryptographic hash.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Serialize, Deserialize)]
 #[serde(transparent)]
