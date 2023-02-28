@@ -70,14 +70,40 @@ impl<'de, const N: usize> Deserialize<'de> for HexSerializedBytes<N> {
     where
         D: serde::de::Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        let bytes = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
-        if bytes.len() != N {
-            return Err(serde::de::Error::custom("invalid length"));
+        if deserializer.is_human_readable() {
+            let s: String = Deserialize::deserialize(deserializer)?;
+            let bytes = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+            if bytes.len() != N {
+                return Err(serde::de::Error::custom("invalid length"));
+            }
+            let mut data = [0; N];
+            data.copy_from_slice(&bytes);
+            Ok(HexSerializedBytes { data })
+        } else {
+            struct V<const M: usize>;
+            impl<'de, const M: usize> serde::de::Visitor<'de> for V<M> {
+                type Value = [u8; M];
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("byte")
+                }
+
+                fn visit_seq<S: serde::de::SeqAccess<'de>>(
+                    self,
+                    mut seq: S,
+                ) -> Result<Self::Value, S::Error> {
+                    let mut data = [0; M];
+                    for (i, x) in data.iter_mut().enumerate() {
+                        *x = seq
+                            .next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
+                    }
+                    Ok(data)
+                }
+            }
+            let data = deserializer.deserialize_tuple(N, V::<N>)?;
+            Ok(HexSerializedBytes { data })
         }
-        let mut data = [0; N];
-        data.copy_from_slice(&bytes);
-        Ok(HexSerializedBytes { data })
     }
 }
 
@@ -142,9 +168,14 @@ impl<'de> Deserialize<'de> for HexSerializedVec {
     where
         D: serde::de::Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        let data = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
-        Ok(HexSerializedVec { data })
+        if deserializer.is_human_readable() {
+            let s: String = Deserialize::deserialize(deserializer)?;
+            let data = hex::decode(s).map_err(|e| serde::de::Error::custom(e.to_string()))?;
+            Ok(HexSerializedVec { data })
+        } else {
+            let data: Vec<u8> = Deserialize::deserialize(deserializer)?;
+            Ok(HexSerializedVec { data })
+        }
     }
 }
 
