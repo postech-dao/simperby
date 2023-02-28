@@ -213,5 +213,7 @@ mod tests {
             serde_spb::to_string(&header).unwrap(),
             serde_spb::to_string(&header_decoded).unwrap()
         );
+
+        assert_eq!(header, serde_spb::from_slice(&encoded).unwrap());
     }
 }
