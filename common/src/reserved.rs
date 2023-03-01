@@ -85,19 +85,13 @@ impl ReservedState {
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
         }
-        let delegator_name = self
-            .query_name(&tx.data.delegator.clone())
-            .ok_or_else(|| "delegator does not exist by name".to_string())?;
-        let delegatee_name = self
-            .query_name(&tx.data.delegatee.clone())
-            .ok_or_else(|| "delegatee does not exist by name".to_string())?;
         for delegator in &mut self.members {
-            if delegator.name == delegator_name {
+            if delegator.name == tx.data.delegator {
                 if tx.data.governance {
-                    delegator.governance_delegatee = Some(delegatee_name.clone());
-                    delegator.consensus_delegatee = Some(delegatee_name);
+                    delegator.governance_delegatee = Some(tx.data.delegatee.clone());
+                    delegator.consensus_delegatee = Some(tx.data.delegatee.clone());
                 } else {
-                    delegator.consensus_delegatee = Some(delegatee_name);
+                    delegator.consensus_delegatee = Some(tx.data.delegatee.clone());
                 }
                 break;
             }
@@ -109,11 +103,8 @@ impl ReservedState {
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
         }
-        let delegator_name = self
-            .query_name(&tx.data.delegator.clone())
-            .ok_or_else(|| "delegator does not exist by name".to_string())?;
         for delegator in &mut self.members {
-            if delegator.name == delegator_name {
+            if delegator.name == tx.data.delegator {
                 if delegator.consensus_delegatee.is_some() {
                     delegator.consensus_delegatee = None;
                     delegator.governance_delegatee = None;
@@ -400,20 +391,19 @@ mod tests {
         setup_test();
         let (mut reserved_state, keys) = generate_standard_genesis(4);
 
-        // delegator : member-0000 && delegatee : member-0002
-        let delegator_public_key = keys[0].0.clone();
+        // delegator: member-0000, delegatee: member-0002
+        let delegator = reserved_state.members[0].clone();
         let delegator_private_key = keys[0].1.clone();
-        let delegatee_public_key = keys[2].0.clone();
-
         let delegatee = reserved_state.members[2].clone();
 
         // when
         let data: DelegationTransactionData = DelegationTransactionData {
-            delegator: delegator_public_key,
-            delegatee: delegatee_public_key,
+            delegator: delegator.name,
+            delegatee: delegatee.name.clone(),
             governance: true,
             block_height: 0,
             timestamp: 0,
+            chain_name: reserved_state.genesis_info.chain_name.clone(),
         };
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
 
@@ -462,20 +452,20 @@ mod tests {
         // given
         setup_test();
         let (mut state, keys) = generate_standard_genesis(3);
-        // delegator : member-0000 && delegatee : member-0002
-        let delegator_public_key = keys[0].0.clone();
-        let delegator_private_key = keys[0].1.clone();
-        let delegatee_public_key = keys[2].0.clone();
 
+        // delegator: member-0000, delegatee: member-0002
+        let delegator = state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
         let delegatee = state.members[2].clone();
 
         // when
         let data: DelegationTransactionData = DelegationTransactionData {
-            delegator: delegator_public_key,
-            delegatee: delegatee_public_key,
+            delegator: delegator.name,
+            delegatee: delegatee.name.clone(),
             governance: false,
             block_height: 0,
             timestamp: 0,
+            chain_name: state.genesis_info.chain_name.clone(),
         };
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
 
@@ -522,16 +512,18 @@ mod tests {
         // given
         setup_test();
         let (mut reserved_state, keys) = generate_delegated_genesis(4, true);
-        let delegator_public_key = keys[0].0.clone();
-        let delegator_private_key = keys[0].1.clone();
 
+        // delegator: member-0000, delegatee: member-0002
+        let delegator = reserved_state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
         let delegatee = reserved_state.members[2].clone();
 
         // when
         let data = UndelegationTransactionData {
-            delegator: delegator_public_key,
+            delegator: delegator.name,
             block_height: 0,
             timestamp: 0,
+            chain_name: reserved_state.genesis_info.chain_name.clone(),
         };
 
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
@@ -574,16 +566,18 @@ mod tests {
         // given
         setup_test();
         let (mut reserved_state, keys) = generate_delegated_genesis(4, false);
-        let delegator_public_key = keys[0].0.clone();
-        let delegator_private_key = keys[0].1.clone();
 
+        // delegator: member-0000, delegatee: member-0002
+        let delegator = reserved_state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
         let delegatee = reserved_state.members[2].clone();
 
         // when
         let data = UndelegationTransactionData {
-            delegator: delegator_public_key,
+            delegator: delegator.name,
             block_height: 0,
             timestamp: 0,
+            chain_name: reserved_state.genesis_info.chain_name.clone(),
         };
 
         let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();

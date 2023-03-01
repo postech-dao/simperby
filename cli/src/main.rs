@@ -27,17 +27,19 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
         }
         Commands::Chat { .. } => todo!("chat is not implemented yet"),
         Commands::Sign(SignCommands::TxDelegate {
+            delegator,
             delegatee,
             governance,
             target_height,
+            chain_name,
         }) => {
             let delegation_transaction_data = DelegationTransactionData {
-                delegator: config.public_key,
-                delegatee: serde_spb::from_str(&delegatee)
-                    .map_err(|_| eyre!("invalid delegatee for a delegation transaction"))?,
+                delegator,
+                delegatee,
                 governance,
                 block_height: target_height,
                 timestamp: get_timestamp(),
+                chain_name,
             };
             println!(
                 "{:?}",
@@ -50,11 +52,16 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                 )
             );
         }
-        Commands::Sign(SignCommands::TxUndelegate { target_height }) => {
+        Commands::Sign(SignCommands::TxUndelegate {
+            delegator,
+            target_height,
+            chain_name,
+        }) => {
             let undelegation_transaction_data = UndelegationTransactionData {
-                delegator: config.public_key,
+                delegator,
                 block_height: target_height,
                 timestamp: get_timestamp(),
+                chain_name,
             };
             println!(
                 "{:?}",
@@ -107,6 +114,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     governance,
                     block_height,
                     proof,
+                    chain_name,
                 }) => {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Delegate(
@@ -121,6 +129,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                                     governance,
                                     block_height,
                                     timestamp: get_timestamp(),
+                                    chain_name,
                                 },
                                 proof: serde_spb::from_str(&proof).map_err(|_| {
                                     eyre!("invalid proof for a delegation transaction")
@@ -133,6 +142,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     delegator,
                     block_height,
                     proof,
+                    chain_name,
                 }) => {
                     simperby_node
                         .create_extra_agenda_transaction(ExtraAgendaTransaction::Undelegate(
@@ -143,6 +153,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                                     })?,
                                     block_height,
                                     timestamp: get_timestamp(),
+                                    chain_name,
                                 },
                                 proof: serde_spb::from_str(&proof).map_err(|_| {
                                     eyre!("invalid proof for an undelegation transaction")

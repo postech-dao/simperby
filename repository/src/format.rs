@@ -45,25 +45,15 @@ pub fn to_semantic_commit(
             let body = serde_spb::to_string(tx).unwrap();
             match tx {
                 ExtraAgendaTransaction::Delegate(tx) => {
-                    let delegator = reserved_state
-                        .clone()
-                        .query_name(&tx.data.delegator)
-                        .ok_or_else(|| eyre!("delegator not found"))?;
-                    let delegatee = reserved_state
-                        .clone()
-                        .query_name(&tx.data.delegatee)
-                        .ok_or_else(|| eyre!("delegatee not found"))?;
-                    let title = format!(">tx-delegate: {delegator} to {delegatee}");
+                    let title = format!(
+                        ">tx-delegate: {} to {}",
+                        tx.data.delegator, tx.data.delegatee
+                    );
                     let diff = Diff::Reserved(Box::new(reserved_state.apply_delegate(tx).unwrap()));
                     Ok(SemanticCommit { title, body, diff })
                 }
                 ExtraAgendaTransaction::Undelegate(tx) => {
-                    let delegator = reserved_state
-                        .clone()
-                        .query_name(&tx.data.delegator)
-                        .ok_or_else(|| eyre!("delegator not found"))
-                        .unwrap();
-                    let title = format!(">tx-undelegate: {delegator}");
+                    let title = format!(">tx-undelegate: {}", tx.data.delegator);
                     let diff =
                         Diff::Reserved(Box::new(reserved_state.apply_undelegate(tx).unwrap()));
                     Ok(SemanticCommit { title, body, diff })
@@ -80,10 +70,7 @@ pub fn to_semantic_commit(
 /// Converts a semantic commit to a commit.
 ///
 /// TODO: retrieve author and timestamp from the commit metadata.
-pub fn from_semantic_commit(
-    semantic_commit: SemanticCommit,
-    reserved_state: ReservedState,
-) -> Result<Commit, Error> {
+pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, Error> {
     let pattern = Regex::new(
         r"^>(((agenda)|(block)|(agenda-proof)): (\d+))|((tx-delegate): (\D+) to (\D+))|((tx-undelegate): (\D+))$"
     )
@@ -166,10 +153,7 @@ pub fn from_semantic_commit(
                                 semantic_commit.title
                             )
                         })?;
-                        let tx_delegator = reserved_state
-                            .query_name(&tx.data.delegator)
-                            .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
-                        if delegator != tx_delegator {
+                        if delegator != tx.data.delegator {
                             return Err(eyre!(
                                 "delegator mismatch: expected {}, got {}",
                                 delegator,
@@ -182,10 +166,7 @@ pub fn from_semantic_commit(
                                 semantic_commit.title
                             )
                         })?;
-                        let tx_delegatee = reserved_state
-                            .query_name(&tx.data.delegatee)
-                            .ok_or_else(|| eyre!("delegatee not found from the reserved state"))?;
-                        if delegatee != tx_delegatee {
+                        if delegatee != tx.data.delegatee {
                             return Err(eyre!(
                                 "delegatee mismatch: expected {}, got {}",
                                 delegatee,
@@ -200,10 +181,7 @@ pub fn from_semantic_commit(
                                 semantic_commit.title
                             )
                         })?;
-                        let tx_delegator = reserved_state
-                            .query_name(&tx.data.delegator)
-                            .ok_or_else(|| eyre!("delegator not found from the reserved state"))?;
-                        if delegator != tx_delegator {
+                        if delegator != tx.data.delegator {
                             return Err(eyre!(
                                 "delegator mismatch: expected {}, got {}",
                                 delegator,
@@ -284,11 +262,8 @@ mod tests {
         });
         assert_eq!(
             transaction,
-            from_semantic_commit(
-                to_semantic_commit(&transaction, reserved_state.clone()).unwrap(),
-                reserved_state
-            )
-            .unwrap()
+            from_semantic_commit(to_semantic_commit(&transaction, reserved_state).unwrap(),)
+                .unwrap()
         );
     }
 
@@ -303,11 +278,7 @@ mod tests {
         });
         assert_eq!(
             agenda,
-            from_semantic_commit(
-                to_semantic_commit(&agenda, reserved_state.clone()).unwrap(),
-                reserved_state
-            )
-            .unwrap()
+            from_semantic_commit(to_semantic_commit(&agenda, reserved_state).unwrap(),).unwrap()
         );
     }
 
@@ -330,11 +301,7 @@ mod tests {
         });
         assert_eq!(
             block,
-            from_semantic_commit(
-                to_semantic_commit(&block, reserved_state.clone()).unwrap(),
-                reserved_state
-            )
-            .unwrap()
+            from_semantic_commit(to_semantic_commit(&block, reserved_state).unwrap(),).unwrap()
         );
     }
 
@@ -348,11 +315,8 @@ mod tests {
         });
         assert_eq!(
             agenda_proof,
-            from_semantic_commit(
-                to_semantic_commit(&agenda_proof, reserved_state.clone()).unwrap(),
-                reserved_state
-            )
-            .unwrap()
+            from_semantic_commit(to_semantic_commit(&agenda_proof, reserved_state).unwrap(),)
+                .unwrap()
         );
     }
 
@@ -361,11 +325,12 @@ mod tests {
     fn format_extra_agenda_transaction_commit1() {
         let (reserved_state, keys) = generate_standard_genesis(4);
         let delegation_transaction_data = DelegationTransactionData {
-            delegator: keys[0].0.clone(),
-            delegatee: keys[1].0.clone(),
+            delegator: reserved_state.members[0].name.clone(),
+            delegatee: reserved_state.members[1].name.clone(),
             governance: true,
             block_height: 0,
             timestamp: 0,
+            chain_name: reserved_state.genesis_info.chain_name.clone(),
         };
         let delegation_transaction =
             Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Delegate(TxDelegate {
@@ -375,8 +340,7 @@ mod tests {
         assert_eq!(
             delegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&delegation_transaction, reserved_state.clone()).unwrap(),
-                reserved_state
+                to_semantic_commit(&delegation_transaction, reserved_state).unwrap()
             )
             .unwrap()
         );
@@ -389,9 +353,10 @@ mod tests {
         reserved_state.members[0].governance_delegatee = Option::from("member-0000".to_string());
         reserved_state.members[0].consensus_delegatee = Option::from("member-0000".to_string());
         let undelegation_transaction_data = UndelegationTransactionData {
-            delegator: keys[0].0.clone(),
+            delegator: reserved_state.members[0].name.clone(),
             block_height: 0,
             timestamp: 0,
+            chain_name: reserved_state.genesis_info.chain_name.clone(),
         };
         let undelegation_transaction =
             Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Undelegate(TxUndelegate {
@@ -401,8 +366,7 @@ mod tests {
         assert_eq!(
             undelegation_transaction,
             from_semantic_commit(
-                to_semantic_commit(&undelegation_transaction, reserved_state.clone()).unwrap(),
-                reserved_state
+                to_semantic_commit(&undelegation_transaction, reserved_state.clone()).unwrap()
             )
             .unwrap()
         );

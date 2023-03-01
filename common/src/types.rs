@@ -132,19 +132,21 @@ pub struct TxReport {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct DelegationTransactionData {
-    pub delegator: PublicKey,
-    pub delegatee: PublicKey,
+    pub delegator: MemberName,
+    pub delegatee: MemberName,
     /// Whether to delegate the governance voting power too.
     pub governance: bool,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
+    pub chain_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct UndelegationTransactionData {
-    pub delegator: PublicKey,
+    pub delegator: MemberName,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
+    pub chain_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
