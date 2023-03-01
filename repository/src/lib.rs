@@ -160,9 +160,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
         let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let reserved_state = self.get_reserved_state().await?;
-        let commit =
-            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         if let Commit::Block(block_header) = commit {
             Ok(block_header)
         } else {
@@ -174,8 +172,7 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<Commit, Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let reserved_state = self.get_reserved_state().await?;
-        format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))
+        format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))
     }
 
     /// Returns the reserved state from the `finalized` branch.
@@ -626,9 +623,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Puts a 'vote' tag on the commit.
     pub async fn vote(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let reserved_state = self.get_reserved_state().await?;
-        let commit =
-            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
             let mut vote_tag_name = commit.to_hash256().to_string();
@@ -644,9 +639,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Puts a 'veto' tag on the commit.
     pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
         let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
-        let reserved_state = self.get_reserved_state().await?;
-        let commit =
-            format::from_semantic_commit(semantic_commit, reserved_state).map_err(|e| eyre!(e))?;
+        let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is a block commit.
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();

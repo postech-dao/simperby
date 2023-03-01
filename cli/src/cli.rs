@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use simperby_common::MemberName;
 use simperby_node::simperby_common::BlockHeight;
 
 /**
@@ -23,6 +24,7 @@ pub enum CreateCommands {
         governance: bool,
         block_height: BlockHeight,
         proof: String,
+        chain_name: String,
     },
     /// An extra-agenda transaction that undelegates the consensus voting power and
     /// the governance voting power (if delegated).
@@ -30,6 +32,7 @@ pub enum CreateCommands {
         delegator: String,
         block_height: BlockHeight,
         proof: String,
+        chain_name: String,
     },
     /// An extra-agenda transaction that reports a misbehaving validator.
     TxReport, // TODO
@@ -42,13 +45,17 @@ pub enum CreateCommands {
 #[derive(Debug, Subcommand)]
 pub enum SignCommands {
     TxDelegate {
-        delegatee: String,
+        delegator: MemberName,
+        delegatee: MemberName,
         /// Whether to delegate the governance voting power too.
         governance: bool,
         target_height: u64,
+        chain_name: String,
     },
     TxUndelegate {
+        delegator: MemberName,
         target_height: u64,
+        chain_name: String,
     },
     Custom {
         hash: String,
