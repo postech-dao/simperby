@@ -55,10 +55,12 @@ We have to verify 3 things here:
   Discord instead.
 - To resolve reviews, put additional commits representing the changes, not amend
   the existing commits and force push it.
+- If such commits are to be squashed, put the prefix `fixup!` in the commit
+  title.
 - However, if it is about commit messages or trivial errors, it's ok to amend
   the existing commits and force push it.
-- After all reviews are resolved, the PR author may squash and organize
-  the commits, and force push it upon request.
+- After all reviews are resolved, the PR author may squash and organize the
+  commits, and force push it upon request.
 
 ## Rust
 
