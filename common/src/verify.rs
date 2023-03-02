@@ -142,6 +142,10 @@ impl CommitSequenceVerifier {
         &self.total_commits
     }
 
+    pub fn get_reserved_state(&self) -> &ReservedState {
+        &self.reserved_state
+    }
+
     /// Returns the block headers received so far, with the index of the commit.
     ///
     /// It returns `[start_header]` if no block header has been received.
