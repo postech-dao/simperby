@@ -40,7 +40,7 @@ trustless interoperability.
 
 - [Simperby Development Guide](docs/dev.md)
 - [Rust SDK (WIP)](./README.md)
-- [Good First Issues (WIP)](./README.md)
+- [Good First Issues](https://github.com/postech-dao/simperby/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 
 ### User Manual
 
