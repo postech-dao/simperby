@@ -154,7 +154,7 @@ fn build_simple_git_server() -> String {
     assert!(output.status.success());
     format!(
         "{}/../target/release/simple_git_server",
-        env!("CARGO_MANIFEST_DIR")
+        env!("CARGO_MANIFEST_DIR").replace('\\', "/")
     )
 }
 
