@@ -72,7 +72,7 @@ pub fn to_semantic_commit(
 /// TODO: retrieve author and timestamp from the commit metadata.
 pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, Error> {
     let pattern = Regex::new(
-        r"^>(((agenda)|(block)|(agenda-proof)): (\d+))|((tx-delegate): (\D+) to (\D+))|((tx-undelegate): (\D+))$"
+        r"^>(((agenda)|(block)|(agenda-proof)): (\d+))|((tx-delegate): ((\D+)-(\d+)) to ((\D+)-(\d+)))|((tx-undelegate): ((\D+)-(\d+)))$"
     )
     .unwrap();
     let captures = pattern.captures(&semantic_commit.title);
@@ -80,7 +80,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
         let commit_type = captures
             .get(2)
             .or_else(|| captures.get(8))
-            .or_else(|| captures.get(12))
+            .or_else(|| captures.get(16))
             .map(|m| m.as_str())
             .ok_or_else(|| {
                 eyre!(
@@ -143,7 +143,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                 }
                 Ok(Commit::AgendaProof(agenda_proof))
             }
-            "extra-agenda-tx" => {
+            "tx-delegate" => {
                 let tx: ExtraAgendaTransaction = serde_spb::from_str(&semantic_commit.body)?;
                 match tx {
                     ExtraAgendaTransaction::Delegate(ref tx) => {
@@ -160,7 +160,7 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                                 tx.data.delegator
                             ));
                         }
-                        let delegatee = captures.get(10).map(|m| m.as_str()).ok_or_else(|| {
+                        let delegatee = captures.get(12).map(|m| m.as_str()).ok_or_else(|| {
                             eyre!(
                                 "failed to parse delegatee from the commit title: {}",
                                 semantic_commit.title
@@ -173,9 +173,18 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                                 tx.data.delegatee
                             ));
                         }
+                        Ok(Commit::ExtraAgendaTransaction(
+                            ExtraAgendaTransaction::Delegate(tx.clone()),
+                        ))
                     }
+                    _ => Err(eyre!("expected delegation transaction, got {:?}", tx)),
+                }
+            }
+            "tx-undelegate" => {
+                let tx: ExtraAgendaTransaction = serde_spb::from_str(&semantic_commit.body)?;
+                match tx {
                     ExtraAgendaTransaction::Undelegate(ref tx) => {
-                        let delegator = captures.get(13).map(|m| m.as_str()).ok_or_else(|| {
+                        let delegator = captures.get(17).map(|m| m.as_str()).ok_or_else(|| {
                             eyre!(
                                 "failed to parse delegator from the commit title: {}",
                                 semantic_commit.title
@@ -188,12 +197,12 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
                                 tx.data.delegator
                             ));
                         }
+                        Ok(Commit::ExtraAgendaTransaction(
+                            ExtraAgendaTransaction::Undelegate(tx.clone()),
+                        ))
                     }
-                    ExtraAgendaTransaction::Report(_) => {
-                        unimplemented!("report is not implemented yet.")
-                    }
+                    _ => Err(eyre!("expected undelegation transaction, got {:?}", tx)),
                 }
-                Ok(Commit::ExtraAgendaTransaction(tx))
             }
             _ => Err(eyre!("unknown commit type: {}", commit_type)),
         }
@@ -321,7 +330,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "apply delegation logic is not implemented yet"]
     fn format_extra_agenda_transaction_commit1() {
         let (reserved_state, keys) = generate_standard_genesis(4);
         let delegation_transaction_data = DelegationTransactionData {
@@ -347,7 +355,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "apply undelegation logic is not implemented yet"]
     fn format_extra_agenda_transaction_commit2() {
         let (mut reserved_state, keys) = generate_standard_genesis(4);
         reserved_state.members[0].governance_delegatee = Option::from("member-0000".to_string());
