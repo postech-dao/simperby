@@ -89,6 +89,7 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
         .arg("--enable=receive-pack")
         .arg(format!("--port={port}"))
         .arg(format!("--pid-file={pid_path}"))
+        .arg("--reuseaddr")
         .env("SIMPERBY_EXECUTABLE_PATH", simperby_executable_path)
         .env("SIMPERBY_ROOT_PATH", path)
         .spawn()
@@ -134,7 +135,6 @@ mod tests {
         .await;
     }
 
-    #[ignore]
     #[tokio::test]
     async fn git_server_basic2() {
         setup_test();
@@ -221,7 +221,7 @@ exit 1
         repo.push_option(
             "origin".to_string(),
             "test".to_string(),
-            Some("test".to_string()),
+            Some("arg1 arg2 arg3 arg4 arg5".to_string()),
         )
         .await
         .unwrap();
@@ -244,7 +244,7 @@ exit 1
         repo.push_option(
             "origin".to_string(),
             "test".to_string(),
-            Some("test".to_string()),
+            Some("arg1 arg2 arg3 arg4 arg5".to_string()),
         )
         .await
         .unwrap_err();

@@ -85,7 +85,7 @@ async fn normal_1() {
         .locate_branch("work".to_owned())
         .await
         .unwrap();
-    let serve = tokio::spawn(async move { proposer_node.serve(10000).await.unwrap() });
+    let serve = tokio::spawn(async move { proposer_node.serve(15000).await.unwrap() });
     sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
@@ -106,7 +106,7 @@ async fn normal_1() {
     proposer_node.create_block().await.unwrap();
     proposer_node.progress_for_consensus().await.unwrap();
     proposer_node.broadcast().await.unwrap();
-    let serve = tokio::spawn(async move { proposer_node.serve(10000).await.unwrap() });
+    let serve = tokio::spawn(async move { proposer_node.serve(30000).await.unwrap() });
     sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
@@ -124,7 +124,7 @@ async fn normal_1() {
 
     // Step 3: Run precommit phase
     log::info!("STEP 3");
-    let serve = tokio::spawn(async move { proposer_node.serve(10000).await.unwrap() });
+    let serve = tokio::spawn(async move { proposer_node.serve(40000).await.unwrap() });
     sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
@@ -139,7 +139,7 @@ async fn normal_1() {
 
     // Step 4: Propagate finalized proof
     log::info!("STEP 4");
-    let serve = tokio::spawn(async move { proposer_node.serve(10000).await.unwrap() });
+    let serve = tokio::spawn(async move { proposer_node.serve(15000).await.unwrap() });
     sleep_ms(500).await;
     for node in other_nodes.iter_mut() {
         node.fetch().await.unwrap();
