@@ -184,9 +184,13 @@ impl SimperbyNode {
 
     /// Creates an agenda commit on the `work` branch.
     pub async fn create_agenda(&mut self) -> Result<CommitHash> {
+        let rs = self.repository.get_reserved_state().await?;
         let (_, commit_hash) = self
             .repository
-            .create_agenda(self.config.public_key.clone())
+            .create_agenda(
+                rs.query_name(&self.config.public_key)
+                    .expect("already checked in initialization"),
+            )
             .await?;
         Ok(commit_hash)
     }
@@ -363,6 +367,7 @@ impl SimperbyNode {
                             .iter()
                             .map(|(k, s)| TypedSignature::new(s.clone(), k.clone()))
                             .collect(),
+                        get_timestamp(),
                     )
                     .await;
             }

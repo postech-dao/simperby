@@ -416,7 +416,17 @@ impl RawRepositoryImplInner {
         }
         .to_string();
 
-        let semantic_commit = SemanticCommit { title, body, diff };
+        let semantic_commit = SemanticCommit {
+            title,
+            body,
+            diff,
+            author: commit
+                .author()
+                .name()
+                .ok_or_else(|| Error::Unknown("failed to parse commit author".to_string()))?
+                .to_owned(),
+            timestamp: commit.author().when().seconds() * 1000,
+        };
 
         Ok(semantic_commit)
     }

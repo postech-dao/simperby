@@ -1,4 +1,4 @@
-use crate::raw::SemanticCommit;
+use crate::{raw::SemanticCommit, UNKNOWN_COMMIT_AUTHOR};
 use eyre::{eyre, Error};
 use regex::Regex;
 use simperby_common::{reserved::ReservedState, *};
@@ -16,6 +16,8 @@ pub fn to_semantic_commit(
                 title,
                 body,
                 diff: Diff::None,
+                author: agenda.author.clone(),
+                timestamp: agenda.timestamp,
             })
         }
         Commit::Block(block_header) => {
@@ -25,12 +27,27 @@ pub fn to_semantic_commit(
                 title,
                 body,
                 diff: Diff::None,
+                author: if block_header.author == PublicKey::zero() {
+                    "genesis".to_owned()
+                } else {
+                    reserved_state
+                        .query_name(&block_header.author)
+                        .ok_or_else(|| {
+                            eyre!(
+                                "failed to query the name of the author: {}",
+                                block_header.author
+                            )
+                        })?
+                },
+                timestamp: block_header.timestamp,
             })
         }
         Commit::Transaction(transaction) => Ok(SemanticCommit {
             title: transaction.head.clone(),
             body: transaction.body.clone(),
             diff: transaction.diff.clone(),
+            author: transaction.author.clone(),
+            timestamp: transaction.timestamp,
         }),
         Commit::AgendaProof(agenda_proof) => {
             let title = format!(">agenda-proof: {}", agenda_proof.height);
@@ -39,6 +56,8 @@ pub fn to_semantic_commit(
                 title,
                 body,
                 diff: Diff::None,
+                author: UNKNOWN_COMMIT_AUTHOR.to_owned(),
+                timestamp: agenda_proof.timestamp,
             })
         }
         Commit::ExtraAgendaTransaction(tx) => {
@@ -50,13 +69,25 @@ pub fn to_semantic_commit(
                         tx.data.delegator, tx.data.delegatee
                     );
                     let diff = Diff::Reserved(Box::new(reserved_state.apply_delegate(tx).unwrap()));
-                    Ok(SemanticCommit { title, body, diff })
+                    Ok(SemanticCommit {
+                        title,
+                        body,
+                        diff,
+                        author: tx.data.delegator.clone(),
+                        timestamp: tx.data.timestamp,
+                    })
                 }
                 ExtraAgendaTransaction::Undelegate(tx) => {
                     let title = format!(">tx-undelegate: {}", tx.data.delegator);
                     let diff =
                         Diff::Reserved(Box::new(reserved_state.apply_undelegate(tx).unwrap()));
-                    Ok(SemanticCommit { title, body, diff })
+                    Ok(SemanticCommit {
+                        title,
+                        body,
+                        diff,
+                        author: tx.data.delegator.clone(),
+                        timestamp: tx.data.timestamp,
+                    })
                 }
                 ExtraAgendaTransaction::Report(_) => {
                     unimplemented!("report is not implemented yet.")
@@ -208,8 +239,8 @@ pub fn from_semantic_commit(semantic_commit: SemanticCommit) -> Result<Commit, E
         }
     } else {
         Ok(Commit::Transaction(Transaction {
-            author: PublicKey::zero(),
-            timestamp: 0,
+            author: semantic_commit.author,
+            timestamp: semantic_commit.timestamp,
             head: semantic_commit.title,
             body: semantic_commit.body,
             diff: semantic_commit.diff,
@@ -224,6 +255,8 @@ pub fn fp_to_semantic_commit(fp: &LastFinalizationProof) -> SemanticCommit {
         title,
         body,
         diff: Diff::None,
+        author: UNKNOWN_COMMIT_AUTHOR.to_owned(),
+        timestamp: 0,
     }
 }
 
@@ -263,7 +296,7 @@ mod tests {
     fn format_transaction_commit() {
         let (reserved_state, _) = generate_standard_genesis(4);
         let transaction = Commit::Transaction(Transaction {
-            author: PublicKey::zero(),
+            author: "doesn't matter".to_owned(),
             timestamp: 0,
             head: "abc".to_string(),
             body: "def".to_string(),
@@ -281,7 +314,7 @@ mod tests {
         let (reserved_state, _) = generate_standard_genesis(4);
         let agenda = Commit::Agenda(Agenda {
             height: 3,
-            author: PublicKey::zero(),
+            author: "doesn't matter".to_owned(),
             timestamp: 123,
             transactions_hash: Hash256::hash("hello"),
         });
@@ -321,6 +354,7 @@ mod tests {
             height: 3,
             agenda_hash: Hash256::hash("hello1"),
             proof: vec![TypedSignature::new(Signature::zero(), PublicKey::zero())],
+            timestamp: 0,
         });
         assert_eq!(
             agenda_proof,

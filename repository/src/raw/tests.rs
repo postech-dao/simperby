@@ -465,6 +465,8 @@ async fn reserved_state() {
             title: "test".to_owned(),
             body: "test-body".to_owned(),
             diff: Diff::Reserved(Box::new(rs.clone())),
+            author: "doesn't matter".to_owned(),
+            timestamp: 0,
         })
         .await
         .unwrap();

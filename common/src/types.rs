@@ -60,7 +60,7 @@ pub struct BlockHeader {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Agenda {
     pub height: BlockHeight,
-    pub author: PublicKey,
+    pub author: MemberName,
     pub timestamp: Timestamp,
     pub transactions_hash: Hash256,
 }
@@ -75,6 +75,7 @@ pub struct AgendaProof {
     pub height: BlockHeight,
     pub agenda_hash: Hash256,
     pub proof: Vec<TypedSignature<Agenda>>,
+    pub timestamp: Timestamp,
 }
 
 /// An abstracted diff of the state.
@@ -97,9 +98,19 @@ pub enum Diff {
     General(Box<ReservedState>, Hash256),
 }
 
+/// A general transaction to be included in the agenda.
+///
+/// Note that none of the fields are checked by the Simperby core protocol;
+/// they just represent a Git commit which is used for general data recording.
+///
+/// - `author` and `timestamp` is that of the **author signature** of the git commit.
+/// - `committer` signature will be always the same as the `author` signature.
+/// (if not, it will be rejected by the node)
+/// - `head` and `body` might be used for the trustless message delivery.
+/// Please refer to the *simperby-settlement* crate.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Transaction {
-    pub author: PublicKey,
+    pub author: MemberName,
     pub timestamp: Timestamp,
     pub head: String,
     pub body: String,
