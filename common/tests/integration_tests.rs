@@ -10,11 +10,11 @@ fn basic1() {
     let genesis_info = rs.genesis_info.clone();
     let genesis_header = rs.genesis_info.header.clone();
 
-    let mut csv = CommitSequenceVerifier::new(genesis_header.clone(), rs).unwrap();
+    let mut csv = CommitSequenceVerifier::new(genesis_header.clone(), rs.clone()).unwrap();
     let mut light_client = LightClient::new(genesis_header);
 
     let tx = Transaction {
-        author: PublicKey::zero(),
+        author: "doesn't matter".to_owned(),
         timestamp: 0,
         head: "commit 1".to_owned(),
         body: "".to_owned(),
@@ -23,7 +23,7 @@ fn basic1() {
     csv.apply_commit(&Commit::Transaction(tx.clone())).unwrap();
     let agenda = Agenda {
         height: 1,
-        author: keys[0].0.clone(),
+        author: rs.query_name(&keys[0].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
     };
@@ -35,6 +35,7 @@ fn basic1() {
             .iter()
             .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
             .collect::<Vec<_>>(),
+        timestamp: 0,
     }))
     .unwrap();
     let block_header = BlockHeader {
@@ -82,7 +83,7 @@ fn basic2() {
     let mut light_client = LightClient::new(genesis_header);
 
     let tx = Transaction {
-        author: PublicKey::zero(),
+        author: "doesn't matter".to_owned(),
         timestamp: 0,
         head: "commit 1".to_owned(),
         body: "".to_owned(),
@@ -91,7 +92,7 @@ fn basic2() {
     csv.apply_commit(&Commit::Transaction(tx.clone())).unwrap();
     let agenda = Agenda {
         height: 1,
-        author: keys[1].0.clone(),
+        author: reserved_state.query_name(&keys[1].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
     };
@@ -103,6 +104,7 @@ fn basic2() {
             .iter()
             .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
             .collect::<Vec<_>>(),
+        timestamp: 0,
     }))
     .unwrap();
     let block_header = BlockHeader {

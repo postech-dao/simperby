@@ -27,6 +27,7 @@ pub const FP_BRANCH_NAME: &str = "fp";
 pub const COMMIT_TITLE_HASH_DIGITS: usize = 8;
 pub const TAG_NAME_HASH_DIGITS: usize = 8;
 pub const BRANCH_NAME_HASH_DIGITS: usize = 8;
+pub const UNKNOWN_COMMIT_AUTHOR: &str = "unknown";
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
 pub struct CommitHash {
@@ -569,6 +570,7 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self,
         agenda_hash: &Hash256,
         proof: Vec<TypedSignature<Agenda>>,
+        timestamp: Timestamp,
     ) -> Result<CommitHash, Error> {
         // Check if the agenda branch is rebased on top of the `finalized` branch.
         let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
@@ -622,6 +624,7 @@ impl<T: RawRepository> DistributedRepository<T> {
             height: agenda.height,
             agenda_hash: agenda_commit.to_hash256(),
             proof,
+            timestamp,
         };
 
         let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
@@ -658,7 +661,7 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Creates an agenda commit on top of the `work` branch.
     pub async fn create_agenda(
         &mut self,
-        author: PublicKey,
+        author: MemberName,
     ) -> Result<(Agenda, CommitHash), Error> {
         let last_header = self.get_last_finalized_block_header().await?;
         let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;

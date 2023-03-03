@@ -38,7 +38,7 @@ pub struct TransferNonFungibleToken {
 /// Creates an execution transaction that will be delivered to the target chain once finalized.
 pub fn create_execution_transaction(
     execution: &Execution,
-    author: PublicKey,
+    author: MemberName,
     timestamp: Timestamp,
 ) -> Result<Transaction, String> {
     let head = match &execution.message {

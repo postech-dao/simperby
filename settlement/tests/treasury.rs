@@ -154,7 +154,7 @@ fn relay_1() {
                 receiver_address: string_to_hex("receiver-address"),
             }),
         },
-        PublicKey::zero(),
+        "doesn't matter".to_owned(),
         0,
     )
     .unwrap();
@@ -168,7 +168,7 @@ fn relay_1() {
                 receiver_address: string_to_hex("receiver-address"),
             }),
         },
-        PublicKey::zero(),
+        "doesn't matter".to_owned(),
         0,
     )
     .unwrap();
@@ -177,7 +177,7 @@ fn relay_1() {
 
     let agenda = Agenda {
         height: 1,
-        author: keys[0].0.clone(), // Note that keys[0] is member-0001
+        author: reserved_state.query_name(&keys[0].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx1.clone(), tx2.clone()]),
     };
@@ -189,6 +189,7 @@ fn relay_1() {
             .iter()
             .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
             .collect::<Vec<_>>(),
+        timestamp: 0,
     }))
     .unwrap();
     let block_header = BlockHeader {

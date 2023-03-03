@@ -61,7 +61,7 @@ async fn basic_1() {
 
     // Step 0: create an agenda and let the client update that
     let (agenda, agenda_commit) = server_node_repo
-        .create_agenda(keys[0].0.clone())
+        .create_agenda(rs.query_name(&keys[0].0).unwrap())
         .await
         .unwrap();
     client_node_repo.fetch().await.unwrap();
@@ -75,6 +75,7 @@ async fn basic_1() {
             keys.iter()
                 .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
                 .collect(),
+            0,
         )
         .await
         .unwrap();

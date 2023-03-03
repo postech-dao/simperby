@@ -41,6 +41,10 @@ pub struct SemanticCommit {
     pub title: String,
     pub body: String,
     pub diff: Diff,
+    /// Note that this is only for the physical Git commit;
+    /// this is not handled by the Simperby core protocol
+    pub author: MemberName,
+    pub timestamp: Timestamp,
 }
 
 #[async_trait]
