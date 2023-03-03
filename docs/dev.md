@@ -5,6 +5,7 @@
 - run `cargo fmt`
 - run `cargo clippy --all --all-targets --all-features`
 - run `cargo test --all --all-targets --all-features`
+- run `./gendoc.sh` only if [cli.rs](../cli/src/cli.rs) is modified
 
 ## Commit Message Convention
 
