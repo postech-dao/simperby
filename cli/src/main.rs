@@ -1,9 +1,8 @@
-mod cli;
 mod genesis;
 
 use clap::Parser;
-use cli::*;
 use eyre::{eyre, Result};
+use simperby_cli::cli::{self, *};
 use simperby_common::utils::get_timestamp;
 use simperby_node::{
     clone, genesis, initialize, serve, simperby_common::*, simperby_repository::raw::RawRepository,

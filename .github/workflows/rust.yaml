@@ -52,3 +52,32 @@ jobs:
         with:
           command: test
           args: --all --all-targets --all-features
+  gendoc:
+    name: Check runtime docs (gendoc)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Run simperby-cli and generate cli_help.txt
+        run: cargo run -q --example help 2>&1 | tee docs/cli_help.txt
+        
+      - name: Check diff
+        run: |
+          git config user.email "github-actions@github.com"
+          git config user.name "GitHub Actions"
+          if git diff --quiet; then
+            echo "Pass - No changes"
+          else
+            echo "Please execute ./gendoc.sh"
+            exit 1
+          fi
+
