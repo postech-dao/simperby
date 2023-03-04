@@ -18,22 +18,19 @@ type DmsKey = String;
 #[derive(Debug, Clone, Serialize)]
 pub struct Message {
     data: String,
-    height: BlockHeight,
     dms_key: DmsKey,
-    signature: TypedSignature<(String, BlockHeight, DmsKey)>,
+    signature: TypedSignature<(String, DmsKey)>,
 }
 
 impl Message {
     pub fn new(
         data: String,
-        height: BlockHeight,
         dms_key: DmsKey,
-        signature: TypedSignature<(String, BlockHeight, DmsKey)>,
+        signature: TypedSignature<(String, DmsKey)>,
     ) -> Result<Self, CryptoError> {
-        signature.verify(&(data.clone(), height, dms_key.clone()))?;
+        signature.verify(&(data.clone(), dms_key.clone()))?;
         Ok(Self {
             data,
-            height,
             dms_key,
             signature,
         })
@@ -43,7 +40,7 @@ impl Message {
         &self.data
     }
 
-    pub fn signature(&self) -> &TypedSignature<(String, BlockHeight, DmsKey)> {
+    pub fn signature(&self) -> &TypedSignature<(String, DmsKey)> {
         &self.signature
     }
 }
@@ -63,20 +60,18 @@ pub trait MessageFilter: Send + Sync + 'static {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawMessage {
     pub data: String,
-    pub height: BlockHeight,
     pub dms_key: DmsKey,
-    pub signature: TypedSignature<(String, BlockHeight, DmsKey)>,
+    pub signature: TypedSignature<(String, DmsKey)>,
 }
 
 impl RawMessage {
     pub fn try_into_message(self) -> eyre::Result<Message> {
-        Message::new(self.data, self.height, self.dms_key, self.signature).map_err(|e| eyre!(e))
+        Message::new(self.data, self.dms_key, self.signature).map_err(|e| eyre!(e))
     }
 
     pub fn from_message(message: Message) -> Self {
         RawMessage {
             data: message.data().to_owned(),
-            height: message.height,
             dms_key: message.dms_key.to_owned(),
             signature: message.signature().to_owned(),
         }
@@ -562,13 +557,9 @@ mod tests {
             let msg = format!("{i}");
             dms.add_message(Message {
                 data: msg.clone(),
-                height: 0,
                 dms_key: key.clone(),
-                signature: TypedSignature::sign(
-                    &(msg, 0, key.clone()),
-                    &network_config.private_key,
-                )
-                .unwrap(),
+                signature: TypedSignature::sign(&(msg, key.clone()), &network_config.private_key)
+                    .unwrap(),
             })
             .await
             .unwrap();
@@ -610,10 +601,9 @@ mod tests {
                 .await
                 .add_message(Message {
                     data: msg.clone(),
-                    height: 0,
                     dms_key: network_config.network_id.clone(),
                     signature: TypedSignature::sign(
-                        &(msg, 0, network_config.network_id.clone()),
+                        &(msg, network_config.network_id.clone()),
                         &network_config.private_key,
                     )
                     .unwrap(),
