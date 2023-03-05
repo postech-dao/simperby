@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-const STATE_FILE_PATH: &str = "_state.json";
+const STATE_FILE_PATH: &str = "state.json";
 type DmsKey = String;
 
 #[derive(Debug, Clone, Serialize)]
@@ -56,7 +56,7 @@ pub trait MessageFilter: Send + Sync + 'static {
     fn filter(&self, message: &Message) -> Result<(), String>;
 }
 
-/// A message before verification.
+/// A message before verification, used in the RPC interface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawMessage {
     pub data: String,
@@ -78,15 +78,17 @@ impl RawMessage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct State {
-    pub dms_key: DmsKey,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Config {
+    pub dms_key: String,
+    pub peers: Vec<PublicKey>,
 }
 
 pub struct DistributedMessageSet<S> {
     storage: Arc<RwLock<S>>,
     filter: Arc<dyn MessageFilter>,
-    key: DmsKey,
+    config: Config,
+    private_key: PrivateKey,
 }
 
 impl<S> std::fmt::Debug for DistributedMessageSet<S> {
@@ -109,7 +111,9 @@ impl<S> std::fmt::Debug for DistributedMessageSet<S> {
 /// - It locks the storage.
 /// - If the given directory is locked (possibly by another instance of `DistributedMessageSet`),
 ///   it will `await` until the lock is released.
-///  - It takes 'Arc<RwLock<Self>>' instead of `self` if network clients are used.
+/// - It takes 'Arc<RwLock<Self>>' instead of `self` if network clients are used.
+///
+/// TODO: add read only type that does not require the private key.
 impl<S: Storage> DistributedMessageSet<S> {
     /// Creates a message set instance.
     ///
@@ -120,34 +124,55 @@ impl<S: Storage> DistributedMessageSet<S> {
     ///
     /// - `dms_key`: The unique key for distinguishing the DMS instance.
     /// Note that it will be further extended with the height.
-    pub async fn new(storage: S, dms_key: String) -> Result<Self, Error> {
-        let dms_key_ = dms_key.clone();
-        let mut this = Self {
+    /// - `peers`: The peers that are allowed to participate in the network.
+    /// - `private_key`: The private key for signing messages.
+    pub async fn new(
+        mut storage: S,
+        config: Config,
+        private_key: PrivateKey,
+    ) -> Result<Self, Error> {
+        match storage.read_file(STATE_FILE_PATH).await {
+            Ok(x) => {
+                let config2: Config = serde_spb::from_str(&x)?;
+                if config2 != config {
+                    return Err(eyre!("config mismatch: {:?}", config2));
+                }
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    storage.remove_all_files().await?;
+                    storage
+                        .add_or_overwrite_file(
+                            STATE_FILE_PATH,
+                            serde_spb::to_string(&config).unwrap(),
+                        )
+                        .await?;
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
+
+        Ok(Self {
             storage: Arc::new(RwLock::new(storage)),
             filter: Arc::new(DummyFilter),
-            key: dms_key_,
-        };
-        if this.storage.read().await.list_files().await?.is_empty() {
-            this.write_state(State { dms_key }).await?;
-        } else {
-            let state: State =
-                serde_spb::from_str(&this.storage.read().await.read_file(STATE_FILE_PATH).await?)?;
-            if state.dms_key != dms_key {
-                this.storage.write().await.remove_all_files().await?;
-                this.write_state(State { dms_key }).await?;
-            }
-        };
-        Ok(this)
+            config,
+            private_key,
+        })
     }
 
-    pub async fn clear(&mut self, dms_key: DmsKey) -> Result<(), Error> {
-        self.storage.write().await.remove_all_files().await?;
-        self.write_state(State { dms_key }).await?;
-        Ok(())
+    /// Returns the underlying storage.
+    ///
+    /// This is useful for when you want to store some additional data
+    /// under the same file lock that this DMS uses.
+    ///
+    /// Note that you MUST NOT create or access files that start with `message-`.
+    pub fn get_storage(&self) -> Arc<RwLock<S>> {
+        Arc::clone(&self.storage)
     }
 
-    pub fn get_key(&self) -> String {
-        self.key.clone()
+    pub fn get_config(&self) -> Config {
+        self.config.clone()
     }
 
     pub fn set_filter(&mut self, filter: Arc<dyn MessageFilter>) {
@@ -159,7 +184,7 @@ impl<S: Storage> DistributedMessageSet<S> {
         let files = self.storage.read().await.list_files().await?;
         let tasks = files
             .into_iter()
-            .filter(|x| x != STATE_FILE_PATH)
+            .filter(|x| x.starts_with("message-"))
             .map(|f| async move { self.storage.read().await.read_file(&f).await });
         let data = future::join_all(tasks)
             .await
@@ -176,23 +201,35 @@ impl<S: Storage> DistributedMessageSet<S> {
         Ok(messages)
     }
 
-    pub async fn add_message(&mut self, message: Message) -> Result<(), Error> {
+    /// Signs the given message and adds it to the storage.
+    pub async fn add_message(&mut self, data: String) -> Result<(), Error> {
+        let message = Message {
+            data: data.clone(),
+            dms_key: self.config.dms_key.clone(),
+            signature: TypedSignature::sign(
+                &(data, self.config.dms_key.clone()),
+                &self.private_key,
+            )?,
+        };
         self.storage
             .write()
             .await
             .add_or_overwrite_file(
-                &format!("{}.json", message.to_hash256()),
+                &format!("message-{}.json", message.to_hash256()),
                 serde_spb::to_string(&message).unwrap(),
             )
             .await?;
         Ok(())
     }
 
-    pub async fn write_state(&mut self, state: State) -> Result<(), Error> {
+    async fn add_raw_message(&mut self, message: Message) -> Result<(), Error> {
         self.storage
             .write()
             .await
-            .add_or_overwrite_file(STATE_FILE_PATH, serde_spb::to_string(&state)?)
+            .add_or_overwrite_file(
+                &format!("message-{}.json", message.to_hash256()),
+                serde_spb::to_string(&message).unwrap(),
+            )
             .await?;
         Ok(())
     }
@@ -216,7 +253,7 @@ impl<S: Storage> DistributedMessageSet<S> {
             let task = async move {
                 let this_read = this_.read().await;
                 let filter = Arc::clone(&this_read.filter);
-                let port_key = format!("dms-{}", this_read.key);
+                let port_key = format!("dms-{}", this_read.config.dms_key);
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
                     format!(
                         "{}:{}/dms",
@@ -228,7 +265,7 @@ impl<S: Storage> DistributedMessageSet<S> {
                     reqwest::Client::new(),
                 )));
                 let raw_messages = stub
-                    .get_messages(this_read.key.clone(), known_messages_)
+                    .get_messages(this_read.config.dms_key.clone(), known_messages_)
                     .await
                     .map_err(|e| eyre!("{}", e))?
                     .map_err(|e| eyre!(e))?;
@@ -237,7 +274,7 @@ impl<S: Storage> DistributedMessageSet<S> {
                 for raw_message in raw_messages {
                     let message = raw_message.try_into_message()?;
                     filter.filter(&message).map_err(|e| eyre!("{}", e))?;
-                    this_.write().await.add_message(message).await?;
+                    this_.write().await.add_raw_message(message).await?;
                 }
                 Result::<(), Error>::Ok(())
             };
@@ -271,7 +308,7 @@ impl<S: Storage> DistributedMessageSet<S> {
             .map(RawMessage::from_message)
             .collect::<Vec<_>>();
         for peer in &network_config.peers {
-            let key = this.read().await.key.clone();
+            let key = this.read().await.config.dms_key.clone();
             let port_key = format!("dms-{key}");
             let messages_ = messages.clone();
             let task = async move {
@@ -347,7 +384,7 @@ impl<S: Storage> DistributedMessageSetRpcInterface for DmsWrapper<S> {
             .read_messages()
             .await
             .map_err(|e| e.to_string())?;
-        let dms_key_ = dms.read().await.key.clone();
+        let dms_key_ = dms.read().await.config.dms_key.clone();
         if dms_key != dms_key_ {
             return Err(format!("key mismatch: requested {dms_key}, but {dms_key_}"));
         }
@@ -367,15 +404,15 @@ impl<S: Storage> DistributedMessageSetRpcInterface for DmsWrapper<S> {
                 .as_ref()
                 .ok_or_else(|| "server terminated".to_owned())?,
         );
-        let dms_key_ = dms.read().await.key.clone();
-        if dms_key != dms.read().await.key {
+        let dms_key_ = dms.read().await.config.dms_key.clone();
+        if dms_key != dms.read().await.config.dms_key {
             return Err(format!("key mismatch: requested {dms_key}, but {dms_key_}"));
         }
         for message in messages {
             let message = message.try_into_message().map_err(|e| e.to_string())?;
             dms.write()
                 .await
-                .add_message(message)
+                .add_raw_message(message)
                 .await
                 .map_err(|e| e.to_string())?;
         }
@@ -396,7 +433,7 @@ pub async fn serve<S: Storage>(
     dms: Arc<RwLock<DistributedMessageSet<S>>>,
     network_config: ServerNetworkConfig,
 ) -> Result<(), Error> {
-    let port_key = format!("dms-{}", dms.read().await.key);
+    let port_key = format!("dms-{}", dms.read().await.config.dms_key);
     let port = network_config
         .ports
         .get(&port_key)
@@ -540,29 +577,29 @@ mod tests {
         )
     }
 
-    async fn create_dms(key: String) -> Dms {
+    async fn create_dms(config: Config, private_key: PrivateKey) -> Dms {
         let path = create_temp_dir();
         StorageImpl::create(&path).await.unwrap();
         let storage = StorageImpl::open(&path).await.unwrap();
-        Dms::new(storage, key).await.unwrap()
+        Dms::new(storage, config, private_key).await.unwrap()
     }
 
     #[tokio::test]
     async fn single_1() {
         let key = generate_random_string();
-        let mut dms = create_dms(key.clone()).await;
         let network_config = generate_node_configs(dispense_port(), 1).0;
+        let mut dms = create_dms(
+            Config {
+                dms_key: key,
+                peers: vec![],
+            },
+            network_config.private_key.clone(),
+        )
+        .await;
 
         for i in 0..10 {
             let msg = format!("{i}");
-            dms.add_message(Message {
-                data: msg.clone(),
-                dms_key: key.clone(),
-                signature: TypedSignature::sign(&(msg, key.clone()), &network_config.private_key)
-                    .unwrap(),
-            })
-            .await
-            .unwrap();
+            dms.add_message(msg).await.unwrap();
         }
 
         let messages = dms.read_messages().await.unwrap();
@@ -597,19 +634,7 @@ mod tests {
         for i in message_to_create {
             tokio::time::sleep(message_insertion_interval).await;
             let msg = format!("{i}");
-            dms.write()
-                .await
-                .add_message(Message {
-                    data: msg.clone(),
-                    dms_key: network_config.network_id.clone(),
-                    signature: TypedSignature::sign(
-                        &(msg, network_config.network_id.clone()),
-                        &network_config.private_key,
-                    )
-                    .unwrap(),
-                })
-                .await
-                .unwrap();
+            dms.write().await.add_message(msg).await.unwrap();
         }
         tokio::time::sleep(final_sleep).await;
         sync_task.abort();
@@ -621,13 +646,31 @@ mod tests {
             generate_node_configs(dispense_port(), 5);
         let key = server_network_config.network_id.clone();
 
-        let server_dms = Arc::new(RwLock::new(create_dms(key.clone()).await));
+        let server_dms = Arc::new(RwLock::new(
+            create_dms(
+                Config {
+                    dms_key: key.clone(),
+                    peers: vec![],
+                },
+                server_network_config.private_key.clone(),
+            )
+            .await,
+        ));
         let mut client_dmses = Vec::new();
         let mut tasks = Vec::new();
 
         let range_step = 10;
         for (i, client_network_config) in client_network_configs.iter().enumerate() {
-            let dms = Arc::new(RwLock::new(create_dms(key.clone()).await));
+            let dms = Arc::new(RwLock::new(
+                create_dms(
+                    Config {
+                        dms_key: key.clone(),
+                        peers: vec![],
+                    },
+                    client_network_config.private_key.clone(),
+                )
+                .await,
+            ));
             tasks.push(run_client_node(
                 Arc::clone(&dms),
                 (i * range_step..(i + 1) * range_step).into_iter().collect(),
