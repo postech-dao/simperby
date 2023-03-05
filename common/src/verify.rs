@@ -692,7 +692,7 @@ mod test {
     #[test]
     /// Test the case where the commit sequence is correct.
     fn correct_commit_sequence1() {
-        let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(3);
+        let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -727,7 +727,7 @@ mod test {
     #[test]
     /// Test the case where the commit sequence is correct but there are no transaction commits.
     fn correct_commit_sequence2() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -749,7 +749,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the block height is invalid.
     fn invalid_block_commit_with_invalid_height() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -792,7 +792,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the previous hash is invalid.
     fn invalid_block_commit_with_invalid_previous_hash() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -835,7 +835,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the author is invalid.
     fn invalid_block_commit_with_invalid_author() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -878,7 +878,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the timestamp is invalid.
     fn invalid_block_commit_with_invalid_timestamp() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -921,7 +921,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the finalization proof is invalid for invalid signature.
     fn invalid_block_commit_with_invalid_finalization_proof_for_invalid_signature() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -965,7 +965,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the finalization proof is invalid for low voting power.
     fn invalid_block_commit_with_invalid_finalization_proof_for_low_voting_power() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1011,7 +1011,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because the commit merkle root is invalid.
     fn invalid_block_commit_with_invalid_commit_merkle_root() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1052,7 +1052,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because block commit already exists.
     fn phase_mismatch_for_block_commit1() {
-        let (validator_keypair, _, mut csv) = setup_test(3);
+        let (validator_keypair, _, mut csv) = setup_test(4);
         // Apply block commit at block phase
         csv.apply_commit(&generate_block_commit(
             &validator_keypair,
@@ -1068,7 +1068,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because it is transaction phase.
     fn phase_mismatch_for_block_commit2() {
-        let (validator_keypair, _, mut csv) = setup_test(3);
+        let (validator_keypair, _, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -1087,7 +1087,7 @@ mod test {
     #[test]
     /// Test the case where the block commit is invalid because it is agenda phase.
     fn phase_mismatch_for_block_commit3() {
-        let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(3);
+        let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -1125,7 +1125,7 @@ mod test {
     #[test]
     /// Test the case where the transaction commit is invalid because it is agenda phase.
     fn phase_mismatch_for_transaction_commit1() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1143,7 +1143,7 @@ mod test {
     #[test]
     /// Test the case where the transaction commit is invalid because it is agenda proof phase.
     fn phase_mismatch_for_transaction_commit2() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1178,7 +1178,7 @@ mod test {
     /// Test the case where the agenda commit is invalid because the agenda height is invalid.
     /// The agenda height should be the next height of the last header height.
     fn invalid_agenda_commit_with_invalid_height() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit with invalid height
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1194,7 +1194,7 @@ mod test {
     #[test]
     /// Test the case where the agenda commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_commit_with_invalid_agenda_hash1() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit with invalid agenda hash
         let agenda_transactions_hash = if let Commit::Transaction(transaction) =
             generate_empty_transaction_commit()
@@ -1216,7 +1216,7 @@ mod test {
     #[test]
     /// Test the case where the agenda commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_commit_with_invalid_agenda_hash2() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -1235,7 +1235,7 @@ mod test {
     #[test]
     /// Test the case where the agenda commit is invalid because the timestamp is invalid.
     fn invalid_agenda_commit_with_invalid_timestamp() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -1253,7 +1253,7 @@ mod test {
     #[test]
     /// Test the case where the agenda commit is invalid because agenda commit already exists.
     fn phase_mismatch_for_agenda_commit1() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1271,7 +1271,7 @@ mod test {
     #[test]
     /// Test the case where the agenda commit is invalid because it is in agenda proof phase.
     fn phase_mismatch_for_agenda_commit2() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1306,7 +1306,7 @@ mod test {
     /// Test the case where the agenda proof commit is invalid because the agenda proof height is invalid.
     /// The agenda proof height should be the next height of the last header height.
     fn invalid_agenda_proof_commit_with_invalid_height() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1333,7 +1333,7 @@ mod test {
     #[test]
     /// Test the case where the agenda proof commit is invalid because the agenda hash is invalid.
     fn invalid_agenda_proof_with_invalid_agenda_hash() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1355,7 +1355,7 @@ mod test {
     #[test]
     /// Test the case where the agenda proof commit is invalid because the signature is invalid.
     fn invalid_agenda_proof_with_invalid_signature() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1382,7 +1382,7 @@ mod test {
     #[test]
     /// Test the case where the agenda proof commit is invalid because agenda proof already exists.
     fn phase_mismatch_for_agenda_proof_commit1() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
@@ -1411,7 +1411,7 @@ mod test {
     #[test]
     /// Test the case where the agenda proof commit is invalid because it is transaction phase.
     fn phase_mismatch_for_agenda_proof_commit2() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
@@ -1443,7 +1443,7 @@ mod test {
     #[test]
     /// Test the case where the agenda proof commit is invalid because it is block phase.
     fn phase_mismatch_for_agenda_proof_commit4() {
-        let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda-proof commit at block phase
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
