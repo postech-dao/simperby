@@ -5,7 +5,7 @@ use simperby_common::*;
 pub struct Execution {
     /// The target settlement chain which this message will be delivered to.
     pub target_chain: String,
-    /// A unique sequence for the target contract.
+    /// An increasing sequence for the target contract to prevent replay attack.
     pub contract_sequence: u128,
     /// The actual content to deliver.
     pub message: ExecutionMessage,
