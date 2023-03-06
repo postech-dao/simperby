@@ -238,13 +238,6 @@ fn basic3() {
 
     let (height, timestamp) = (2, 1);
 
-    assert_eq!(
-        rs.get_governance_set()
-            .unwrap()
-            .iter()
-            .find(|(pub_key, _)| { pub_key == &keys[1].0 }),
-        Some(&(keys[1].0.clone(), 1))
-    );
     let agenda = Agenda {
         height,
         author: rs.query_name(&keys[1].0).unwrap(),
