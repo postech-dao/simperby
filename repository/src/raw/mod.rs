@@ -6,7 +6,9 @@ mod tests;
 use super::*;
 use async_trait::async_trait;
 use eyre::Result;
-use git2::{BranchType, ObjectType, Oid, Repository, RepositoryInitOptions};
+use git2::{
+    ApplyLocation, BranchType, IndexAddOption, ObjectType, Oid, Repository, RepositoryInitOptions,
+};
 use implementation::RawRepositoryImplInner;
 use simperby_common::reserved::ReservedState;
 use std::convert::TryFrom;
@@ -170,6 +172,9 @@ pub trait RawRepository: Send + Sync + 'static {
     ///
     /// Fails if the repository is empty.
     async fn get_initial_commit(&self) -> Result<CommitHash, Error>;
+
+    /// Returns the patch of the given commit.
+    async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error>;
 
     /// Returns the diff of the given commit.
     async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error>;
@@ -526,6 +531,10 @@ impl RawRepository for RawRepositoryImpl {
 
     async fn get_initial_commit(&self) -> Result<CommitHash, Error> {
         helper_0(self, RawRepositoryImplInner::get_initial_commit).await
+    }
+
+    async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryImplInner::get_patch, commit_hash).await
     }
 
     async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
