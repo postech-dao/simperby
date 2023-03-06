@@ -150,6 +150,7 @@ fn basic3() {
     let (height, timestamp) = (1, 0);
     let mut csv = CommitSequenceVerifier::new(genesis_header.clone(), rs.clone()).unwrap();
     let mut light_client = LightClient::new(genesis_header);
+    let author = &keys[1];
 
     let tx = Transaction {
         author: "doesn't matter".to_owned(),
@@ -162,7 +163,7 @@ fn basic3() {
 
     let agenda = Agenda {
         height,
-        author: rs.query_name(&keys[0].0).unwrap(),
+        author: rs.query_name(&author.0).unwrap(),
         timestamp,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
     };
@@ -195,7 +196,7 @@ fn basic3() {
         .unwrap();
 
     let block_header = BlockHeader {
-        author: keys[0].0.clone(),
+        author: author.0.clone(),
         prev_block_finalization_proof: genesis_info.genesis_proof,
         previous_hash: genesis_info.header.to_hash256(),
         height,
@@ -240,7 +241,7 @@ fn basic3() {
 
     let agenda = Agenda {
         height,
-        author: rs.query_name(&keys[1].0).unwrap(),
+        author: rs.query_name(&author.0).unwrap(),
         timestamp,
         transactions_hash: Agenda::calculate_transactions_hash(&[]),
     };
@@ -284,7 +285,7 @@ fn basic3() {
         .unwrap();
 
     let block_header = BlockHeader {
-        author: keys[1].0.clone(),
+        author: author.0.clone(),
         prev_block_finalization_proof: fp,
         previous_hash: block_header.to_hash256(),
         height,
