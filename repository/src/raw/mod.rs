@@ -12,7 +12,6 @@ use git2::{
 use implementation::RawRepositoryImplInner;
 use simperby_common::reserved::ReservedState;
 use std::convert::TryFrom;
-use std::fs;
 use std::str;
 use thiserror::Error;
 

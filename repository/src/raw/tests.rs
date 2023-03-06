@@ -578,3 +578,37 @@ async fn retrieve_commit_hash() {
     let commit_hash_tag_a_retrieve = repo.retrieve_commit_hash(TAG_A.into()).await.unwrap();
     assert_eq!(commit_hash_tag_a_retrieve, commit_hash_a);
 }
+
+/// Make two repositories, get patch from one repository and apply patch to the other repository.
+#[tokio::test]
+async fn patch() {
+    // Set up two repositories.
+    let td = TempDir::new().unwrap();
+    let mut repo = init_repository_with_initial_commit(td.path())
+        .await
+        .unwrap();
+    let path = td.path().join("patch_file");
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "patch test").unwrap();
+    repo.create_commit("second".to_string(), None)
+        .await
+        .unwrap();
+
+    let td2 = TempDir::new().unwrap();
+    let path2 = td2.path();
+    let mut repo2 = init_repository_with_initial_commit(path2.clone())
+        .await
+        .unwrap();
+
+    let head = repo.get_head().await.unwrap();
+    let patch = repo.get_patch(head).await.unwrap();
+    let patch_commit = repo2
+        .create_commit("apply patch".to_string(), Some(patch))
+        .await
+        .unwrap();
+
+    let patch_retrieve = repo2.get_patch(patch_commit).await.unwrap();
+    // TODO: Add below lines when show_commit() is changed to return patch.
+    // assert_eq!(patch, patch_retrieve);
+    assert!(patch_retrieve.contains("patch_file"));
+}
