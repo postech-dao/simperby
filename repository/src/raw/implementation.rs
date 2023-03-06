@@ -500,7 +500,7 @@ impl RawRepositoryImplInner {
                 _ => {}
             }
             let line_text = str::from_utf8(line.content()).unwrap();
-            patch.push_str(&line_text);
+            patch.push_str(line_text);
             true
         })?;
 

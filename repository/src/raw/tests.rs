@@ -87,10 +87,7 @@ async fn branch() {
     assert_eq!(branch_a_commit_hash, c1_commit_hash);
 
     // Make second commit with "main" branch
-    let c2_commit_hash = repo
-        .create_commit("second".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    let c2_commit_hash = repo.create_commit("second".to_owned(), None).await.unwrap();
 
     let branch_list_from_commit = repo.get_branches(c2_commit_hash).await.unwrap();
     assert_eq!(branch_list_from_commit, vec![MAIN.to_owned()]);
@@ -173,25 +170,18 @@ async fn checkout() {
     let path = td.path();
     let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-    // TODO: Should change after "create_commit" is changed
     // Create branch_a at c1 and commit c2
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     repo.create_branch(BRANCH_A.into(), first_commit_hash)
         .await
         .unwrap();
-    let _commit = repo
-        .create_commit("second".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    repo.create_commit("second".to_owned(), None).await.unwrap();
     // Create branch_b at c2 and commit c3
     let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     repo.create_branch(BRANCH_B.into(), second_commit_hash)
         .await
         .unwrap();
-    let _commit = repo
-        .create_commit("third".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    repo.create_commit("third".to_owned(), None).await.unwrap();
 
     let first_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
     let second_commit_hash = repo.locate_branch(BRANCH_B.into()).await.unwrap();
@@ -228,9 +218,7 @@ async fn checkout_detach() {
 
     let first_commit_hash = repo.get_head().await.unwrap();
     // Make second commit with "main" branch
-    repo.create_commit("second".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    repo.create_commit("second".to_owned(), None).await.unwrap();
 
     // Checkout to c1 and set HEAD detached mode
     repo.checkout_detach(first_commit_hash).await.unwrap();
@@ -262,12 +250,8 @@ async fn initial_commit() {
 
     // Create branch_a, branch_b and commits
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
-    repo.create_commit("second".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
-    repo.create_commit("third".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    repo.create_commit("second".to_owned(), None).await.unwrap();
+    repo.create_commit("third".to_owned(), None).await.unwrap();
 
     let initial_commit_hash = repo.get_initial_commit().await.unwrap();
     assert_eq!(initial_commit_hash, first_commit_hash);
@@ -289,14 +273,8 @@ async fn ancestor() {
 
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     // Make second and third commits at "main" branch
-    let second_commit_hash = repo
-        .create_commit("second".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
-    let third_commit_hash = repo
-        .create_commit("third".to_owned(), Some("".to_owned()))
-        .await
-        .unwrap();
+    let second_commit_hash = repo.create_commit("second".to_owned(), None).await.unwrap();
+    let third_commit_hash = repo.create_commit("third".to_owned(), None).await.unwrap();
 
     // Get only one ancestor(direct parent)
     let ancestors = repo
@@ -351,13 +329,13 @@ async fn merge_base() {
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
     let _commit = repo
-        .create_commit("branch_a".to_owned(), Some("".to_owned()))
+        .create_commit("branch_a".to_owned(), None)
         .await
         .unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
     let _commit = repo
-        .create_commit("branch_b".to_owned(), Some("".to_owned()))
+        .create_commit("branch_b".to_owned(), None)
         .await
         .unwrap();
 
@@ -495,19 +473,20 @@ async fn clone() {
 #[tokio::test]
 async fn semantic_commit() {
     let td = TempDir::new().unwrap();
-    let path = td.path();
-    let mut repo = init_repository_with_initial_commit(path).await.unwrap();
-
+    let mut repo = init_repository_with_initial_commit(td.path())
+        .await
+        .unwrap();
+    let path = td.path().join("file");
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "file").unwrap();
     let commit_file = repo
         .create_commit("add a file".to_string(), None)
         .await
         .unwrap();
 
     let semantic_commit_nonreserved = repo.read_semantic_commit(commit_file).await.unwrap();
-
     let patch = repo.show_commit(commit_file).await.unwrap();
     let hash = patch.to_hash256();
-
     assert_eq!(semantic_commit_nonreserved.diff, Diff::NonReserved(hash));
 }
 
@@ -535,18 +514,12 @@ async fn retrieve_commit_hash() {
 
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
-    let commit_hash_a = repo
-        .create_commit(BRANCH_A.into(), Some("".to_owned()))
-        .await
-        .unwrap();
+    let commit_hash_a = repo.create_commit(BRANCH_A.into(), None).await.unwrap();
     // Make a tag at "branch_a" branch
     repo.create_tag(TAG_A.into(), commit_hash_a).await.unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
-    let commit_hash_b = repo
-        .create_commit(BRANCH_B.into(), Some("".to_owned()))
-        .await
-        .unwrap();
+    let commit_hash_b = repo.create_commit(BRANCH_B.into(), None).await.unwrap();
 
     // Retrieve commits by branch.
     let commit_hash_a_retrieve = repo.retrieve_commit_hash(BRANCH_A.into()).await.unwrap();
@@ -596,9 +569,7 @@ async fn patch() {
 
     let td2 = TempDir::new().unwrap();
     let path2 = td2.path();
-    let mut repo2 = init_repository_with_initial_commit(path2.clone())
-        .await
-        .unwrap();
+    let mut repo2 = init_repository_with_initial_commit(path2).await.unwrap();
 
     let head = repo.get_head().await.unwrap();
     let patch = repo.get_patch(head).await.unwrap();
