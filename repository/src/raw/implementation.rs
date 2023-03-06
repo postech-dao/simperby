@@ -268,22 +268,19 @@ impl RawRepositoryImplInner {
     pub(crate) fn create_commit(
         &mut self,
         commit_message: String,
-        _diff: Option<String>,
+        diff: Option<String>,
     ) -> Result<CommitHash, Error> {
-        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
-        let p = format!("{}/{}", workdir, "test");
-        fs::File::create(p.as_str())
-            .map_err(|_| Error::Unknown("full directory path does not exist".to_string()))?;
-        fs::write(p.as_str(), "test")
-            .map_err(|_| Error::Unknown("full directory path does not exist".to_string()))?;
-
+        if let Some(diff) = diff {
+            let diff = git2::Diff::from_buffer(diff.as_bytes())?;
+            self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
+        }
         let sig = self.repo.signature()?;
         let mut index = self.repo.index()?;
-        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
         let tree = self.repo.find_tree(id)?;
         let head = self.get_head()?;
-        let parent_oid = git2::Oid::from_bytes(&head.hash)?;
+        let parent_oid = Oid::from_bytes(&head.hash)?;
         let parent_commit = self.repo.find_commit(parent_oid)?;
 
         let oid = self.repo.commit(
@@ -294,10 +291,6 @@ impl RawRepositoryImplInner {
             &tree,
             &[&parent_commit],
         )?;
-
-        let obj = self.repo.find_object(oid, None)?;
-        self.repo.reset(&obj, git2::ResetType::Hard, None)?;
-
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
 
@@ -488,6 +481,30 @@ impl RawRepositoryImplInner {
             .map_err(|_| Error::Unknown("err".to_string()))?;
 
         Ok(CommitHash { hash })
+    }
+
+    pub(crate) fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        let commit = self.repo.find_commit(oid)?;
+        let tree = commit.tree()?;
+        let parent = commit.parent(0)?;
+        let parent_tree = parent.tree()?;
+        let diff = self
+            .repo
+            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
+
+        let mut patch = String::new();
+        diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+            match line.origin() {
+                ' ' | '+' | '-' => patch.push_str(&line.origin().to_string()),
+                _ => {}
+            }
+            let line_text = str::from_utf8(line.content()).unwrap();
+            patch.push_str(&line_text);
+            true
+        })?;
+
+        Ok(patch)
     }
 
     pub(crate) fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
