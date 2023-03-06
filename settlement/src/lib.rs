@@ -1,6 +1,5 @@
 pub mod execution;
 
-use execution::*;
 use eyre::Error;
 use merkle_tree::*;
 use rust_decimal::Decimal;
@@ -61,11 +60,11 @@ pub trait SettlementChain: Send + Sync {
 
     /// Delivers an execution transaction to the settlement chain with the commitment proof.
     ///
-    /// - `execution`: The execution to deliver.
+    /// - `transaction`: The transaction to deliver.
     /// - `block_height`: The height of the block that the transaction is included in.
     async fn execute(
         &self,
-        execution: Execution,
+        transaction: Transaction,
         block_height: u64,
         proof: MerkleProof,
     ) -> Result<(), Error>;
