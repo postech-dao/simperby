@@ -179,7 +179,6 @@ fn basic3() {
         timestamp,
     }))
     .unwrap();
-
     let data = DelegationTransactionData {
         delegator: rs.members[0].name.to_owned(),
         delegatee: rs.members[2].name.to_owned(),
