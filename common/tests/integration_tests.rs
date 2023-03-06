@@ -237,6 +237,10 @@ fn basic3() {
     );
 
     let (height, timestamp) = (2, 1);
+    let mut csv =
+        CommitSequenceVerifier::new(block_header.clone(), csv.get_reserved_state().clone())
+            .unwrap();
+    let mut light_client = LightClient::new(block_header.clone());
 
     let agenda = Agenda {
         height,
@@ -290,10 +294,10 @@ fn basic3() {
         height,
         timestamp,
         commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
-            &csv.get_total_commits()[5..],
+            &csv.get_total_commits()[1..],
         ),
         repository_merkle_root: Hash256::zero(),
-        validator_set: rs.get_validator_set().unwrap(),
+        validator_set: genesis_info.header.validator_set.clone(),
         version: genesis_info.header.version,
     };
     csv.apply_commit(&Commit::Block(block_header.clone()))
@@ -304,4 +308,13 @@ fn basic3() {
         .collect::<Vec<_>>();
     csv.verify_last_header_finalization(&fp).unwrap();
     light_client.update(block_header, fp).unwrap();
+    let commits = csv.get_total_commits();
+    let merkle_tree = OneshotMerkleTree::create(
+        commits[1..=(commits.len() - 2)]
+            .iter()
+            .map(|c| c.to_hash256())
+            .collect(),
+    );
+    let merkle_proof = merkle_tree.create_merkle_proof(tx.to_hash256()).unwrap();
+    assert!(light_client.verify_transaction_commitment(&tx, height, merkle_proof));
 }
