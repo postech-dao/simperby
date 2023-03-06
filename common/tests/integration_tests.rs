@@ -186,7 +186,7 @@ fn basic3() {
         governance: true,
         block_height: height,
         timestamp,
-        chain_name: "pdao".to_owned(),
+        chain_name: "PDAO-mainnet".to_owned(),
     };
     let tx_delegate = ExtraAgendaTransaction::Delegate(TxDelegate {
         proof: TypedSignature::sign(&data, &keys[0].1).unwrap(),
@@ -275,7 +275,7 @@ fn basic3() {
         delegator: rs.members[0].name.to_owned(),
         block_height: height,
         timestamp,
-        chain_name: "pdao".to_owned(),
+        chain_name: "PDAO-mainnet".to_owned(),
     };
     let tx_delegate = ExtraAgendaTransaction::Undelegate(TxUndelegate {
         proof: TypedSignature::sign(&data, &keys[0].1).unwrap(),
