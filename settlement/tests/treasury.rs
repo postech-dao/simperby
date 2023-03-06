@@ -129,6 +129,7 @@ impl MythereumTreasuryContract {
             ExecutionMessage::TransferNonFungibleToken(_) => todo!(),
         }
 
+        self.sequence += 1;
         Ok(())
     }
 }
