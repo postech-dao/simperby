@@ -346,7 +346,6 @@ impl CommitSequenceVerifier {
                     .unwrap()
                     .into_iter()
                     .collect::<HashMap<_, _>>();
-
                 let total_weight = governance_set.values().sum::<u64>();
                 let signed_weight = agenda_proof
                     .proof
