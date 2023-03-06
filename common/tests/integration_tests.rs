@@ -304,4 +304,13 @@ fn basic3() {
         .collect::<Vec<_>>();
     csv.verify_last_header_finalization(&fp).unwrap();
     light_client.update(block_header, fp).unwrap();
+
+    assert_eq!(
+        csv.get_reserved_state()
+            .get_validator_set()
+            .unwrap()
+            .iter()
+            .find(|(pub_key, _)| pub_key == &keys[0].0),
+        Some(&(keys[0].0.clone(), 1))
+    );
 }
