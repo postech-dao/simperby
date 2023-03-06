@@ -242,20 +242,11 @@ fn basic3() {
             .unwrap();
     let mut light_client = LightClient::new(block_header.clone());
 
-    let tx = Transaction {
-        author: "doesn't matter".to_owned(),
-        timestamp,
-        head: "commit 2".to_owned(),
-        body: "".to_owned(),
-        diff: Diff::None,
-    };
-    csv.apply_commit(&Commit::Transaction(tx.clone())).unwrap();
-
     let agenda = Agenda {
         height,
         author: rs.query_name(&author.0).unwrap(),
         timestamp,
-        transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
+        transactions_hash: Agenda::calculate_transactions_hash(&[]),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
 
