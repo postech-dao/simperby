@@ -16,7 +16,8 @@ use simperby_common::utils::get_timestamp;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
 use simperby_network::ClientNetworkConfig;
-use std::{collections::HashSet, fmt};
+use std::{collections::HashSet, fmt, ops::DerefMut};
+use tokio::sync::RwLock;
 use utils::{read_commits, retrieve_local_branches};
 
 pub type Branch = String;
@@ -102,22 +103,22 @@ pub struct Config {
 /// - It **verifies** all the incoming changes and applies them to the local repository
 /// only if they are valid.
 pub struct DistributedRepository<T> {
-    raw: T,
+    raw: RwLock<T>,
     _config: Config,
 }
 
 impl<T: RawRepository> DistributedRepository<T> {
-    pub fn get_raw_mut(&mut self) -> &mut T {
+    pub fn get_raw_mut(&mut self) -> &mut RwLock<T> {
         &mut self.raw
     }
 
-    pub fn get_raw(&self) -> &T {
+    pub fn get_raw(&self) -> &RwLock<T> {
         &self.raw
     }
 
     pub async fn new(raw: T, config: Config) -> Result<Self, Error> {
         Ok(Self {
-            raw,
+            raw: raw.into(),
             _config: config,
         })
     }
@@ -130,17 +131,28 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// Note that `genesis` can be called on any commit.
     pub async fn genesis(&mut self) -> Result<(), Error> {
-        let reserved_state = self.get_reserved_state().await?;
+        let reserved_state = Self::get_reserved_state_from_mut_ref(
+            self.raw.write().await.deref_mut(),
+            self.raw.read().await.get_head().await?,
+        )
+        .await?;
         let block_commit = Commit::Block(reserved_state.genesis_info.header.clone());
         let semantic_commit = to_semantic_commit(&block_commit, reserved_state.clone())?;
 
-        self.raw.checkout_clean().await?;
+        self.raw.write().await.checkout_clean().await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
         let _ = self
             .raw
-            .create_branch(FINALIZED_BRANCH_NAME.into(), self.raw.get_head().await?)
+            .write()
+            .await
+            .create_branch(
+                FINALIZED_BRANCH_NAME.into(),
+                self.raw.read().await.get_head().await?,
+            )
             .await;
         self.raw
+            .write()
+            .await
             .checkout(FINALIZED_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -151,15 +163,29 @@ impl<T: RawRepository> DistributedRepository<T> {
                 }
                 _ => eyre!(e),
             })?;
-        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        let result = self
+            .raw
+            .write()
+            .await
+            .create_semantic_commit(semantic_commit)
+            .await?;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
         let _ = self
             .raw
+            .write()
+            .await
             .create_branch(WORK_BRANCH_NAME.into(), result)
             .await;
         // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
-        let _ = self.raw.create_branch(FP_BRANCH_NAME.into(), result).await;
+        let _ = self
+            .raw
+            .write()
+            .await
+            .create_branch(FP_BRANCH_NAME.into(), result)
+            .await;
         self.raw
+            .write()
+            .await
             .checkout(FP_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -171,6 +197,8 @@ impl<T: RawRepository> DistributedRepository<T> {
                 _ => eyre!(e),
             })?;
         self.raw
+            .write()
+            .await
             .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
                 height: 0,
                 proof: reserved_state.genesis_info.genesis_proof.clone(),
@@ -181,8 +209,18 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     /// Returns the block header from the `finalized` branch.
     pub async fn get_last_finalized_block_header(&self) -> Result<BlockHeader, Error> {
-        let commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
+        let semantic_commit = self
+            .raw
+            .read()
+            .await
+            .read_semantic_commit(commit_hash)
+            .await?;
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         if let Commit::Block(block_header) = commit {
             Ok(block_header)
@@ -194,13 +232,33 @@ impl<T: RawRepository> DistributedRepository<T> {
     }
 
     pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<Commit, Error> {
-        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let semantic_commit = self
+            .raw
+            .read()
+            .await
+            .read_semantic_commit(commit_hash)
+            .await?;
         format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))
     }
 
     /// Returns the reserved state from the `finalized` branch.
     pub async fn get_reserved_state(&self) -> Result<ReservedState, Error> {
-        self.raw.read_reserved_state().await.map_err(|e| eyre!(e))
+        self.raw
+            .read()
+            .await
+            .read_reserved_state()
+            .await
+            .map_err(|e| eyre!(e))
+    }
+
+    pub async fn get_reserved_state_from_mut_ref(
+        raw: &mut T,
+        commit_hash: CommitHash,
+    ) -> Result<ReservedState, Error> {
+        raw.checkout_detach(commit_hash)
+            .await
+            .map_err(|e| eyre!(e))?;
+        raw.read_reserved_state().await.map_err(|e| eyre!(e))
     }
 
     /// Cleans all the outdated commits, remote repositories and branches.
@@ -221,6 +279,8 @@ impl<T: RawRepository> DistributedRepository<T> {
     pub async fn clean(&mut self, hard: bool) -> Result<(), Error> {
         let finalized_branch_commit_hash = self
             .raw
+            .read()
+            .await
             .locate_branch(FINALIZED_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -231,7 +291,7 @@ impl<T: RawRepository> DistributedRepository<T> {
                 }
                 _ => eyre!(e),
             })?;
-        let branches = retrieve_local_branches(&self.raw).await?;
+        let branches = retrieve_local_branches(self).await?;
         let last_header = self.get_last_finalized_block_header().await?;
         for (branch, branch_commit_hash) in branches {
             if !(branch.as_str() == WORK_BRANCH_NAME
@@ -239,11 +299,17 @@ impl<T: RawRepository> DistributedRepository<T> {
                 || branch.as_str() == FP_BRANCH_NAME)
             {
                 if hard {
-                    self.raw.delete_branch(branch.to_string()).await?;
+                    self.raw
+                        .write()
+                        .await
+                        .delete_branch(branch.to_string())
+                        .await?;
                 } else {
                     // Delete outdated branch
                     let find_merge_base_result = self
                         .raw
+                        .read()
+                        .await
                         .find_merge_base(branch_commit_hash, finalized_branch_commit_hash)
                         .await
                         .map_err(|e| match e {
@@ -256,12 +322,19 @@ impl<T: RawRepository> DistributedRepository<T> {
                         })?;
 
                     if finalized_branch_commit_hash != find_merge_base_result {
-                        self.raw.delete_branch(branch.to_string()).await?;
+                        self.raw
+                            .write()
+                            .await
+                            .delete_branch(branch.to_string())
+                            .await?;
                     }
 
                     // Delete branch with invalid commit sequence
-                    self.raw.checkout(branch.to_string()).await?;
-                    let reserved_state = self.get_reserved_state().await?;
+                    let reserved_state = Self::get_reserved_state_from_mut_ref(
+                        self.raw.write().await.deref_mut(),
+                        branch_commit_hash,
+                    )
+                    .await?;
                     let commits =
                         read_commits(self, finalized_branch_commit_hash, branch_commit_hash)
                             .await?;
@@ -272,7 +345,11 @@ impl<T: RawRepository> DistributedRepository<T> {
                             })?;
                     for (commit, _) in commits.iter() {
                         if verifier.apply_commit(commit).is_err() {
-                            self.raw.delete_branch(branch.to_string()).await?;
+                            self.raw
+                                .write()
+                                .await
+                                .delete_branch(branch.to_string())
+                                .await?;
                         }
                     }
                 }
@@ -281,9 +358,9 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         // Remove remote repositories
         // Note that remote branches are automatically removed when the remote repository is removed.
-        let remote_list = self.raw.list_remotes().await?;
+        let remote_list = self.raw.read().await.list_remotes().await?;
         for (remote_name, _) in remote_list {
-            self.raw.remove_remote(remote_name).await?;
+            self.raw.write().await.remove_remote(remote_name).await?;
         }
 
         Ok(())
@@ -316,8 +393,13 @@ impl<T: RawRepository> DistributedRepository<T> {
     ///
     /// TODO: add comment
     pub async fn fetch_from_remote(&mut self) -> Result<(), Error> {
-        let _ = self.raw.fetch_all().await;
-        let remote_branches = self.raw.list_remote_tracking_branches().await?;
+        let _ = self.raw.write().await.fetch_all().await;
+        let remote_branches = self
+            .raw
+            .read()
+            .await
+            .list_remote_tracking_branches()
+            .await?;
         for (remote_name, branch_name, commit_hash) in remote_branches {
             let branch_displayed = format!(
                 "{}/{}(at {})",
@@ -375,11 +457,18 @@ impl<T: RawRepository> DistributedRepository<T> {
     ) -> Result<(), Error> {
         let block_branch_name =
             format!("b-{}", &block_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
-        let block_commit_hash = self.raw.locate_branch(block_branch_name.clone()).await?;
+        let block_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(block_branch_name.clone())
+            .await?;
 
         if block_commit_hash
             == self
                 .raw
+                .read()
+                .await
                 .locate_branch(FINALIZED_BRANCH_NAME.to_owned())
                 .await?
         {
@@ -388,7 +477,12 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
 
         // Check if the last commit is a block commit.
-        let current_finalized_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let current_finalized_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
         let new_commits =
             utils::read_commits(self, current_finalized_commit, block_commit_hash).await?;
         let last_block_header =
@@ -402,6 +496,8 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         let find_merge_base_result = self
             .raw
+            .read()
+            .await
             .find_merge_base(current_finalized_commit, block_commit_hash)
             .await
             .map_err(|e| match e {
@@ -420,7 +516,11 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         // Verify every commit along the way.
         let last_finalized_block_header = self.get_last_finalized_block_header().await?;
-        let reserved_state = self.get_reserved_state().await?;
+        let reserved_state = Self::get_reserved_state_from_mut_ref(
+            self.raw.write().await.deref_mut(),
+            current_finalized_commit,
+        )
+        .await?;
         let mut verifier = CommitSequenceVerifier::new(
             last_finalized_block_header.clone(),
             reserved_state.clone(),
@@ -438,14 +538,20 @@ impl<T: RawRepository> DistributedRepository<T> {
         // If commit sequence verification is done and the finalization proof is verified,
         // move the `finalized` branch to the given block commit hash.
         // Then we update the `fp` branch.
-        self.raw.checkout_clean().await?;
+        self.raw.write().await.checkout_clean().await?;
         self.raw
+            .write()
+            .await
             .move_branch(FINALIZED_BRANCH_NAME.to_string(), block_commit_hash)
             .await?;
         self.raw
+            .write()
+            .await
             .move_branch(FP_BRANCH_NAME.to_string(), block_commit_hash)
             .await?;
         self.raw
+            .write()
+            .await
             .checkout(FP_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -457,6 +563,8 @@ impl<T: RawRepository> DistributedRepository<T> {
                 _ => eyre!(e),
             })?;
         self.raw
+            .write()
+            .await
             .create_semantic_commit(format::fp_to_semantic_commit(&LastFinalizationProof {
                 height: last_block_header.height,
                 proof: last_block_proof.clone(),
@@ -468,14 +576,21 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Returns the currently valid and height-acceptable agendas in the repository.
     pub async fn get_agendas(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
         let mut agendas: Vec<(CommitHash, Hash256)> = vec![];
-        let branches = retrieve_local_branches(&self.raw).await?;
-        let last_header_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let branches = retrieve_local_branches(self).await?;
+        let last_header_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
         for (branch, branch_commit_hash) in branches {
             // Check if the branch is an agenda branch
             if branch.as_str().starts_with("a-") {
                 // Check if the agenda branch is rebased on top of the `finalized` branch
                 let find_merge_base_result = self
                     .raw
+                    .read()
+                    .await
                     .find_merge_base(last_header_commit_hash, branch_commit_hash)
                     .await
                     .map_err(|e| match e {
@@ -515,14 +630,21 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// Returns the currently valid and height-acceptable blocks in the repository.
     pub async fn get_blocks(&self) -> Result<Vec<(CommitHash, Hash256)>, Error> {
         let mut blocks: Vec<(CommitHash, Hash256)> = vec![];
-        let branches = retrieve_local_branches(&self.raw).await?;
-        let last_header_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let branches = retrieve_local_branches(self).await?;
+        let last_header_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
         for (branch, branch_commit_hash) in branches {
             // Check if the branch is a block branch
             if branch.as_str().starts_with("b-") {
                 // Check if the block branch is rebased on top of the `finalized` branch
                 let find_merge_base_result = self
                     .raw
+                    .read()
+                    .await
                     .find_merge_base(last_header_commit_hash, branch_commit_hash)
                     .await
                     .map_err(|e| match e {
@@ -570,12 +692,24 @@ impl<T: RawRepository> DistributedRepository<T> {
         timestamp: Timestamp,
     ) -> Result<CommitHash, Error> {
         // Check if the agenda branch is rebased on top of the `finalized` branch.
-        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let last_header_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
         let agenda_branch_name =
             format!("a-{}", &agenda_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
-        let agenda_commit_hash = self.raw.locate_branch(agenda_branch_name.clone()).await?;
+        let agenda_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(agenda_branch_name.clone())
+            .await?;
         let find_merge_base_result = self
             .raw
+            .read()
+            .await
             .find_merge_base(last_header_commit, agenda_commit_hash)
             .await
             .map_err(|e| match e {
@@ -597,8 +731,17 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         // Verify all the incoming commits
         let finalized_header = self.get_last_finalized_block_header().await?;
-        let reserved_state = self.get_reserved_state().await?;
-        let finalized_commit_hash = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let reserved_state = Self::get_reserved_state_from_mut_ref(
+            self.raw.write().await.deref_mut(),
+            last_header_commit,
+        )
+        .await?;
+        let finalized_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
         let commits = utils::read_commits(self, finalized_commit_hash, agenda_commit_hash).await?;
         let mut verifier =
             CommitSequenceVerifier::new(finalized_header.clone(), reserved_state.clone())
@@ -615,7 +758,11 @@ impl<T: RawRepository> DistributedRepository<T> {
             _ => return Err(eyre::eyre!("not an agenda commit")),
         };
         // Delete past `a-(trimmed agenda hash)` branch and create new `a-(trimmed agenda proof hash)` branch
-        self.raw.delete_branch(agenda_branch_name.clone()).await?;
+        self.raw
+            .write()
+            .await
+            .delete_branch(agenda_branch_name.clone())
+            .await?;
         // Create agenda proof commit
         let agenda_proof = AgendaProof {
             height: agenda.height,
@@ -634,21 +781,33 @@ impl<T: RawRepository> DistributedRepository<T> {
         // Check if it is already approved.
         if self
             .raw
+            .read()
+            .await
             .list_branches()
             .await?
             .contains(&agenda_proof_branch_name)
         {
             return Ok(self
                 .raw
+                .read()
+                .await
                 .locate_branch(agenda_proof_branch_name.clone())
                 .await?);
         }
         self.raw
+            .write()
+            .await
             .create_branch(agenda_proof_branch_name.clone(), agenda_commit_hash)
             .await?;
-        self.raw.checkout(agenda_proof_branch_name).await?;
+        self.raw
+            .write()
+            .await
+            .checkout(agenda_proof_branch_name)
+            .await?;
         let agenda_proof_commit_hash = self
             .raw
+            .write()
+            .await
             .create_semantic_commit(agenda_proof_semantic_commit)
             .await?;
 
@@ -661,12 +820,24 @@ impl<T: RawRepository> DistributedRepository<T> {
         author: MemberName,
     ) -> Result<(Agenda, CommitHash), Error> {
         let last_header = self.get_last_finalized_block_header().await?;
-        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
-        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let work_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(WORK_BRANCH_NAME.into())
+            .await?;
+        let last_header_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
 
         // Check if the `work` branch is rebased on top of the `finalized` branch.
         if self
             .raw
+            .read()
+            .await
             .find_merge_base(last_header_commit, work_commit)
             .await?
             != last_header_commit
@@ -678,7 +849,9 @@ impl<T: RawRepository> DistributedRepository<T> {
             ));
         }
         // Check the validity of the commit sequence
-        let reserved_state = self.get_reserved_state().await?;
+        let reserved_state =
+            Self::get_reserved_state_from_mut_ref(self.raw.write().await.deref_mut(), work_commit)
+                .await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         let commits = read_commits(self, last_header_commit, work_commit).await?;
@@ -708,8 +881,10 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         let semantic_commit = to_semantic_commit(&agenda_commit, reserved_state)?;
 
-        self.raw.checkout_clean().await?;
+        self.raw.write().await.checkout_clean().await?;
         self.raw
+            .write()
+            .await
             .checkout(WORK_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -720,24 +895,42 @@ impl<T: RawRepository> DistributedRepository<T> {
                 }
                 _ => eyre!(e),
             })?;
-        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        let result = self
+            .raw
+            .write()
+            .await
+            .create_semantic_commit(semantic_commit)
+            .await?;
         let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
         agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
         let agenda_branch_name = format!("a-{agenda_branch_name}");
-        self.raw.create_branch(agenda_branch_name, result).await?;
+        self.raw
+            .write()
+            .await
+            .create_branch(agenda_branch_name, result)
+            .await?;
         Ok((agenda, result))
     }
 
     /// Puts a 'vote' tag on the commit.
     pub async fn vote(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
-        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let semantic_commit = self
+            .raw
+            .read()
+            .await
+            .read_semantic_commit(commit_hash)
+            .await?;
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is an agenda commit.
         if let Commit::Agenda(_) = commit {
             let mut vote_tag_name = commit.to_hash256().to_string();
             vote_tag_name.truncate(TAG_NAME_HASH_DIGITS);
             let vote_tag_name = format!("vote-{vote_tag_name}");
-            self.raw.create_tag(vote_tag_name, commit_hash).await?;
+            self.raw
+                .write()
+                .await
+                .create_tag(vote_tag_name, commit_hash)
+                .await?;
             Ok(())
         } else {
             Err(eyre!("commit {} is not an agenda commit", commit_hash))
@@ -746,14 +939,23 @@ impl<T: RawRepository> DistributedRepository<T> {
 
     /// Puts a 'veto' tag on the commit.
     pub async fn veto(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
-        let semantic_commit = self.raw.read_semantic_commit(commit_hash).await?;
+        let semantic_commit = self
+            .raw
+            .read()
+            .await
+            .read_semantic_commit(commit_hash)
+            .await?;
         let commit = format::from_semantic_commit(semantic_commit).map_err(|e| eyre!(e))?;
         // Check if the commit is a block commit.
         if let Commit::Block(_) = commit {
             let mut veto_tag_name = commit.to_hash256().to_string();
             veto_tag_name.truncate(TAG_NAME_HASH_DIGITS);
             let veto_tag_name = format!("veto-{veto_tag_name}");
-            self.raw.create_tag(veto_tag_name, commit_hash).await?;
+            self.raw
+                .write()
+                .await
+                .create_tag(veto_tag_name, commit_hash)
+                .await?;
             Ok(())
         } else {
             Err(eyre!("commit {} is not a block commit", commit_hash))
@@ -765,12 +967,24 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self,
         author: PublicKey,
     ) -> Result<(BlockHeader, CommitHash), Error> {
-        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
-        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+        let work_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(WORK_BRANCH_NAME.into())
+            .await?;
+        let last_header_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
 
         // Check if the `work` branch is rebased on top of the `finalized` branch.
         if self
             .raw
+            .read()
+            .await
             .find_merge_base(last_header_commit, work_commit)
             .await?
             != last_header_commit
@@ -786,6 +1000,8 @@ impl<T: RawRepository> DistributedRepository<T> {
         let commits = read_commits(self, last_header_commit, work_commit).await?;
         let last_header = self.get_last_finalized_block_header().await?;
         self.raw
+            .write()
+            .await
             .checkout(WORK_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -796,7 +1012,9 @@ impl<T: RawRepository> DistributedRepository<T> {
                 }
                 _ => eyre!(e),
             })?;
-        let reserved_state = self.get_reserved_state().await?;
+        let reserved_state =
+            Self::get_reserved_state_from_mut_ref(self.raw.write().await.deref_mut(), work_commit)
+                .await?;
         let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
             .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
         for (commit, hash) in commits.iter() {
@@ -806,8 +1024,18 @@ impl<T: RawRepository> DistributedRepository<T> {
         }
 
         // Verify `finalization_proof`
-        let fp_commit_hash = self.raw.locate_branch(FP_BRANCH_NAME.into()).await?;
-        let fp_semantic_commit = self.raw.read_semantic_commit(fp_commit_hash).await?;
+        let fp_commit_hash = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FP_BRANCH_NAME.into())
+            .await?;
+        let fp_semantic_commit = self
+            .raw
+            .read()
+            .await
+            .read_semantic_commit(fp_commit_hash)
+            .await?;
         let finalization_proof = fp_from_semantic_commit(fp_semantic_commit).unwrap().proof;
 
         // Create block commit
@@ -834,8 +1062,10 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
 
-        self.raw.checkout_clean().await?;
+        self.raw.write().await.checkout_clean().await?;
         self.raw
+            .write()
+            .await
             .checkout(WORK_BRANCH_NAME.into())
             .await
             .map_err(|e| match e {
@@ -846,11 +1076,20 @@ impl<T: RawRepository> DistributedRepository<T> {
                 }
                 _ => eyre!(e),
             })?;
-        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        let result = self
+            .raw
+            .write()
+            .await
+            .create_semantic_commit(semantic_commit)
+            .await?;
         let mut block_branch_name = block_commit.to_hash256().to_string();
         block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
         let block_branch_name = format!("b-{block_branch_name}");
-        self.raw.create_branch(block_branch_name, result).await?;
+        self.raw
+            .write()
+            .await
+            .create_branch(block_branch_name, result)
+            .await?;
         Ok((block_header, result))
     }
 
@@ -859,13 +1098,27 @@ impl<T: RawRepository> DistributedRepository<T> {
         &mut self,
         transaction: &ExtraAgendaTransaction,
     ) -> Result<CommitHash, Error> {
-        let work_commit = self.raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
-        let last_header_commit = self.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
-        let reserved_state = self.get_reserved_state().await?;
+        let work_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(WORK_BRANCH_NAME.into())
+            .await?;
+        let last_header_commit = self
+            .raw
+            .read()
+            .await
+            .locate_branch(FINALIZED_BRANCH_NAME.into())
+            .await?;
+        let reserved_state =
+            Self::get_reserved_state_from_mut_ref(self.raw.write().await.deref_mut(), work_commit)
+                .await?;
 
         // Check if the `work` branch is rebased on top of the `finalized` branch.
         if self
             .raw
+            .read()
+            .await
             .find_merge_base(last_header_commit, work_commit)
             .await?
             != last_header_commit
@@ -897,9 +1150,18 @@ impl<T: RawRepository> DistributedRepository<T> {
 
         let semantic_commit = to_semantic_commit(&extra_agenda_tx_commit, reserved_state)?;
 
-        self.raw.checkout_clean().await?;
-        self.raw.checkout(WORK_BRANCH_NAME.into()).await?;
-        let result = self.raw.create_semantic_commit(semantic_commit).await?;
+        self.raw.write().await.checkout_clean().await?;
+        self.raw
+            .write()
+            .await
+            .checkout(WORK_BRANCH_NAME.into())
+            .await?;
+        let result = self
+            .raw
+            .write()
+            .await
+            .create_semantic_commit(semantic_commit)
+            .await?;
         Ok(result)
     }
 }

@@ -170,6 +170,8 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                 Commands::Vote { revision } => {
                     let commit_hash = simperby_node
                         .get_raw_repo()
+                        .read()
+                        .await
                         .retrieve_commit_hash(revision)
                         .await?;
                     simperby_node.vote(commit_hash).await?;
@@ -180,6 +182,8 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                     } else {
                         let commit_hash = simperby_node
                             .get_raw_repo()
+                            .read()
+                            .await
                             .retrieve_commit_hash(revision.expect("has been checked to be Some"))
                             .await?;
                         simperby_node.veto_block(commit_hash).await?;
@@ -238,6 +242,8 @@ async fn show(config: Config, path: &str, revision_selection: String) -> Result<
     let node = simperby_node::initialize(config, path).await?;
     let commit_hash = node
         .get_raw_repo()
+        .read()
+        .await
         .retrieve_commit_hash(revision_selection)
         .await?;
     let result = node.show(commit_hash).await?;
