@@ -72,6 +72,8 @@ async fn normal_1() {
     proposer_node.create_agenda().await.unwrap();
     let agenda_commit = proposer_node
         .get_raw_repo_mut()
+        .read()
+        .await
         .locate_branch("work".to_owned())
         .await
         .unwrap();
@@ -145,11 +147,15 @@ async fn normal_1() {
     for node in std::iter::once(proposer_node).chain(other_nodes.into_iter()) {
         let finalized = node
             .get_raw_repo()
+            .read()
+            .await
             .locate_branch("finalized".to_owned())
             .await
             .unwrap();
         let title = node
             .get_raw_repo()
+            .read()
+            .await
             .read_semantic_commit(finalized)
             .await
             .unwrap()
