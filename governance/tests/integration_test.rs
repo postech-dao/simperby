@@ -2,23 +2,27 @@ use simperby_common::*;
 use simperby_governance::*;
 use simperby_network::*;
 use simperby_test_suite::*;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[tokio::test]
 async fn basic_1() {
     setup_test();
 
     let network_id = "governance-basic-1".to_string();
-    let (server_network_config, client_network_configs, peer) =
+    let (server_network_config, client_network_configs, members) =
         setup_server_client_nodes(network_id.clone(), 3).await;
 
     let mut server_node = Governance::new(
-        create_test_dms(
-            server_network_config.clone(),
-            network_id.clone(),
-            SharedKnownPeers::new_static(Default::default()),
-        )
-        .await,
-        Some(server_network_config.private_key),
+        Arc::new(RwLock::new(
+            create_test_dms(
+                network_id.clone(),
+                members.clone(),
+                server_network_config.private_key.clone(),
+            )
+            .await,
+        )),
+        Some(server_network_config.private_key.clone()),
     )
     .await
     .unwrap();
@@ -27,7 +31,14 @@ async fn basic_1() {
     for network_config in client_network_configs.iter() {
         client_nodes.push((
             Governance::new(
-                create_test_dms(network_config.clone(), network_id.clone(), peer.clone()).await,
+                Arc::new(RwLock::new(
+                    create_test_dms(
+                        network_id.clone(),
+                        members.clone(),
+                        network_config.private_key.clone(),
+                    )
+                    .await,
+                )),
                 Some(network_config.private_key.clone()),
             )
             .await
@@ -40,7 +51,10 @@ async fn basic_1() {
     server_node.vote(agenda_hash).await.unwrap();
 
     let serve_task = tokio::spawn(async move {
-        let server_node = server_node.serve(5000).await.unwrap();
+        let task = tokio::spawn(dms::serve(server_node.get_dms(), server_network_config));
+        sleep_ms(5000).await;
+        task.abort();
+        let _ = task.await;
         assert_eq!(
             server_node.read().await.unwrap().votes[&agenda_hash].len(),
             4
@@ -49,13 +63,17 @@ async fn basic_1() {
 
     sleep_ms(1000).await;
 
-    for (node, _) in client_nodes.iter_mut() {
+    for (node, network_config) in client_nodes.iter_mut() {
         node.vote(agenda_hash).await.unwrap();
-        node.broadcast().await.unwrap();
+        dms::DistributedMessageSet::broadcast(node.get_dms(), network_config)
+            .await
+            .unwrap();
     }
     sleep_ms(500).await;
-    for (node, _) in client_nodes.iter_mut() {
-        node.fetch().await.unwrap();
+    for (node, network_config) in client_nodes.iter_mut() {
+        dms::DistributedMessageSet::fetch(node.get_dms(), network_config)
+            .await
+            .unwrap();
         assert_eq!(node.read().await.unwrap().votes[&agenda_hash].len(), 4);
     }
     serve_task.await.unwrap();

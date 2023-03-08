@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 use simperby_common::*;
-use simperby_network::{
-    dms::{DistributedMessageSet as DMS, Message},
-    primitives::{GossipNetwork, Storage},
-};
+use simperby_network::{dms::DistributedMessageSet as DMS, primitives::Storage};
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub type Error = eyre::Error;
 
@@ -28,19 +27,22 @@ struct Vote {
     pub signature: Signature,
 }
 
-pub struct Governance<N: GossipNetwork, S: Storage> {
-    pub dms: DMS<N, S>,
-    pub this_node_key: Option<PrivateKey>,
+pub struct Governance<S: Storage> {
+    dms: Arc<RwLock<DMS<S>>>,
+    this_node_key: Option<PrivateKey>,
 }
 
-impl<N: GossipNetwork, S: Storage> Governance<N, S> {
+impl<S: Storage> Governance<S> {
     /// TODO: this must take the eligible governance set for this height.
-    pub async fn new(dms: DMS<N, S>, this_node_key: Option<PrivateKey>) -> Result<Self, Error> {
+    pub async fn new(
+        dms: Arc<RwLock<DMS<S>>>,
+        this_node_key: Option<PrivateKey>,
+    ) -> Result<Self, Error> {
         Ok(Self { dms, this_node_key })
     }
 
     pub async fn read(&self) -> Result<GovernanceStatus, Error> {
-        let messages = self.dms.read_messages().await?;
+        let messages = self.dms.read().await.read_messages().await?;
         let votes = messages
             .iter()
             .map(|message| {
@@ -59,41 +61,21 @@ impl<N: GossipNetwork, S: Storage> Governance<N, S> {
     }
 
     pub async fn vote(&mut self, agenda_hash: Hash256) -> Result<(), Error> {
-        let data = serde_spb::to_string(&Vote {
+        let message = serde_spb::to_string(&Vote {
             agenda_hash,
             voter: self.this_node_key.as_ref().unwrap().public_key(),
             signature: Signature::sign(agenda_hash, self.this_node_key.as_ref().unwrap())?,
         })
         .unwrap();
-        let message = Message::new(
-            data.clone(),
-            TypedSignature::sign(&data, self.this_node_key.as_ref().unwrap())?,
-        )?;
-
-        self.dms.add_message(message).await?;
+        self.dms.write().await.add_message(message).await?;
         Ok(())
     }
 
-    /// Broadcasts all the local messages.
-    pub async fn broadcast(&mut self) -> Result<(), Error> {
-        self.dms.broadcast_all().await?;
+    pub async fn update(&mut self) -> Result<(), Error> {
         Ok(())
     }
 
-    pub async fn fetch(&mut self) -> Result<(), Error> {
-        self.dms.fetch().await?;
-        Ok(())
-    }
-
-    /// Serves the governance protocol indefinitely.
-    ///
-    /// TODO: currently it just returns itself after the given time.
-    pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
-        let dms = self.dms;
-        let dms = dms.serve(time_in_ms).await?;
-        Ok(Self {
-            dms,
-            this_node_key: self.this_node_key,
-        })
+    pub fn get_dms(&self) -> Arc<RwLock<DMS<S>>> {
+        Arc::clone(&self.dms)
     }
 }
