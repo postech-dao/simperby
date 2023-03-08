@@ -128,9 +128,14 @@ pub trait RawRepository: Send + Sync + 'static {
     // ----------------------
 
     /// Creates a commit from the currently checked out branch.
+    ///
+    /// Committer will be the same as the author.
     async fn create_commit(
         &mut self,
         commit_message: String,
+        author_name: String,
+        author_email: String,
+        author_timestamp: Timestamp,
         diff: Option<String>,
     ) -> Result<CommitHash, Error>;
 
@@ -372,6 +377,32 @@ async fn helper_3<
     result
 }
 
+async fn helper_5_mut<
+    T1: Send + Sync + 'static + Clone,
+    T2: Send + Sync + 'static + Clone,
+    T3: Send + Sync + 'static + Clone,
+    T4: Send + Sync + 'static + Clone,
+    T5: Send + Sync + 'static + Clone,
+    R: Send + Sync + 'static,
+>(
+    s: &mut RawRepositoryImpl,
+    f: impl Fn(&mut RawRepositoryImplInner, T1, T2, T3, T4, T5) -> R + Send + 'static,
+    a1: T1,
+    a2: T2,
+    a3: T3,
+    a4: T4,
+    a5: T5,
+) -> R {
+    let mut lock = s.inner.lock().await;
+    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
+    let (result, inner) =
+        tokio::task::spawn_blocking(move || (f(&mut inner, a1, a2, a3, a4, a5), inner))
+            .await
+            .unwrap();
+    lock.replace(inner);
+    result
+}
+
 #[async_trait]
 impl RawRepository for RawRepositoryImpl {
     async fn init(
@@ -481,12 +512,18 @@ impl RawRepository for RawRepositoryImpl {
     async fn create_commit(
         &mut self,
         commit_message: String,
+        author_name: String,
+        author_email: String,
+        author_timestamp: Timestamp,
         diff: Option<String>,
     ) -> Result<CommitHash, Error> {
-        helper_2_mut(
+        helper_5_mut(
             self,
             RawRepositoryImplInner::create_commit,
             commit_message,
+            author_name,
+            author_email,
+            author_timestamp,
             diff,
         )
         .await
