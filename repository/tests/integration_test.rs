@@ -1,5 +1,4 @@
 use simperby_common::*;
-use simperby_network::{Peer, SharedKnownPeers};
 use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 
@@ -13,15 +12,6 @@ async fn basic_1() {
         mirrors: Vec::new(),
         long_range_attack_distance: 1,
     };
-    let peers = vec![Peer {
-        public_key: keys[0].0.clone(),
-        name: "server-node".to_owned(),
-        address: format!("127.0.0.1:{}", 1).parse().unwrap(),
-        ports: vec![("repository".to_owned(), port)].into_iter().collect(),
-        message: "".to_owned(),
-        recently_seen_timestamp: 0,
-    }];
-    let peers = SharedKnownPeers::new_static(peers);
 
     let server_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
@@ -31,7 +21,6 @@ async fn basic_1() {
             .await
             .unwrap(),
         config.clone(),
-        peers.clone(),
     )
     .await
     .unwrap();
@@ -49,12 +38,16 @@ async fn basic_1() {
         "cd {client_node_dir} && mkdir repository && cd repository && cp -r {server_node_dir}/repository/repo {client_node_dir}/repository"
     ))
     .await;
+
+    simperby_test_suite::run_command(format!(
+        "cd {client_node_dir}/repository/repo && git remote add peer git://127.0.0.1:{port}/repo"
+    ))
+    .await;
     let mut client_node_repo = DistributedRepository::new(
         RawRepositoryImpl::open(&format!("{client_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config,
-        peers.clone(),
     )
     .await
     .unwrap();
@@ -64,7 +57,7 @@ async fn basic_1() {
         .create_agenda(rs.query_name(&keys[0].0).unwrap())
         .await
         .unwrap();
-    client_node_repo.fetch().await.unwrap();
+    client_node_repo.fetch_from_remote().await.unwrap();
     assert_eq!(
         client_node_repo.get_agendas().await.unwrap(),
         vec![(agenda_commit, agenda.to_hash256())]
@@ -89,7 +82,7 @@ async fn basic_1() {
         .create_block(keys[0].0.clone())
         .await
         .unwrap();
-    client_node_repo.fetch().await.unwrap();
+    client_node_repo.fetch_from_remote().await.unwrap();
     assert_eq!(
         client_node_repo.get_blocks().await.unwrap(),
         vec![(block_commit, block.to_hash256())]
@@ -104,7 +97,7 @@ async fn basic_1() {
         .sync(&block.to_hash256(), &block_proof)
         .await
         .unwrap();
-    client_node_repo.fetch().await.unwrap();
+    client_node_repo.fetch_from_remote().await.unwrap();
     assert_eq!(
         client_node_repo
             .get_last_finalized_block_header()

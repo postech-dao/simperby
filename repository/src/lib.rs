@@ -15,9 +15,10 @@ use simperby_common::reserved::ReservedState;
 use simperby_common::utils::get_timestamp;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
-use simperby_network::{NetworkConfig, Peer, SharedKnownPeers};
+use simperby_network::ClientNetworkConfig;
 use std::{collections::HashSet, fmt};
 use utils::{read_commits, retrieve_local_branches};
+
 pub type Branch = String;
 pub type Tag = String;
 
@@ -102,8 +103,7 @@ pub struct Config {
 /// only if they are valid.
 pub struct DistributedRepository<T> {
     raw: T,
-    config: Config,
-    peers: SharedKnownPeers,
+    _config: Config,
 }
 
 impl<T: RawRepository> DistributedRepository<T> {
@@ -115,8 +115,11 @@ impl<T: RawRepository> DistributedRepository<T> {
         &self.raw
     }
 
-    pub async fn new(raw: T, config: Config, peers: SharedKnownPeers) -> Result<Self, Error> {
-        Ok(Self { raw, config, peers })
+    pub async fn new(raw: T, config: Config) -> Result<Self, Error> {
+        Ok(Self {
+            raw,
+            _config: config,
+        })
     }
 
     /// Initializes the genesis repository, leaving a genesis header.
@@ -343,17 +346,6 @@ impl<T: RawRepository> DistributedRepository<T> {
         commit_hash: CommitHash,
     ) -> Result<Result<(), String>, Error> {
         receive::receive(self, commit_hash).await
-    }
-
-    /// Serves the distributed repository protocol indefinitely.
-    /// It **verifies** all the incoming changes and applies them to the local repository
-    /// only if they are valid.
-    pub async fn serve(
-        self,
-        _network_config: &NetworkConfig,
-        _peers: SharedKnownPeers,
-    ) -> Result<tokio::task::JoinHandle<Result<(), Error>>, Error> {
-        unimplemented!()
     }
 
     /// Checks the validity of the repository, starting from the given height.

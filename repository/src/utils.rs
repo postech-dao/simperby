@@ -1,31 +1,6 @@
 use super::*;
 use thiserror::Error;
 
-pub async fn add_remotes<T: RawRepository>(
-    this: &mut DistributedRepository<T>,
-    known_peers: &[Peer],
-) -> Result<(), Error> {
-    for peer in known_peers {
-        let remote_name = peer.name.clone();
-        let remote_url = format!(
-            "git://{}:{}/repo",
-            peer.address.ip(),
-            // 9418 is the default port for git server
-            peer.ports.get("repository").unwrap_or(&9418)
-        );
-        if let Err(err) = this.raw.add_remote(remote_name, remote_url.clone()).await {
-            warn!("failed to add remote({}): {}", remote_url, err);
-        }
-    }
-    for (i, mirror) in this.config.mirrors.iter().enumerate() {
-        let remote_name = format!("mirror_{i}");
-        if let Err(err) = this.raw.add_remote(remote_name, mirror.clone()).await {
-            warn!("failed to add remote({}): {}", mirror, err);
-        }
-    }
-    Ok(())
-}
-
 /// Retrieve all local branches
 pub async fn retrieve_local_branches<T: RawRepository>(
     raw: &T,
