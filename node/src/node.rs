@@ -2,33 +2,33 @@ use super::*;
 use eyre::eyre;
 use simperby_common::utils::get_timestamp;
 use simperby_consensus::{Consensus, ConsensusParameters, ProgressResult};
-use simperby_network::primitives::{GossipNetwork, Storage};
-use simperby_network::NetworkConfig;
-use simperby_network::{dms, storage::StorageImpl, Dms, Peer, SharedKnownPeers};
+use simperby_network::primitives::Storage;
+use simperby_network::{dms::Config as DmsConfig, storage::StorageImpl, Dms};
+use simperby_network::{ClientNetworkConfig, ServerNetworkConfig};
 use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
 use simperby_repository::{DistributedRepository, WORK_BRANCH_NAME};
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-pub struct Node<N: GossipNetwork, S: Storage, R: RawRepository> {
+pub struct Node<S: Storage, R: RawRepository> {
     config: Config,
     repository: DistributedRepository<R>,
-    governance: Governance<N, S>,
-    consensus: Consensus<N, S>,
+    governance: Governance<S>,
+    consensus: Consensus<S>,
 
     last_reserved_state: ReservedState,
     #[allow(dead_code)]
     last_finalized_header: BlockHeader,
+    _path: String,
 
-    path: String,
-    network_config: NetworkConfig,
+    _client_network_config: ClientNetworkConfig,
+    _server_network_config: ServerNetworkConfig,
 }
 
 impl SimperbyNode {
     pub async fn initialize(config: Config, path: &str) -> Result<Self> {
         // Step 0: initialize the repository module
-        let peers: Vec<Peer> =
-            serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/peers.json")).await?)?;
-        let peers = SharedKnownPeers::new_static(peers.clone());
         let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
         let repository = DistributedRepository::new(
             raw_repository,
@@ -36,7 +36,6 @@ impl SimperbyNode {
                 mirrors: config.public_repo_url.clone(),
                 long_range_attack_distance: 3,
             },
-            peers.clone(),
         )
         .await?;
 
@@ -45,7 +44,8 @@ impl SimperbyNode {
         let reserved_state = repository.get_reserved_state().await?;
         let governance_dms_key = simperby_governance::generate_dms_key(&last_finalized_header);
         let consensus_dms_key = simperby_consensus::generate_dms_key(&last_finalized_header);
-        let network_config = NetworkConfig {
+
+        let server_network_config = ServerNetworkConfig {
             network_id: reserved_state.genesis_info.chain_name.clone(),
             ports: vec![
                 (
@@ -68,11 +68,21 @@ impl SimperbyNode {
             public_key: config.public_key.clone(),
             private_key: config.private_key.clone(),
         };
-        let dms_config = dms::Config {
-            fetch_interval: Some(std::time::Duration::from_millis(500)),
-            broadcast_interval: Some(std::time::Duration::from_millis(500)),
-            network_config: network_config.clone(),
+
+        let client_network_config = ClientNetworkConfig {
+            network_id: server_network_config.network_id.clone(),
+            members: server_network_config.members.clone(),
+            public_key: server_network_config.public_key.clone(),
+            private_key: server_network_config.private_key.clone(),
+            peers: config.peers.clone(),
         };
+
+        let dms_peers = reserved_state
+            .get_governance_set()
+            .map_err(|e| eyre!("{e}"))?
+            .into_iter()
+            .map(|(public_key, _)| public_key)
+            .collect::<Vec<_>>();
 
         // Step 2: initialize the governance module
         let dms_path = format!("{path}/governance/dms");
@@ -80,12 +90,15 @@ impl SimperbyNode {
         let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
             storage,
-            governance_dms_key,
-            dms_config.clone(),
-            peers.clone(),
+            DmsConfig {
+                dms_key: governance_dms_key,
+                peers: dms_peers.clone(),
+            },
+            config.private_key.clone(),
         )
         .await?;
-        let governance = Governance::new(dms, Some(config.private_key.clone())).await?;
+        let governance =
+            Governance::new(Arc::new(RwLock::new(dms)), Some(config.private_key.clone())).await?;
 
         // Step 3: initialize the consensus module
         let dms_path = format!("{path}/consensus/dms");
@@ -93,16 +106,18 @@ impl SimperbyNode {
         let storage = StorageImpl::open(&dms_path).await.unwrap();
         let dms = Dms::new(
             storage,
-            consensus_dms_key,
-            dms_config.clone(),
-            peers.clone(),
+            DmsConfig {
+                dms_key: consensus_dms_key,
+                peers: dms_peers.clone(),
+            },
+            config.private_key.clone(),
         )
         .await?;
         let state_path = format!("{path}/consensus/state");
         StorageImpl::create(&state_path).await.unwrap();
         let consensus_state_storage = StorageImpl::open(&state_path).await.unwrap();
         let consensus = Consensus::new(
-            dms,
+            Arc::new(RwLock::new(dms)),
             consensus_state_storage,
             last_finalized_header.clone(),
             // TODO: replace params and timestamp with proper values
@@ -121,8 +136,9 @@ impl SimperbyNode {
             consensus,
             last_reserved_state: reserved_state,
             last_finalized_header,
-            path: path.to_owned(),
-            network_config,
+            _path: path.to_owned(),
+            _client_network_config: client_network_config,
+            _server_network_config: server_network_config,
         })
     }
 
@@ -132,11 +148,6 @@ impl SimperbyNode {
 
     pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
         self.repository.get_raw_mut()
-    }
-
-    /// TODO: revise this interface
-    pub fn network_config(&self) -> &NetworkConfig {
-        &self.network_config
     }
 
     /// Synchronizes the `finalized` branch to the last block of the `work` branch.
@@ -296,43 +307,8 @@ impl SimperbyNode {
         unimplemented!()
     }
 
-    pub async fn serve(self, ms: u64) -> Result<Self> {
-        let repository_port = self.config.repository_port;
-
-        let t1 = tokio::spawn(async move { self.governance.serve(ms).await.unwrap() });
-        let t2 = tokio::spawn(async move { self.consensus.serve(ms).await.unwrap() });
-        let path = self.path.clone();
-        let t3 = tokio::spawn(async move {
-            let server = simperby_repository::server::run_server_legacy(
-                &format!("{path}/repository"),
-                repository_port,
-            )
-            .await;
-            tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
-            drop(server);
-        });
-
-        let governance = t1.await?;
-        let consensus = t2.await?;
-        t3.await?;
-
-        Ok(Self {
-            governance,
-            consensus,
-            config: self.config,
-            repository: self.repository,
-            last_reserved_state: self.last_reserved_state,
-            last_finalized_header: self.last_finalized_header,
-            path: self.path,
-            network_config: self.network_config,
-        })
-    }
-
     pub async fn fetch(&mut self) -> Result<()> {
-        let t1 = async { self.governance.fetch().await };
-        let t2 = async { self.consensus.fetch().await };
-        let t3 = async { self.repository.fetch().await };
-        futures::try_join!(t1, t2, t3)?;
+        // TODO: perform the actual network operations
 
         // Update governance
         let governance_set = self
@@ -384,11 +360,7 @@ impl SimperbyNode {
 
     /// Broadcasts all the local messages and reports the result.
     pub async fn broadcast(&mut self) -> Result<Vec<String>> {
-        let t1 = async { self.governance.broadcast().await };
-        let t2 = async { self.consensus.broadcast().await };
-        let t3 = async { self.repository.broadcast().await };
-        futures::try_join!(t1, t2, t3)?;
-        // TODO: report the result
+        // TODO
         Ok(vec![])
     }
 

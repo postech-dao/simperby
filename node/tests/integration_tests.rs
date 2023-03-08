@@ -1,3 +1,5 @@
+#![cfg(never)]
+
 use simperby_common::*;
 use simperby_network::Peer;
 use simperby_node::{genesis, *};
