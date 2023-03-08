@@ -2,6 +2,7 @@ use super::SemanticCommit;
 use crate::raw::Error;
 use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
 
+use simperby_common::utils::get_timestamp;
 use simperby_common::{test_utils::generate_standard_genesis, Diff, ToHash256};
 use std::path::Path;
 use tempfile::TempDir;
@@ -87,7 +88,16 @@ async fn branch() {
     assert_eq!(branch_a_commit_hash, c1_commit_hash);
 
     // Make second commit with "main" branch
-    let c2_commit_hash = repo.create_commit("second".to_owned(), None).await.unwrap();
+    let c2_commit_hash = repo
+        .create_commit(
+            "second".to_owned(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
+        .await
+        .unwrap();
 
     let branch_list_from_commit = repo.get_branches(c2_commit_hash).await.unwrap();
     assert_eq!(branch_list_from_commit, vec![MAIN.to_owned()]);
@@ -175,13 +185,29 @@ async fn checkout() {
     repo.create_branch(BRANCH_A.into(), first_commit_hash)
         .await
         .unwrap();
-    repo.create_commit("second".to_owned(), None).await.unwrap();
+    repo.create_commit(
+        "second".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
     // Create branch_b at c2 and commit c3
     let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     repo.create_branch(BRANCH_B.into(), second_commit_hash)
         .await
         .unwrap();
-    repo.create_commit("third".to_owned(), None).await.unwrap();
+    repo.create_commit(
+        "third".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
 
     let first_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
     let second_commit_hash = repo.locate_branch(BRANCH_B.into()).await.unwrap();
@@ -218,7 +244,15 @@ async fn checkout_detach() {
 
     let first_commit_hash = repo.get_head().await.unwrap();
     // Make second commit with "main" branch
-    repo.create_commit("second".to_owned(), None).await.unwrap();
+    repo.create_commit(
+        "second".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
 
     // Checkout to c1 and set HEAD detached mode
     repo.checkout_detach(first_commit_hash).await.unwrap();
@@ -250,8 +284,24 @@ async fn initial_commit() {
 
     // Create branch_a, branch_b and commits
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
-    repo.create_commit("second".to_owned(), None).await.unwrap();
-    repo.create_commit("third".to_owned(), None).await.unwrap();
+    repo.create_commit(
+        "second".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
+    repo.create_commit(
+        "third".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
 
     let initial_commit_hash = repo.get_initial_commit().await.unwrap();
     assert_eq!(initial_commit_hash, first_commit_hash);
@@ -273,8 +323,26 @@ async fn ancestor() {
 
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     // Make second and third commits at "main" branch
-    let second_commit_hash = repo.create_commit("second".to_owned(), None).await.unwrap();
-    let third_commit_hash = repo.create_commit("third".to_owned(), None).await.unwrap();
+    let second_commit_hash = repo
+        .create_commit(
+            "second".to_owned(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
+        .await
+        .unwrap();
+    let third_commit_hash = repo
+        .create_commit(
+            "third".to_owned(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
+        .await
+        .unwrap();
 
     // Get only one ancestor(direct parent)
     let ancestors = repo
@@ -329,13 +397,25 @@ async fn merge_base() {
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
     let _commit = repo
-        .create_commit("branch_a".to_owned(), None)
+        .create_commit(
+            "branch_a".to_owned(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
         .await
         .unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
     let _commit = repo
-        .create_commit("branch_b".to_owned(), None)
+        .create_commit(
+            "branch_b".to_owned(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
         .await
         .unwrap();
 
@@ -480,7 +560,13 @@ async fn semantic_commit() {
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "file").unwrap();
     let commit_file = repo
-        .create_commit("add a file".to_string(), None)
+        .create_commit(
+            "add a file".to_string(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
         .await
         .unwrap();
 
@@ -514,12 +600,30 @@ async fn retrieve_commit_hash() {
 
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
-    let commit_hash_a = repo.create_commit(BRANCH_A.into(), None).await.unwrap();
+    let commit_hash_a = repo
+        .create_commit(
+            BRANCH_A.into(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
+        .await
+        .unwrap();
     // Make a tag at "branch_a" branch
     repo.create_tag(TAG_A.into(), commit_hash_a).await.unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
-    let commit_hash_b = repo.create_commit(BRANCH_B.into(), None).await.unwrap();
+    let commit_hash_b = repo
+        .create_commit(
+            BRANCH_B.into(),
+            "name".to_string(),
+            "test@email.com".to_string(),
+            get_timestamp(),
+            None,
+        )
+        .await
+        .unwrap();
 
     // Retrieve commits by branch.
     let commit_hash_a_retrieve = repo.retrieve_commit_hash(BRANCH_A.into()).await.unwrap();
@@ -563,7 +667,18 @@ async fn patch() {
     let path = td.path().join("patch_file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "patch test").unwrap();
-    repo.create_commit("second".to_string(), None)
+    let commit_message = "apply patch".to_string();
+    let author_name = "name".to_string();
+    let author_email = "test@email.com".to_string();
+    let timestamp = get_timestamp();
+    let patch_commit_original = repo
+        .create_commit(
+            commit_message.clone(),
+            author_name.clone(),
+            author_email.clone(),
+            timestamp,
+            None,
+        )
         .await
         .unwrap();
 
@@ -574,10 +689,17 @@ async fn patch() {
     let head = repo.get_head().await.unwrap();
     let patch = repo.get_patch(head).await.unwrap();
     let patch_commit = repo2
-        .create_commit("apply patch".to_string(), Some(patch))
+        .create_commit(
+            commit_message,
+            author_name,
+            author_email,
+            timestamp,
+            Some(patch),
+        )
         .await
         .unwrap();
 
+    assert_eq!(patch_commit_original, patch_commit);
     let patch_retrieve = repo2.get_patch(patch_commit).await.unwrap();
     // TODO: Add below lines when show_commit() is changed to return patch.
     // assert_eq!(patch, patch_retrieve);
