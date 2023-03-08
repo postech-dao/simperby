@@ -305,9 +305,14 @@ impl<T: RawRepository> DistributedRepository<T> {
     /// It may leave some remote repository (representing each peer) after the operation.
     ///
     /// TODO: add fork detection logic considering the long range attack distance.
-    pub async fn fetch(&mut self) -> Result<(), Error> {
-        utils::add_remotes(self, &self.peers.read().await).await?;
-        // TODO: handle this
+    pub async fn fetch(&mut self, _network_config: &ClientNetworkConfig) -> Result<(), Error> {
+        todo!()
+    }
+
+    /// Fetches new commits from the remote repositories.
+    ///
+    /// TODO: add comment
+    pub async fn fetch_from_remote(&mut self) -> Result<(), Error> {
         let _ = self.raw.fetch_all().await;
         let remote_branches = self.raw.list_remote_tracking_branches().await?;
         for (remote_name, branch_name, commit_hash) in remote_branches {
