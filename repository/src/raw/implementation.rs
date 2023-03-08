@@ -268,13 +268,17 @@ impl RawRepositoryImplInner {
     pub(crate) fn create_commit(
         &mut self,
         commit_message: String,
+        author_name: String,
+        author_email: String,
+        author_timestamp: Timestamp,
         diff: Option<String>,
     ) -> Result<CommitHash, Error> {
         if let Some(diff) = diff {
             let diff = git2::Diff::from_buffer(diff.as_bytes())?;
             self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
         }
-        let sig = self.repo.signature()?;
+        let time = git2::Time::new(author_timestamp, -540);
+        let signature = git2::Signature::new(author_name.as_str(), author_email.as_str(), &time)?;
         let mut index = self.repo.index()?;
         index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
@@ -285,8 +289,8 @@ impl RawRepositoryImplInner {
 
         let oid = self.repo.commit(
             Some("HEAD"),
-            &sig,
-            &sig,
+            &signature,
+            &signature,
             commit_message.as_str(),
             &tree,
             &[&parent_commit],
