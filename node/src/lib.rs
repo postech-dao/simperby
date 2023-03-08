@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_governance::Governance;
-use simperby_network::{Peer, SharedKnownPeers};
+use simperby_network::Peer;
 use simperby_repository::raw::{RawRepository, RawRepositoryImpl, SemanticCommit};
 use simperby_repository::CommitHash;
 use simperby_repository::DistributedRepository;
@@ -63,6 +63,9 @@ pub struct Config {
     pub governance_port: u16,
     pub consensus_port: u16,
     pub repository_port: u16,
+
+    /// TODO: remove this and introduce a proper peer discovery protocol
+    pub peers: Vec<Peer>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -104,17 +107,11 @@ pub enum CommitInfo {
     }, // TODO
 }
 
-pub type SimperbyNode = node::Node<
-    simperby_network::primitives::DummyGossipNetwork,
-    simperby_network::storage::StorageImpl,
-    simperby_repository::raw::RawRepositoryImpl,
->;
+pub type SimperbyNode =
+    node::Node<simperby_network::storage::StorageImpl, simperby_repository::raw::RawRepositoryImpl>;
 
 /// Creates a genesis commit.
 pub async fn genesis(config: Config, path: &str) -> Result<()> {
-    let peers: Vec<Peer> =
-        serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/peers.json")).await?)?;
-    let peers = SharedKnownPeers::new_static(peers.clone());
     let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
     let mut repository = DistributedRepository::new(
         raw_repository,
@@ -122,11 +119,9 @@ pub async fn genesis(config: Config, path: &str) -> Result<()> {
             mirrors: config.public_repo_url.clone(),
             long_range_attack_distance: 3,
         },
-        peers.clone(),
     )
     .await?;
     repository.genesis().await?;
-
     Ok(())
 }
 
@@ -144,10 +139,6 @@ pub async fn clone(config: Config, path: &str, url: &str) -> Result<SimperbyNode
 }
 
 /// Runs a server node indefinitely.
-pub async fn serve(config: Config, path: &str) -> Result<()> {
-    if config.broadcast_interval_ms.is_some() {
-        let node = SimperbyNode::initialize(config.clone(), path).await?;
-        node.serve(5000).await?;
-    }
-    Ok(())
+pub async fn serve(_config: Config, _path: &str) -> Result<()> {
+    todo!()
 }
