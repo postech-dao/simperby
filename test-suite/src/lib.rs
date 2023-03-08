@@ -2,7 +2,7 @@ use path_slash::PathExt as _;
 use simperby_node::simperby_common::*;
 use simperby_node::simperby_network::primitives::Storage;
 use simperby_node::simperby_network::{
-    dms, storage::StorageImpl, Dms, NetworkConfig, Peer, SharedKnownPeers,
+    dms, storage::StorageImpl, ClientNetworkConfig, Dms, Peer, ServerNetworkConfig,
 };
 use tempfile::TempDir;
 
@@ -99,64 +99,62 @@ pub fn dispense_port() -> u16 {
 }
 
 pub async fn create_test_dms(
-    network_config: NetworkConfig,
     dms_key: String,
-    peers: SharedKnownPeers,
+    peers: Vec<PublicKey>,
+    private_key: PrivateKey,
 ) -> Dms {
     let path = create_temp_dir();
     StorageImpl::create(&path).await.unwrap();
     let storage = StorageImpl::open(&path).await.unwrap();
-    Dms::new(
-        storage,
-        dms_key,
-        dms::Config {
-            fetch_interval: Some(std::time::Duration::from_millis(500)),
-            broadcast_interval: Some(std::time::Duration::from_millis(500)),
-            network_config,
-        },
-        peers,
-    )
-    .await
-    .unwrap()
+    Dms::new(storage, dms::Config { dms_key, peers }, private_key)
+        .await
+        .unwrap()
 }
 
 pub async fn setup_server_client_nodes(
     network_id: String,
     client_n: usize,
-) -> (NetworkConfig, Vec<NetworkConfig>, SharedKnownPeers) {
+) -> (
+    ServerNetworkConfig,
+    Vec<ClientNetworkConfig>,
+    Vec<PublicKey>,
+) {
     let (public_key, private_key) = generate_keypair_random();
-    let server = NetworkConfig {
+    let server = ServerNetworkConfig {
         network_id: network_id.clone(),
-        ports: vec![(format!("dms-{network_id}"), dispense_port())]
-            .into_iter()
-            .collect(),
         members: Vec::new(),
         public_key,
         private_key,
+        ports: vec![(format!("dms-{network_id}"), dispense_port())]
+            .into_iter()
+            .collect(),
     };
     let mut clients = Vec::new();
     for _ in 0..client_n {
         let (public_key, private_key) = generate_keypair_random();
-        let network_config = NetworkConfig {
+        let network_config = ClientNetworkConfig {
             network_id: network_id.clone(),
-            ports: vec![(format!("dms-{network_id}"), dispense_port())]
-                .into_iter()
-                .collect(),
             members: Vec::new(),
             public_key,
             private_key: private_key.clone(),
+            peers: vec![Peer {
+                public_key: server.public_key.clone(),
+                name: "server".to_owned(),
+                address: "127.0.0.1:1".parse().unwrap(),
+                ports: server.ports.clone(),
+                message: "".to_owned(),
+                recently_seen_timestamp: 0,
+            }],
         };
         clients.push(network_config);
     }
-    let peer = SharedKnownPeers::new_static(vec![Peer {
-        public_key: server.public_key.clone(),
-        name: "server".to_owned(),
-        address: "127.0.0.1:1".parse().unwrap(),
-        ports: server.ports.clone(),
-        message: "".to_owned(),
-        recently_seen_timestamp: 0,
-    }]);
-    (server, clients, peer)
+    let mut members = clients
+        .iter()
+        .map(|c| c.public_key.clone())
+        .collect::<Vec<_>>();
+    members.push(server.public_key.clone());
+
+    (server, clients, members)
 }
 
 pub async fn sleep_ms(ms: u64) {
