@@ -1,5 +1,3 @@
-mod genesis;
-
 use clap::Parser;
 use eyre::{eyre, Result};
 use simperby_cli::cli::{self, *};
@@ -214,15 +212,7 @@ async fn main() -> eyre::Result<()> {
     color_eyre::install().unwrap();
     env_logger::init();
 
-    let private_key = std::env::args().nth(1).unwrap();
-    let server_or_client = std::env::args().nth(2).unwrap();
-    if server_or_client == "s" {
-        genesis::run_genesis_proposer(&private_key).await;
-    } else {
-        genesis::run_genesis_non_proposer(&private_key).await;
-    }
-
-    return Ok(());
+    let _private_key = std::env::args().nth(1).unwrap();
 
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();

@@ -372,12 +372,6 @@ impl<S: Storage> Consensus<S> {
         Ok(final_result)
     }
 
-    /// Broadcasts all the local messages.
-    pub async fn broadcast(&mut self, network_config: &ClientNetworkConfig) -> Result<(), Error> {
-        DMS::<S>::broadcast(Arc::clone(&self.dms), network_config).await?;
-        Ok(())
-    }
-
     pub async fn fetch(&mut self, network_config: &ClientNetworkConfig) -> Result<(), Error> {
         DMS::<S>::fetch(Arc::clone(&self.dms), network_config).await?;
         Ok(())
