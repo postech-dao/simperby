@@ -179,6 +179,16 @@ impl<S: Storage> DistributedMessageSet<S> {
         self.filter = filter;
     }
 
+    pub async fn clear(&mut self) -> Result<(), Error> {
+        self.storage.write().await.remove_all_files().await?;
+        self.storage
+            .write()
+            .await
+            .add_or_overwrite_file(STATE_FILE_PATH, serde_spb::to_string(&self.config).unwrap())
+            .await?;
+        Ok(())
+    }
+
     /// Reads the messages from the storage.
     pub async fn read_messages(&self) -> Result<Vec<Message>, Error> {
         let files = self.storage.read().await.list_files().await?;
