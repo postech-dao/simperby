@@ -1,6 +1,4 @@
-use super::*;
 use async_trait::async_trait;
-use tokio::sync::mpsc;
 
 pub type StorageError = std::io::Error;
 
@@ -34,73 +32,4 @@ pub trait Storage: Send + Sync + 'static {
 
     /// Removes all files.
     async fn remove_all_files(&mut self) -> Result<(), StorageError>;
-}
-
-#[async_trait]
-pub trait PeerDiscoveryPrimitive: Send + Sync + 'static {
-    /// Remains online on the network indefinitely,
-    /// responding to discovery requests from other nodes,
-    /// updating `known_peers`.
-    async fn serve(
-        network_config: NetworkConfig,
-        message: String,
-        port_map: HashMap<String, u16>,
-        initially_known_peers: Vec<Peer>,
-    ) -> Result<(SharedKnownPeers, tokio::task::JoinHandle<Result<(), Error>>), Error>;
-}
-
-/// The p2p gossip network.
-#[async_trait]
-pub trait GossipNetwork: Send + Sync + 'static {
-    /// Broadcasts a message to the network.
-    async fn broadcast(
-        config: &NetworkConfig,
-        known_peers: &[Peer],
-        message: Vec<u8>,
-    ) -> Result<(), Error>;
-
-    /// Remains online on the network indefinitely,
-    /// serving (propagating) messages broadcasted over the network.
-    async fn serve(
-        config: NetworkConfig,
-        peers: SharedKnownPeers,
-    ) -> Result<
-        (
-            mpsc::Receiver<Vec<u8>>,
-            tokio::task::JoinHandle<Result<(), Error>>,
-        ),
-        Error,
-    >;
-}
-
-pub struct DummyGossipNetwork;
-
-#[async_trait]
-impl GossipNetwork for DummyGossipNetwork {
-    async fn broadcast(
-        _config: &NetworkConfig,
-        _known_peers: &[Peer],
-        _message: Vec<u8>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn serve(
-        _config: NetworkConfig,
-        _peers: SharedKnownPeers,
-    ) -> Result<
-        (
-            mpsc::Receiver<Vec<u8>>,
-            tokio::task::JoinHandle<Result<(), Error>>,
-        ),
-        Error,
-    > {
-        let (send, recv) = mpsc::channel(1);
-        let task = tokio::spawn(async move {
-            let _send = send;
-            tokio::time::sleep(std::time::Duration::MAX).await;
-            Ok(())
-        });
-        Ok((recv, task))
-    }
 }
