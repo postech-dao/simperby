@@ -277,6 +277,8 @@ impl RawRepositoryImplInner {
             let diff = git2::Diff::from_buffer(diff.as_bytes())?;
             self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
         }
+
+        // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
         let time = git2::Time::new(author_timestamp, -540);
         let signature = git2::Signature::new(author_name.as_str(), author_email.as_str(), &time)?;
         let mut index = self.repo.index()?;
