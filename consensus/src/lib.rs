@@ -8,12 +8,14 @@ use simperby_common::{
     serde_spb, BlockHeader, BlockHeight, ConsensusRound, FinalizationProof, PrivateKey, Signature,
     Timestamp, ToHash256, TypedSignature, VotingPower,
 };
+use simperby_network::ClientNetworkConfig;
 use simperby_network::{
     dms::{DistributedMessageSet as DMS, Message, MessageFilter},
-    primitives::{GossipNetwork, Storage},
+    primitives::Storage,
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use vetomint::*;
 
 pub type ConsensusParameters = ConsensusParams;
@@ -49,11 +51,7 @@ pub struct State {
 }
 
 pub fn generate_dms_key(header: &BlockHeader) -> String {
-    format!(
-        "consensus-{}-{}",
-        header.height,
-        &header.to_hash256().to_string()[0..8]
-    )
+    format!("consensus-{}", &header.to_hash256().to_string()[0..8])
 }
 
 fn generate_height_info(
@@ -189,9 +187,9 @@ impl ConsensusMessageFilter {
     }
 }
 
-pub struct Consensus<N: GossipNetwork, S: Storage> {
+pub struct Consensus<S: Storage> {
     /// The distributed consensus message set.
-    dms: DMS<N, S>,
+    dms: Arc<RwLock<DMS<S>>>,
     /// The local storage for the consensus state.
     state_storage: S,
     /// The cache of the consensus state.
@@ -204,13 +202,13 @@ pub struct Consensus<N: GossipNetwork, S: Storage> {
     this_node_key: Option<PrivateKey>,
 }
 
-impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+impl<S: Storage> Consensus<S> {
     /// Creates a consensus instance.
     ///
     /// It clears and re-initializes the DMS and the stroage
     /// if the block header is different from the last one.
     pub async fn new(
-        mut dms: DMS<N, S>,
+        dms: Arc<RwLock<DMS<S>>>,
         mut state_storage: S,
         block_header: BlockHeader,
         consensus_parameters: ConsensusParams,
@@ -227,15 +225,14 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let state = if let Ok(raw_state) = state_storage.read_file(STATE_FILE_NAME).await {
             let state: State = serde_spb::from_str(&raw_state)?;
             if block_header != state.block_header {
-                dms.clear(generate_dms_key(&block_header)).await?;
-                state_storage.remove_all_files().await?;
-                commit_state(&mut state_storage, &new_state).await?;
-                new_state
-            } else {
-                state
+                return Err(eyre!("different block header in the storage"));
             }
+            if generate_dms_key(&state.block_header) != dms.read().await.get_config().dms_key {
+                return Err(eyre!("different DMS key"));
+            }
+            state
         } else {
-            dms.clear(generate_dms_key(&block_header)).await?;
+            dms.write().await.clear().await?;
             state_storage.remove_all_files().await?;
             commit_state(&mut state_storage, &new_state).await?;
             new_state
@@ -243,15 +240,17 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         let verified_block_hashes = Arc::new(parking_lot::RwLock::new(BTreeSet::from_iter(
             state.verified_block_hashes.iter().cloned(),
         )));
-        dms.set_filter(Arc::new(ConsensusMessageFilter {
-            verified_block_hashes: Arc::clone(&verified_block_hashes),
-            validator_set: state
-                .block_header
-                .validator_set
-                .iter()
-                .map(|(pk, _)| pk.clone())
-                .collect(),
-        }));
+        dms.write()
+            .await
+            .set_filter(Arc::new(ConsensusMessageFilter {
+                verified_block_hashes: Arc::clone(&verified_block_hashes),
+                validator_set: state
+                    .block_header
+                    .validator_set
+                    .iter()
+                    .map(|(pk, _)| pk.clone())
+                    .collect(),
+            }));
         Ok(Self {
             dms,
             state_storage,
@@ -334,6 +333,8 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         self.abort_if_finalized()?;
         let messages = self
             .dms
+            .read()
+            .await
             .read_messages()
             .await?
             .into_iter()
@@ -359,7 +360,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
             .collect();
         let progress_responses = vetomint_copy.progress(events, timestamp)?;
         let final_result = self
-            .process_multiple_responses_and_broadcast(progress_responses, timestamp)
+            .process_multiple_responses(progress_responses, timestamp)
             .await?;
         // The change is applied here as we reached here without facing an error.
         self.state
@@ -372,32 +373,19 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
     }
 
     /// Broadcasts all the local messages.
-    pub async fn broadcast(&mut self) -> Result<(), Error> {
-        self.dms.broadcast_all().await?;
+    pub async fn broadcast(&mut self, network_config: &ClientNetworkConfig) -> Result<(), Error> {
+        DMS::<S>::broadcast(Arc::clone(&self.dms), network_config).await?;
         Ok(())
     }
 
-    pub async fn fetch(&mut self) -> Result<(), Error> {
-        self.dms.fetch().await
-    }
-
-    /// Serves the consensus protocol indefinitely.
-    ///
-    /// Note: currently it just returns itself after the given time.
-    /// Todo: Implement the following:
-    /// 1. It does `DistributedMessageSet::serve()`.
-    /// 2. It does `Consensus::progress()` continuously.
-    ///
-    /// Note: Step 2 is likely to be changed because it does not notify the user
-    ///       and automatically progresses.
-    pub async fn serve(self, time_in_ms: u64) -> Result<Self, Error> {
-        let dms = self.dms.serve(time_in_ms).await?;
-        Ok(Self { dms, ..self })
+    pub async fn fetch(&mut self, network_config: &ClientNetworkConfig) -> Result<(), Error> {
+        DMS::<S>::fetch(Arc::clone(&self.dms), network_config).await?;
+        Ok(())
     }
 
     /// Reads all consensus messages with its signer in the dms.
     pub async fn read_messages(&self) -> Result<Vec<(ConsensusMessage, PublicKey)>, Error> {
-        let raw_messages = self.dms.read_messages().await?;
+        let raw_messages = self.dms.read().await.read_messages().await?;
         let messages = raw_messages
             .into_iter()
             .map(|m| {
@@ -422,7 +410,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
 }
 
 // Private methods
-impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
+impl<S: Storage> Consensus<S> {
     fn construct_new_state(
         block_header: &BlockHeader,
         consensus_parameters: ConsensusParams,
@@ -478,10 +466,7 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
         consensus_message: &ConsensusMessage,
     ) -> Result<(), Error> {
         let serialized = serde_spb::to_string(consensus_message).unwrap();
-        let signature = TypedSignature::sign(&serialized, self.this_node_key.as_ref().unwrap())
-            .expect("invalid(malformed) private key");
-        let message = Message::new(serialized, signature).expect("signature just created");
-        self.dms.add_message(message).await
+        self.dms.write().await.add_message(serialized).await
     }
 
     async fn process_multiple_responses(
@@ -499,18 +484,6 @@ impl<N: GossipNetwork, S: Storage> Consensus<N, S> {
                 break;
             }
         }
-        Ok(final_result)
-    }
-
-    async fn process_multiple_responses_and_broadcast(
-        &mut self,
-        responses: Vec<ConsensusResponse>,
-        timestamp: Timestamp,
-    ) -> Result<Vec<ProgressResult>, Error> {
-        let final_result = self
-            .process_multiple_responses(responses, timestamp)
-            .await?;
-        self.broadcast().await?;
         Ok(final_result)
     }
 

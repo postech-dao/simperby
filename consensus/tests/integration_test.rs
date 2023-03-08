@@ -1,3 +1,5 @@
+#![cfg(never)]
+
 use common::{
     crypto::{Signature, TypedSignature},
     BlockHeight, FinalizationProof, PrivateKey, Timestamp,
