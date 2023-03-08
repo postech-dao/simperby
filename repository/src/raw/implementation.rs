@@ -466,21 +466,16 @@ impl RawRepositoryImplInner {
 
     pub(crate) fn get_initial_commit(&self) -> Result<CommitHash, Error> {
         // Check if the repository is empty
-        // TODO: Replace this with repo.empty()
-        let _head = self
-            .repo
+        self.repo
             .head()
             .map_err(|_| Error::InvalidRepository("repository is empty".to_string()))?;
 
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push_head()?;
-        revwalk.set_sorting(git2::Sort::TIME)?;
-
-        let oids: Vec<Oid> = revwalk
-            .by_ref()
-            .collect::<Result<Vec<Oid>, git2::Error>>()?;
-
-        let initial_oid = if oids.len() == 1 { oids[0] } else { oids[1] };
+        revwalk.set_sorting(git2::Sort::TIME | git2::Sort::REVERSE)?;
+        let initial_oid = revwalk
+            .next()
+            .ok_or_else(|| Error::Unknown("failed to get revwalk".to_string()))??;
         let hash = <[u8; 20]>::try_from(initial_oid.as_bytes())
             .map_err(|_| Error::Unknown("err".to_string()))?;
 
