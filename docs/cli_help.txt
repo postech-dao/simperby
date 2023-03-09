@@ -12,9 +12,9 @@ Commands:
   vote         Vote on the agenda, broadcasting to the network. It will also leave a `vote` tag on the given commit (with some postfix)
   veto         Veto the round
   consensus    Make a progress on the consensus
-  git          Print the information about the Git server that this node is hosting
   show         Show the overall information of the given commit
   network      Show the current status of the p2p network
+  status       Show the status of the Simperby repository
   serve        Become a server node indefinitely, serving all message propagations and Git requests
   update       Update the node state by fetching data from the p2p network, verifying incoming data, and applying to the repository and consensus & governance status
   broadcast    Broadcast relevant data to the p2p network

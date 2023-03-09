@@ -18,7 +18,6 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
         Commands::Clone { url } => {
             clone(config, &path, &url).await?;
         }
-        Commands::Git => todo!(),
         Commands::Show { revision } => show(config, &path, revision).await?,
         Commands::Network => todo!(),
         Commands::Serve => {
@@ -201,7 +200,7 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
                 Commands::Broadcast => {
                     simperby_node.broadcast().await?;
                 }
-                _ => unreachable!("has been covered by the outer match"),
+                _ => unimplemented!("not implemented yet"),
             }
         }
     }
