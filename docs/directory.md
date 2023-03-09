@@ -1,21 +1,22 @@
 # Directory structure of a simperby node
 
+Simperby node is set up under a Git repository.
+
 ## `/`
 
-- `config.json`: the configuration
-- `key.json`: private key
+The repository itself.
 
-## `/repository`
+- `reserved/`: the reserved state
+
+## `/.simperby/repository`
 
 - `dms/`: DMS for the repository module
-- `repo/` the git repository
-- `repo/reserved`: the reserved state
 
-## `/governance`
+## `/.simperby/governance`
 
 - `dms/`: DMS for the governance module
 
-## `/consensus`
+## `/.simperby/consensus`
 
 - `dms/`: DMS for the consensus module
 - `state/`: the state of the consensus module
