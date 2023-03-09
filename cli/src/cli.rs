@@ -75,6 +75,8 @@ pub enum Commands {
     Init,
     /// Clone a remote Simperby repository to the current directory,
     /// and initialize a new Simperby node after verification.
+    ///
+    /// This is same as `git clone && simperby init`.
     Clone {
         /// The URL of the remote repository.
         url: String,
@@ -124,9 +126,6 @@ pub enum Commands {
         revision: Option<String>,
     },
     /// Make a progress on the consensus.
-    ///
-    /// The node may broadcast the proposal or consensus messages depending on the
-    /// current consensus round state.
     Consensus {
         /// If enabled, it shows the status of the consensus instead of making a progress.
         ///
@@ -137,12 +136,27 @@ pub enum Commands {
     },
 
     // ----- Information Commands ----- //
-    /// Print the information about the Git server that this node is hosting.
-    Git,
     /// Show the overall information of the given commit.
     Show { revision: String },
     /// Show the current status of the p2p network.
     Network,
+    /// Show the status of the Simperby repository.
+    ///
+    /// It checkes the following for the current directory:
+    ///
+    /// 1. Is it a valid Git repository?
+    /// 2. Does it contain a valid `.simperby/` directory?
+    /// 3. Does it have a valid `reserved/` directory?
+    /// 4. Does it have all the protected branches and tags?
+    /// 5. Does the reserved state at `finalized` branch match the block header?
+    /// 6. What phase is the `work` branch in?
+    /// 7. Does the `fp` branch match the last block header?
+    Status {
+        /// If enabled, it performs a full verification of the entire history
+        /// of the chain, starting from the genesis commit.
+        #[clap(long, action)]
+        full: bool,
+    },
 
     // ----- Network Commands ----- //
     /// Become a server node indefinitely, serving all message propagations and Git requests.
@@ -154,6 +168,14 @@ pub enum Commands {
     /// verifying incoming data, and applying to the repository and consensus & governance status.
     Update,
     /// Broadcast relevant data to the p2p network.
+    ///
+    /// This may contain
+    ///
+    /// 1. Newly created commits
+    /// 2. Consensus progress
+    /// 3. Governance votes
+    /// 5. Known peers
+    /// 6. All of the above, sent from other peers.
     Broadcast,
 
     // ----- Miscellaneous Commands ----- //
