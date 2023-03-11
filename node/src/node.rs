@@ -166,9 +166,9 @@ impl SimperbyNode {
                 )
                 .await
         } else {
-            return Err(eyre!(
+            Err(eyre!(
                 "last commit of the work branch is not a block commit"
-            ));
+            ))
         }
     }
 

@@ -615,7 +615,6 @@ mod tests {
         let messages = dms.read_messages().await.unwrap();
         assert_eq!(
             (0..10)
-                .into_iter()
                 .map(|x| format!("{x}"))
                 .collect::<std::collections::BTreeSet<_>>(),
             messages
@@ -683,7 +682,7 @@ mod tests {
             ));
             tasks.push(run_client_node(
                 Arc::clone(&dms),
-                (i * range_step..(i + 1) * range_step).into_iter().collect(),
+                (i * range_step..(i + 1) * range_step).collect(),
                 client_network_config.clone(),
                 Some(Duration::from_millis(400)),
                 Some(Duration::from_millis(400)),
@@ -699,7 +698,6 @@ mod tests {
             let messages = dms.read().await.read_messages().await.unwrap();
             assert_eq!(
                 (0..(range_step * client_network_configs.len()))
-                    .into_iter()
                     .map(|x| format!("{x}"))
                     .collect::<std::collections::BTreeSet<_>>(),
                 messages

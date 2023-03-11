@@ -188,7 +188,6 @@ mod tests {
     fn basic_validator_set1() {
         setup_test();
         let keys = (0..4)
-            .into_iter()
             .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
@@ -236,7 +235,6 @@ mod tests {
     fn basic_validator_set2() {
         setup_test();
         let keys = (0..4)
-            .into_iter()
             .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
@@ -283,7 +281,6 @@ mod tests {
     fn basic_governance_set1() {
         setup_test();
         let keys = (0..4)
-            .into_iter()
             .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
@@ -317,10 +314,7 @@ mod tests {
         let reserved_state = ReservedState {
             genesis_info,
             members,
-            consensus_leader_order: (0..4)
-                .into_iter()
-                .map(|i| format!("member-{i:04}"))
-                .collect::<Vec<_>>(),
+            consensus_leader_order: (0..4).map(|i| format!("member-{i:04}")).collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         };
         assert_eq!(
@@ -333,7 +327,6 @@ mod tests {
     fn basic_governance_set2() {
         setup_test();
         let keys = (0..4)
-            .into_iter()
             .map(|i| generate_keypair(format!("{i}")))
             .collect::<Vec<_>>();
         let members = vec![
@@ -367,10 +360,7 @@ mod tests {
         let reserved_state = ReservedState {
             genesis_info,
             members,
-            consensus_leader_order: (0..4)
-                .into_iter()
-                .map(|i| format!("member-{i:04}"))
-                .collect::<Vec<_>>(),
+            consensus_leader_order: (0..4).map(|i| format!("member-{i:04}")).collect::<Vec<_>>(),
             version: "0.1.0".to_string(),
         };
         assert_eq!(

@@ -415,7 +415,7 @@ async fn single_seperate_server_propose_1() {
 
     // The following loop mimics how the actual users will manipulate the node with CLI.
     // Fetch, progress, sleep, and repeat five times.
-    for (_trial, i) in (0..5).into_iter().cartesian_product(0..5) {
+    for (_trial, i) in (0..5).cartesian_product(0..5) {
         let node = &mut nodes[i];
         node.fetch().await.unwrap();
         match node.progress(get_timestamp()).await {
