@@ -74,4 +74,25 @@ pub trait SettlementChain: Send + Sync {
         block_height: u64,
         proof: MerkleProof,
     ) -> Result<(), Error>;
+
+    /// Returns the current sequence number of the given externally owned account.
+    async fn eoa_get_sequence(&self, address: HexSerializedVec) -> Result<u128, Error>;
+
+    /// Returns the current balance of a particular fungible token in the given externally owned account.
+    async fn eoa_get_fungible_token_balance(
+        &self,
+        address: HexSerializedVec,
+        token_address: HexSerializedVec,
+    ) -> Result<Decimal, Error>;
+
+    /// Submits a transaction to transfer a fungible token
+    /// from the given externally owned account to the given receiver address.
+    async fn eoa_transfer_fungible_token(
+        &self,
+        address: HexSerializedVec,
+        private_key: HexSerializedVec,
+        token_address: HexSerializedVec,
+        receiver_address: HexSerializedVec,
+        amount: Decimal,
+    ) -> Result<(), Error>;
 }
