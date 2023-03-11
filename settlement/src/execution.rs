@@ -24,7 +24,7 @@ pub enum ExecutionMessage {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TransferFungibleToken {
     pub token_address: HexSerializedVec,
-    pub amount: u128,
+    pub amount: Decimal,
     pub receiver_address: HexSerializedVec,
 }
 

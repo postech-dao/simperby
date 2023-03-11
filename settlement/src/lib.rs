@@ -30,24 +30,30 @@ pub trait SettlementChain: Send + Sync {
     /// Gets the latest finalized block on the chain.
     async fn get_last_block(&self) -> Result<SettlementChainBlock, Error>;
 
+    /// Returns the current sequence of the treasury contract.
+    async fn get_contract_sequence(&self) -> Result<u128, Error>;
+
     /// Returns the address and the current balance (which is used to pay the gas fee) of the relayer account in this chain.
     ///
     /// The relayer account has no special authority; it is simply used to pay the gas fee for the transaction.
     /// (i.e., there is no need for the contract to check the transaction submitter).
-    async fn get_relayer_account_info(&self) -> Result<(String, Decimal), Error>;
+    async fn get_relayer_account_info(&self) -> Result<(HexSerializedVec, Decimal), Error>;
 
     /// Returns the latest header that the light client has verified.
     async fn get_light_client_header(&self) -> Result<BlockHeader, Error>;
 
     /// Returns the current balance of a particular fungible token in the treasury contract.
-    async fn get_treasury_fungible_token_balance(&self, address: String) -> Result<Decimal, Error>;
+    async fn get_treasury_fungible_token_balance(
+        &self,
+        address: HexSerializedVec,
+    ) -> Result<Decimal, Error>;
 
     /// Returns the current balance of a particular non-fungible token collection in the treasury contract,
     /// identified as their token indices.
     async fn get_treasury_non_fungible_token_balance(
         &self,
-        address: String,
-    ) -> Result<Vec<String>, Error>;
+        address: HexSerializedVec,
+    ) -> Result<Vec<HexSerializedVec>, Error>;
 
     /// Updates the light client state in the treasury by providing the next, valid block header and its proof.
     ///

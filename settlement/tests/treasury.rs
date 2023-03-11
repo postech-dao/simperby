@@ -4,6 +4,7 @@
 
 use light_client::LightClient;
 use merkle_tree::*;
+use rust_decimal::Decimal;
 use simperby_common::merkle_tree::MerkleProof;
 use simperby_common::verify::CommitSequenceVerifier;
 use simperby_common::*;
@@ -17,30 +18,30 @@ fn string_to_hex(s: &str) -> HexSerializedVec {
 }
 
 pub struct TetherContract {
-    balances: HashMap<HexSerializedVec, u128>,
+    balances: HashMap<HexSerializedVec, Decimal>,
 }
 
 /// The interface for a fungible token, like the ERC20 standard.
 pub trait MRC20 {
-    fn get_balance(&self, address: &HexSerializedVec) -> u128;
+    fn get_balance(&self, address: &HexSerializedVec) -> Decimal;
     fn transfer(
         &mut self,
         context: &mut GlobalContext,
         to: &HexSerializedVec,
-        amount: u128,
+        amount: Decimal,
     ) -> bool;
 }
 
 impl MRC20 for TetherContract {
-    fn get_balance(&self, address: &HexSerializedVec) -> u128 {
-        *self.balances.get(address).unwrap_or(&0)
+    fn get_balance(&self, address: &HexSerializedVec) -> Decimal {
+        *self.balances.get(address).unwrap_or(&Decimal::ZERO)
     }
 
     fn transfer(
         &mut self,
         context: &mut GlobalContext,
         to: &HexSerializedVec,
-        amount: u128,
+        amount: Decimal,
     ) -> bool {
         let from_balance = self.get_balance(&context.caller);
         if from_balance < amount {
@@ -151,7 +152,7 @@ fn relay_1() {
             contract_sequence: 0,
             message: ExecutionMessage::TransferFungibleToken(TransferFungibleToken {
                 token_address: string_to_hex("tether-address"),
-                amount: 100,
+                amount: Decimal::new(100, 0),
                 receiver_address: string_to_hex("receiver-address"),
             }),
         },
@@ -165,7 +166,7 @@ fn relay_1() {
             contract_sequence: 1,
             message: ExecutionMessage::TransferFungibleToken(TransferFungibleToken {
                 token_address: string_to_hex("tether-address"),
-                amount: 200,
+                amount: Decimal::new(200, 0),
                 receiver_address: string_to_hex("receiver-address"),
             }),
         },
@@ -215,7 +216,7 @@ fn relay_1() {
 
     // Setup Mythereum
     let tether = Rc::new(RefCell::new(TetherContract {
-        balances: vec![(string_to_hex("treasury-address"), 299)]
+        balances: vec![(string_to_hex("treasury-address"), Decimal::new(299, 0))]
             .into_iter()
             .collect(),
     }));
