@@ -12,7 +12,7 @@ pub struct LightClient {
 }
 
 impl LightClient {
-    /// Intializes a new light client with the initial header.
+    /// initializes a new light client with the initial header.
     pub fn new(initial_header: BlockHeader) -> Self {
         Self {
             repository_roots: vec![initial_header.repository_merkle_root],
