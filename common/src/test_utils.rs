@@ -6,7 +6,6 @@ pub fn generate_standard_genesis(
     member_number: usize,
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {
     let keys = (0..member_number)
-        .into_iter()
         .map(|i| generate_keypair(format!("{i}")))
         .collect::<Vec<_>>();
     let members = keys
@@ -49,7 +48,6 @@ pub fn generate_standard_genesis(
             genesis_info,
             members,
             consensus_leader_order: (0..member_number)
-                .into_iter()
                 .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
@@ -68,7 +66,6 @@ pub fn generate_delegated_genesis(
     governance: bool,
 ) -> (ReservedState, Vec<(PublicKey, PrivateKey)>) {
     let keys = (0..member_number)
-        .into_iter()
         .map(|i| generate_keypair(format!("{i}")))
         .collect::<Vec<_>>();
     // member-0000 delegates to member-0002
@@ -120,7 +117,6 @@ pub fn generate_delegated_genesis(
             genesis_info,
             members,
             consensus_leader_order: (1..member_number)
-                .into_iter()
                 .map(|i| format!("member-{i:04}"))
                 .collect::<Vec<_>>(),
             version: "0.1.0".to_string(),

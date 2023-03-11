@@ -120,7 +120,7 @@ fn normal_1() {
             response,
             vec![ConsensusResponse::FinalizeBlock {
                 proposal: 0,
-                proof: (0..4).into_iter().filter(|x| *x != (i + 3) % 4).collect(),
+                proof: (0..4).filter(|x| *x != (i + 3) % 4).collect(),
             }]
         );
     }

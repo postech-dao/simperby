@@ -88,7 +88,7 @@ pub fn dispense_port() -> u16 {
             parking_lot::RwLock::new({
                 use rand::seq::SliceRandom;
                 use rand::thread_rng;
-                let mut v = (37000..38000).into_iter().collect::<Vec<_>>();
+                let mut v = (37000..38000).collect::<Vec<_>>();
                 v.shuffle(&mut thread_rng());
                 v
             })
