@@ -1,4 +1,5 @@
 pub mod execution;
+pub mod tests;
 
 use eyre::Error;
 use merkle_tree::*;
@@ -90,7 +91,7 @@ pub trait SettlementChain: Send + Sync {
     async fn eoa_transfer_fungible_token(
         &self,
         address: HexSerializedVec,
-        private_key: HexSerializedVec,
+        sender_private_key: HexSerializedVec,
         token_address: HexSerializedVec,
         receiver_address: HexSerializedVec,
         amount: Decimal,
