@@ -2,18 +2,18 @@ use super::*;
 
 type Error = super::Error;
 
-impl fmt::Debug for RawRepositoryImplInner {
+impl fmt::Debug for RawRepositoryInner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "?")
     }
 }
 
-pub(crate) struct RawRepositoryImplInner {
+pub(crate) struct RawRepositoryInner {
     repo: Repository,
 }
 
 /// TODO: Error handling and its messages
-impl RawRepositoryImplInner {
+impl RawRepositoryInner {
     pub(crate) fn init(
         directory: &str,
         init_commit_message: &str,

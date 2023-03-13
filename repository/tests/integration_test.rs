@@ -17,7 +17,7 @@ async fn basic_1() {
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
 
     let mut server_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{server_node_dir}/repository/repo"))
+        RawRepository::open(&format!("{server_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config.clone(),
@@ -44,7 +44,7 @@ async fn basic_1() {
     ))
     .await;
     let mut client_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{client_node_dir}/repository/repo"))
+        RawRepository::open(&format!("{client_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config,

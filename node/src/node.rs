@@ -5,15 +5,15 @@ use simperby_consensus::{Consensus, ConsensusParameters, ProgressResult};
 use simperby_network::primitives::Storage;
 use simperby_network::{dms::Config as DmsConfig, storage::StorageImpl, Dms};
 use simperby_network::{ClientNetworkConfig, ServerNetworkConfig};
-use simperby_repository::raw::{RawRepository, RawRepositoryImpl};
+use simperby_repository::raw::RawRepository;
 use simperby_repository::{DistributedRepository, WORK_BRANCH_NAME};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub struct Node<S: Storage, R: RawRepository> {
+pub struct Node<S: Storage> {
     config: Config,
-    repository: DistributedRepository<R>,
+    repository: DistributedRepository,
     governance: Governance<S>,
     consensus: Consensus<S>,
 
@@ -29,7 +29,7 @@ pub struct Node<S: Storage, R: RawRepository> {
 impl SimperbyNode {
     pub async fn initialize(config: Config, path: &str) -> Result<Self> {
         // Step 0: initialize the repository module
-        let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
+        let raw_repository = RawRepository::open(&format!("{path}/repository/repo")).await?;
         let repository = DistributedRepository::new(
             raw_repository,
             simperby_repository::Config {
@@ -142,11 +142,11 @@ impl SimperbyNode {
         })
     }
 
-    pub fn get_raw_repo(&self) -> &impl RawRepository {
+    pub fn get_raw_repo(&self) -> &RawRepository {
         self.repository.get_raw()
     }
 
-    pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
+    pub fn get_raw_repo_mut(&mut self) -> &mut RawRepository {
         self.repository.get_raw_mut()
     }
 

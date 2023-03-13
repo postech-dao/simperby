@@ -41,7 +41,7 @@ use simperby_common::crypto::*;
 use simperby_common::*;
 use simperby_governance::Governance;
 use simperby_network::Peer;
-use simperby_repository::raw::{RawRepository, RawRepositoryImpl, SemanticCommit};
+use simperby_repository::raw::{RawRepository, SemanticCommit};
 use simperby_repository::CommitHash;
 use simperby_repository::DistributedRepository;
 
@@ -107,12 +107,11 @@ pub enum CommitInfo {
     }, // TODO
 }
 
-pub type SimperbyNode =
-    node::Node<simperby_network::storage::StorageImpl, simperby_repository::raw::RawRepositoryImpl>;
+pub type SimperbyNode = node::Node<simperby_network::storage::StorageImpl>;
 
 /// Creates a genesis commit.
 pub async fn genesis(config: Config, path: &str) -> Result<()> {
-    let raw_repository = RawRepositoryImpl::open(&format!("{path}/repository/repo")).await?;
+    let raw_repository = RawRepository::open(&format!("{path}/repository/repo")).await?;
     let mut repository = DistributedRepository::new(
         raw_repository,
         simperby_repository::Config {
@@ -132,7 +131,7 @@ pub async fn initialize(config: Config, path: &str) -> Result<SimperbyNode> {
 
 /// Clones a remote repository and initializes a node.
 pub async fn clone(config: Config, path: &str, url: &str) -> Result<SimperbyNode> {
-    RawRepositoryImpl::clone(&format!("{path}/repository/repo"), url)
+    RawRepository::clone(&format!("{path}/repository/repo"), url)
         .await
         .unwrap();
     SimperbyNode::initialize(config, path).await

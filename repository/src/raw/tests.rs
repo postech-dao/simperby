@@ -1,6 +1,6 @@
 use super::SemanticCommit;
 use crate::raw::Error;
-use crate::raw::{CommitHash, RawRepository, RawRepositoryImpl};
+use crate::raw::{CommitHash, RawRepository};
 
 use simperby_common::utils::get_timestamp;
 use simperby_common::{test_utils::generate_standard_genesis, Diff, ToHash256};
@@ -15,8 +15,8 @@ const TAG_B: &str = "tag_b";
 
 /// Make a repository which includes one initial commit at "main" branch.
 /// This returns RawRepositoryImpl containing the repository.
-async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepositoryImpl, Error> {
-    let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+async fn init_repository_with_initial_commit(path: &Path) -> Result<RawRepository, Error> {
+    let repo = RawRepository::init(path.to_str().unwrap(), "initial", &MAIN.into())
         .await
         .unwrap();
 
@@ -29,13 +29,13 @@ async fn init() {
     let td = TempDir::new().unwrap();
     let path = td.path();
 
-    let repo = RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+    let repo = RawRepository::init(path.to_str().unwrap(), "initial", &MAIN.into())
         .await
         .unwrap();
     let branch_list = repo.list_branches().await.unwrap();
     assert_eq!(branch_list, vec![MAIN.to_owned()]);
 
-    RawRepositoryImpl::init(path.to_str().unwrap(), "initial", &MAIN.into())
+    RawRepository::init(path.to_str().unwrap(), "initial", &MAIN.into())
         .await
         .unwrap_err();
 }
@@ -47,9 +47,7 @@ async fn open() {
     let path = td.path();
 
     let init_repo = init_repository_with_initial_commit(path).await.unwrap();
-    let open_repo = RawRepositoryImpl::open(path.to_str().unwrap())
-        .await
-        .unwrap();
+    let open_repo = RawRepository::open(path.to_str().unwrap()).await.unwrap();
 
     let branch_list_init = init_repo.list_branches().await.unwrap();
     let branch_list_open = open_repo.list_branches().await.unwrap();
@@ -539,7 +537,7 @@ async fn clone() {
     let td = TempDir::new().unwrap();
     let path = td.path();
 
-    let repo = RawRepositoryImpl::clone(
+    let repo = RawRepository::clone(
         path.to_str().unwrap(),
         "https://github.com/JeongHunP/cosmos.git",
     )

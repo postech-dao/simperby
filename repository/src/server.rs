@@ -95,7 +95,7 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::raw::{RawRepository, RawRepositoryImpl};
+    use crate::raw::RawRepository;
     use simperby_test_suite::*;
     use tempfile::TempDir;
 
@@ -203,7 +203,7 @@ exit 1
         ))
         .await;
 
-        let repo = RawRepositoryImpl::open(format!("{path_local}/repo").as_str())
+        let repo = RawRepository::open(format!("{path_local}/repo").as_str())
             .await
             .unwrap();
         repo.push_option("origin".to_string(), "test".to_string(), None)

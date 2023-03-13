@@ -2,8 +2,8 @@ use super::*;
 use thiserror::Error;
 
 /// Retrieve all local branches
-pub async fn retrieve_local_branches<T: RawRepository>(
-    raw: &T,
+pub async fn retrieve_local_branches(
+    raw: &RawRepository,
 ) -> Result<HashSet<(Branch, CommitHash)>, Error> {
     let local_branches = raw.list_branches().await?;
     let mut result = HashSet::new();
@@ -28,8 +28,8 @@ pub enum CommitError {
 /// `ancestor` not included, `descendant` included.
 /// It fails if the two commits are the same.
 /// It fails if the ancestor is not the merge base of the two commits.
-pub async fn read_commits<T: RawRepository>(
-    this: &DistributedRepository<T>,
+pub async fn read_commits(
+    this: &DistributedRepository,
     ancestor: CommitHash,
     descendant: CommitHash,
 ) -> Result<Vec<(Commit, CommitHash)>, CommitError> {
