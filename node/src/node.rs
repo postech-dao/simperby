@@ -142,11 +142,11 @@ impl SimperbyNode {
         })
     }
 
-    pub fn get_raw_repo(&self) -> &RwLock<impl RawRepository> {
+    pub fn get_raw_repo(&self) -> &impl RawRepository {
         self.repository.get_raw()
     }
 
-    pub fn get_raw_repo_mut(&mut self) -> &mut RwLock<impl RawRepository> {
+    pub fn get_raw_repo_mut(&mut self) -> &mut impl RawRepository {
         self.repository.get_raw_mut()
     }
 
@@ -155,8 +155,6 @@ impl SimperbyNode {
         let work_branch_tip = self
             .repository
             .get_raw()
-            .read()
-            .await
             .locate_branch(WORK_BRANCH_NAME.into())
             .await?;
         let work_branch_tip_commit = self.repository.read_commit(work_branch_tip).await?;
@@ -248,8 +246,6 @@ impl SimperbyNode {
         let semantic_commit = self
             .repository
             .get_raw()
-            .read()
-            .await
             .read_semantic_commit(commit_hash)
             .await?;
         let commit = simperby_repository::format::from_semantic_commit(semantic_commit.clone())?;

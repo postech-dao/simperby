@@ -3,13 +3,13 @@ use thiserror::Error;
 
 /// Retrieve all local branches
 pub async fn retrieve_local_branches<T: RawRepository>(
-    this: &DistributedRepository<T>,
+    raw: &T,
 ) -> Result<HashSet<(Branch, CommitHash)>, Error> {
-    let local_branches = this.raw.read().await.list_branches().await?;
+    let local_branches = raw.list_branches().await?;
     let mut result = HashSet::new();
     // TODO: making this concurrent causes a god damn lifetime annoying error
     for b in local_branches {
-        result.insert((b.clone(), this.raw.read().await.locate_branch(b).await?));
+        result.insert((b.clone(), raw.locate_branch(b).await?));
     }
     Ok(result)
 }
@@ -33,21 +33,10 @@ pub async fn read_commits<T: RawRepository>(
     ancestor: CommitHash,
     descendant: CommitHash,
 ) -> Result<Vec<(Commit, CommitHash)>, CommitError> {
-    let commits = this
-        .raw
-        .write()
-        .await
-        .query_commit_path(ancestor, descendant)
-        .await?;
+    let commits = this.raw.query_commit_path(ancestor, descendant).await?;
     let commits = stream::iter(commits.iter().cloned().map(|c| {
         let raw = &this.raw;
-        async move {
-            raw.read()
-                .await
-                .read_semantic_commit(c)
-                .await
-                .map(|x| (x, c))
-        }
+        async move { raw.read_semantic_commit(c).await.map(|x| (x, c)) }
     }))
     .buffered(256)
     .collect::<Vec<_>>()
