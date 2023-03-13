@@ -6,28 +6,18 @@ async fn advance_finalized_branch<T: RawRepository>(
     to_be_finalized_block_commit_hash: CommitHash,
     finalization_proof: LastFinalizationProof,
 ) -> Result<(), Error> {
-    this.raw.write().await.checkout_clean().await?;
+    this.raw.checkout_clean().await?;
     this.raw
-        .write()
-        .await
         .move_branch(
             FINALIZED_BRANCH_NAME.into(),
             to_be_finalized_block_commit_hash,
         )
         .await?;
     this.raw
-        .write()
-        .await
         .move_branch(FP_BRANCH_NAME.into(), to_be_finalized_block_commit_hash)
         .await?;
+    this.raw.checkout(FP_BRANCH_NAME.into()).await?;
     this.raw
-        .write()
-        .await
-        .checkout(FP_BRANCH_NAME.into())
-        .await?;
-    this.raw
-        .write()
-        .await
         .create_semantic_commit(format::fp_to_semantic_commit(&finalization_proof))
         .await?;
     Ok(())
@@ -43,12 +33,7 @@ pub async fn receive<T: RawRepository>(
     tip_commit_hash: CommitHash,
 ) -> Result<Result<(), String>, Error> {
     let last_finalized_block_header = this.get_last_finalized_block_header().await?;
-    let last_finalized_commit_hash = this
-        .raw
-        .write()
-        .await
-        .locate_branch(FINALIZED_BRANCH_NAME.into())
-        .await?;
+    let last_finalized_commit_hash = this.raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
     let reserved_state = this.get_reserved_state().await?;
     let mut csv =
         CommitSequenceVerifier::new(last_finalized_block_header.clone(), reserved_state.clone())
@@ -58,8 +43,6 @@ pub async fn receive<T: RawRepository>(
 
     if this
         .raw
-        .write()
-        .await
         .find_merge_base(last_finalized_commit_hash, tip_commit_hash)
         .await?
         != last_finalized_commit_hash
@@ -71,22 +54,12 @@ pub async fn receive<T: RawRepository>(
     }
 
     // If the branch ends with a finalization proof commit
-    let finalization_proof = format::fp_from_semantic_commit(
-        this.raw
-            .write()
-            .await
-            .read_semantic_commit(tip_commit_hash)
-            .await?,
-    );
-    if let Ok(last_finalization_proof) = finalization_proof {
+    if let Ok(last_finalization_proof) =
+        format::fp_from_semantic_commit(this.raw.read_semantic_commit(tip_commit_hash).await?)
+    {
         // Now we consider the direct parent as the received commit
         // (fp is not treated in the CSV)
-        let commit_hash = this
-            .raw
-            .write()
-            .await
-            .list_ancestors(tip_commit_hash, Some(1))
-            .await?[0];
+        let commit_hash = this.raw.list_ancestors(tip_commit_hash, Some(1)).await?[0];
         if commit_hash == last_finalized_commit_hash {
             return Ok(Err("the received commit is already finalized.".to_owned()));
         }
@@ -190,21 +163,10 @@ pub async fn receive<T: RawRepository>(
             }
             x => return Ok(Err(format!("commit sequence ends with: {x:?}"))),
         };
-        if this
-            .raw
-            .write()
-            .await
-            .locate_branch(branch_name.clone())
-            .await
-            .is_ok()
-        {
+        if this.raw.locate_branch(branch_name.clone()).await.is_ok() {
             return Ok(Err(format!("branch already exists: {branch_name}",)));
         }
-        this.raw
-            .write()
-            .await
-            .create_branch(branch_name, tip_commit_hash)
-            .await?;
+        this.raw.create_branch(branch_name, tip_commit_hash).await?;
     };
     Ok(Ok(()))
 }
