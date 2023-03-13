@@ -1,8 +1,8 @@
 use super::*;
 use utils::*;
 
-async fn advance_finalized_branch<T: RawRepository>(
-    this: &mut DistributedRepository<T>,
+async fn advance_finalized_branch(
+    this: &mut DistributedRepository,
     to_be_finalized_block_commit_hash: CommitHash,
     finalization_proof: LastFinalizationProof,
 ) -> Result<(), Error> {
@@ -28,8 +28,8 @@ async fn advance_finalized_branch<T: RawRepository>(
 /// - Returns `Ok(Ok(()))` if the branch is successfully received.
 /// - Returns `Ok(Err(_))` if the branch is invalid and thus rejected, with the reason.
 /// - Returns `Err(_)` if an error occurs.
-pub async fn receive<T: RawRepository>(
-    this: &mut DistributedRepository<T>,
+pub async fn receive(
+    this: &mut DistributedRepository,
     tip_commit_hash: CommitHash,
 ) -> Result<Result<(), String>, Error> {
     let last_finalized_block_header = this.get_last_finalized_block_header().await?;

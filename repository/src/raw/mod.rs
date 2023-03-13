@@ -1,18 +1,19 @@
 mod implementation;
 pub mod reserved_state;
+mod templates;
 #[cfg(test)]
 mod tests;
 
 use super::*;
-use async_trait::async_trait;
 use eyre::Result;
 use git2::{
     ApplyLocation, BranchType, IndexAddOption, ObjectType, Oid, Repository, RepositoryInitOptions,
 };
-use implementation::RawRepositoryImplInner;
+use implementation::RawRepositoryInner;
 use simperby_common::reserved::ReservedState;
 use std::convert::TryFrom;
 use std::str;
+use templates::*;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -48,80 +49,144 @@ pub struct SemanticCommit {
     pub timestamp: Timestamp,
 }
 
-#[async_trait]
-pub trait RawRepository: Send + Sync + 'static {
+#[derive(Debug)]
+pub struct RawRepository {
+    inner: tokio::sync::Mutex<Option<RawRepositoryInner>>,
+}
+
+impl RawRepository {
     /// Initialize the genesis repository from the genesis working tree.
     ///
     /// Fails if there is already a repository.
-    async fn init(
+    pub async fn init(
         directory: &str,
         init_commit_message: &str,
         init_commit_branch: &Branch,
     ) -> Result<Self, Error>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        let repo = RawRepositoryInner::init(directory, init_commit_message, init_commit_branch)?;
+        let inner = tokio::sync::Mutex::new(Some(repo));
+
+        Ok(Self { inner })
+    }
 
     /// Loads an exisitng repository.
-    async fn open(directory: &str) -> Result<Self, Error>
+    pub async fn open(directory: &str) -> Result<Self, Error>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        let repo = RawRepositoryInner::open(directory)?;
+        let inner = tokio::sync::Mutex::new(Some(repo));
+
+        Ok(Self { inner })
+    }
 
     /// Clones an exisitng repository.
     ///
     /// Fails if there is no repository with url.
-    async fn clone(directory: &str, url: &str) -> Result<Self, Error>
+    pub async fn clone(directory: &str, url: &str) -> Result<Self, Error>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        let repo = RawRepositoryInner::clone(directory, url)?;
+        let inner = tokio::sync::Mutex::new(Some(repo));
+
+        Ok(Self { inner })
+    }
 
     /// Returns the full commit hash from the revision selection string.
     ///
     /// See the [reference](https://git-scm.com/book/en/v2/Git-Tools-Revision-Selection).
-    async fn retrieve_commit_hash(&self, revision_selection: String) -> Result<CommitHash, Error>;
+    pub async fn retrieve_commit_hash(
+        &self,
+        revision_selection: String,
+    ) -> Result<CommitHash, Error> {
+        helper_1(
+            self,
+            RawRepositoryInner::retrieve_commit_hash,
+            revision_selection,
+        )
+        .await
+    }
 
     // ----------------------
     // Branch-related methods
     // ----------------------
 
     /// Returns the list of branches.
-    async fn list_branches(&self) -> Result<Vec<Branch>, Error>;
+    pub async fn list_branches(&self) -> Result<Vec<Branch>, Error> {
+        helper_0(self, RawRepositoryInner::list_branches).await
+    }
 
     /// Creates a branch on the commit.
-    async fn create_branch(
+    pub async fn create_branch(
         &self,
         branch_name: Branch,
         commit_hash: CommitHash,
-    ) -> Result<(), Error>;
+    ) -> Result<(), Error> {
+        helper_2(
+            self,
+            RawRepositoryInner::create_branch,
+            branch_name,
+            commit_hash,
+        )
+        .await
+    }
 
     /// Gets the commit that the branch points to.
-    async fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error>;
+    pub async fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error> {
+        helper_1(self, RawRepositoryInner::locate_branch, branch).await
+    }
 
     /// Gets the list of branches from the commit.
-    async fn get_branches(&self, commit_hash: CommitHash) -> Result<Vec<Branch>, Error>;
+    pub async fn get_branches(&self, commit_hash: CommitHash) -> Result<Vec<Branch>, Error> {
+        helper_1(self, RawRepositoryInner::get_branches, commit_hash).await
+    }
 
     /// Moves the branch.
-    async fn move_branch(&mut self, branch: Branch, commit_hash: CommitHash) -> Result<(), Error>;
+    pub async fn move_branch(
+        &mut self,
+        branch: Branch,
+        commit_hash: CommitHash,
+    ) -> Result<(), Error> {
+        helper_2_mut(self, RawRepositoryInner::move_branch, branch, commit_hash).await
+    }
 
     /// Deletes the branch.
-    async fn delete_branch(&mut self, branch: Branch) -> Result<(), Error>;
+    pub async fn delete_branch(&mut self, branch: Branch) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::delete_branch, branch).await
+    }
 
     // -------------------
     // Tag-related methods
     // -------------------
 
     /// Returns the list of tags.
-    async fn list_tags(&self) -> Result<Vec<Tag>, Error>;
+    pub async fn list_tags(&self) -> Result<Vec<Tag>, Error> {
+        helper_0(self, RawRepositoryInner::list_tags).await
+    }
 
     /// Creates a tag on the given commit.
-    async fn create_tag(&mut self, tag: Tag, commit_hash: CommitHash) -> Result<(), Error>;
+    pub async fn create_tag(&mut self, tag: Tag, commit_hash: CommitHash) -> Result<(), Error> {
+        helper_2_mut(self, RawRepositoryInner::create_tag, tag, commit_hash).await
+    }
 
     /// Gets the commit that the tag points to.
-    async fn locate_tag(&self, tag: Tag) -> Result<CommitHash, Error>;
+    pub async fn locate_tag(&self, tag: Tag) -> Result<CommitHash, Error> {
+        helper_1(self, RawRepositoryInner::locate_tag, tag).await
+    }
 
     /// Gets the tags on the given commit.
-    async fn get_tag(&self, commit_hash: CommitHash) -> Result<Vec<Tag>, Error>;
+    pub async fn get_tag(&self, commit_hash: CommitHash) -> Result<Vec<Tag>, Error> {
+        helper_1(self, RawRepositoryInner::get_tag, commit_hash).await
+    }
 
     /// Removes the tag.
-    async fn remove_tag(&mut self, tag: Tag) -> Result<(), Error>;
+    pub async fn remove_tag(&mut self, tag: Tag) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::remove_tag, tag).await
+    }
 
     // ----------------------
     // Commit-related methods
@@ -130,386 +195,7 @@ pub trait RawRepository: Send + Sync + 'static {
     /// Creates a commit from the currently checked out branch.
     ///
     /// Committer will be the same as the author.
-    async fn create_commit(
-        &mut self,
-        commit_message: String,
-        author_name: String,
-        author_email: String,
-        author_timestamp: Timestamp,
-        diff: Option<String>,
-    ) -> Result<CommitHash, Error>;
-
-    /// Creates a semantic commit from the currently checked out branch.
-    ///
-    /// It fails if the `diff` is not `Diff::Reserved` or `Diff::None`.
-    async fn create_semantic_commit(&mut self, commit: SemanticCommit)
-        -> Result<CommitHash, Error>;
-
-    /// Reads the reserved state from the current working tree.
-    async fn read_semantic_commit(&self, commit_hash: CommitHash) -> Result<SemanticCommit, Error>;
-
-    /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
-    async fn run_garbage_collection(&mut self) -> Result<(), Error>;
-
-    // ----------------------------
-    // Working-tree-related methods
-    // ----------------------------
-
-    /// Checkouts and cleans the current working tree.
-    /// This is same as `git checkout . && git clean -fd`.
-    async fn checkout_clean(&mut self) -> Result<(), Error>;
-
-    /// Checkouts to the branch.
-    async fn checkout(&mut self, branch: Branch) -> Result<(), Error>;
-
-    /// Checkouts to the commit and make `HEAD` in a detached mode.
-    async fn checkout_detach(&mut self, commit_hash: CommitHash) -> Result<(), Error>;
-
-    // ---------------
-    // Various queries
-    // ---------------
-
-    /// Returns the commit hash of the current HEAD.
-    async fn get_head(&self) -> Result<CommitHash, Error>;
-
-    /// Returns the commit hash of the initial commit.
-    ///
-    /// Fails if the repository is empty.
-    async fn get_initial_commit(&self) -> Result<CommitHash, Error>;
-
-    /// Returns the patch of the given commit.
-    async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error>;
-
-    /// Returns the diff of the given commit.
-    async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error>;
-
-    /// Lists the ancestor commits of the given commit (The first element is the direct parent).
-    ///
-    /// It fails if there is a merge commit.
-    /// * `max`: the maximum number of entries to be returned.
-    async fn list_ancestors(
-        &self,
-        commit_hash: CommitHash,
-        max: Option<usize>,
-    ) -> Result<Vec<CommitHash>, Error>;
-
-    /// Queries the commits from the very next commit of `ancestor` to `descendant`.
-    /// `ancestor` not included, `descendant` included.
-    ///
-    /// It fails if the two commits are the same.
-    /// It fails if the `ancestor` is not the merge base of the two commits.
-    async fn query_commit_path(
-        &self,
-        ancestor: CommitHash,
-        descendant: CommitHash,
-    ) -> Result<Vec<CommitHash>, Error>;
-
-    /// Returns the children commits of the given commit.
-    async fn list_children(&self, commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error>;
-
-    /// Returns the merge base of the two commits.
-    async fn find_merge_base(
-        &self,
-        commit_hash1: CommitHash,
-        commit_hash2: CommitHash,
-    ) -> Result<CommitHash, Error>;
-
-    /// Reads the reserved state from the currently checked out branch.
-    async fn read_reserved_state(&self) -> Result<ReservedState, Error>;
-
-    // ----------------------
-    // Remote-related methods
-    // ----------------------
-
-    /// Adds a remote repository.
-    async fn add_remote(&mut self, remote_name: String, remote_url: String) -> Result<(), Error>;
-
-    /// Removes a remote repository.
-    async fn remove_remote(&mut self, remote_name: String) -> Result<(), Error>;
-
-    /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
-    async fn fetch_all(&mut self) -> Result<(), Error>;
-
-    /// Pushes to the remote repository with the push option.
-    /// This is same as `git push <remote_name> <branch_name> --push-option=<string>`.
-    async fn push_option(
-        &self,
-        remote_name: String,
-        branch: Branch,
-        option: Option<String>,
-    ) -> Result<(), Error>;
-
-    /// Lists all the remote repositories.
-    ///
-    /// Returns `(remote_name, remote_url)`.
-    async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error>;
-
-    /// Lists all the remote tracking branches.
-    ///
-    /// Returns `(remote_name, branch_name, commit_hash)`
-    async fn list_remote_tracking_branches(
-        &self,
-    ) -> Result<Vec<(String, String, CommitHash)>, Error>;
-
-    /// Returns the commit of given remote branch.
-    async fn locate_remote_tracking_branch(
-        &self,
-        remote_name: String,
-        branch_name: String,
-    ) -> Result<CommitHash, Error>;
-}
-
-#[derive(Debug)]
-pub struct RawRepositoryImpl {
-    inner: tokio::sync::Mutex<Option<RawRepositoryImplInner>>,
-}
-
-async fn helper_0<R: Send + Sync + 'static>(
-    s: &RawRepositoryImpl,
-    f: impl Fn(&RawRepositoryImplInner) -> R + Send + 'static,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&inner), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_0_mut<R: Send + Sync + 'static>(
-    s: &mut RawRepositoryImpl,
-    f: impl Fn(&mut RawRepositoryImplInner) -> R + Send + 'static,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&mut inner), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_1<T1: Send + Sync + 'static + Clone, R: Send + Sync + 'static>(
-    s: &RawRepositoryImpl,
-    f: impl Fn(&RawRepositoryImplInner, T1) -> R + Send + 'static,
-    a1: T1,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&inner, a1), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_1_mut<T1: Send + Sync + 'static + Clone, R: Send + Sync + 'static>(
-    s: &mut RawRepositoryImpl,
-    f: impl Fn(&mut RawRepositoryImplInner, T1) -> R + Send + 'static,
-    a1: T1,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&mut inner, a1), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_2<
-    T1: Send + Sync + 'static + Clone,
-    T2: Send + Sync + 'static + Clone,
-    R: Send + Sync + 'static,
->(
-    s: &RawRepositoryImpl,
-    f: impl Fn(&RawRepositoryImplInner, T1, T2) -> R + Send + 'static,
-    a1: T1,
-    a2: T2,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&inner, a1, a2), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_2_mut<
-    T1: Send + Sync + 'static + Clone,
-    T2: Send + Sync + 'static + Clone,
-    R: Send + Sync + 'static,
->(
-    s: &mut RawRepositoryImpl,
-    f: impl Fn(&mut RawRepositoryImplInner, T1, T2) -> R + Send + 'static,
-    a1: T1,
-    a2: T2,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&mut inner, a1, a2), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_3<
-    T1: Send + Sync + 'static + Clone,
-    T2: Send + Sync + 'static + Clone,
-    T3: Send + Sync + 'static + Clone,
-    R: Send + Sync + 'static,
->(
-    s: &RawRepositoryImpl,
-    f: impl Fn(&RawRepositoryImplInner, T1, T2, T3) -> R + Send + 'static,
-    a1: T1,
-    a2: T2,
-    a3: T3,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) = tokio::task::spawn_blocking(move || (f(&inner, a1, a2, a3), inner))
-        .await
-        .unwrap();
-    lock.replace(inner);
-    result
-}
-
-async fn helper_5_mut<
-    T1: Send + Sync + 'static + Clone,
-    T2: Send + Sync + 'static + Clone,
-    T3: Send + Sync + 'static + Clone,
-    T4: Send + Sync + 'static + Clone,
-    T5: Send + Sync + 'static + Clone,
-    R: Send + Sync + 'static,
->(
-    s: &mut RawRepositoryImpl,
-    f: impl Fn(&mut RawRepositoryImplInner, T1, T2, T3, T4, T5) -> R + Send + 'static,
-    a1: T1,
-    a2: T2,
-    a3: T3,
-    a4: T4,
-    a5: T5,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) =
-        tokio::task::spawn_blocking(move || (f(&mut inner, a1, a2, a3, a4, a5), inner))
-            .await
-            .unwrap();
-    lock.replace(inner);
-    result
-}
-
-#[async_trait]
-impl RawRepository for RawRepositoryImpl {
-    async fn init(
-        directory: &str,
-        init_commit_message: &str,
-        init_commit_branch: &Branch,
-    ) -> Result<Self, Error>
-    where
-        Self: Sized,
-    {
-        let repo =
-            RawRepositoryImplInner::init(directory, init_commit_message, init_commit_branch)?;
-        let inner = tokio::sync::Mutex::new(Some(repo));
-
-        Ok(Self { inner })
-    }
-
-    async fn open(directory: &str) -> Result<Self, Error>
-    where
-        Self: Sized,
-    {
-        let repo = RawRepositoryImplInner::open(directory)?;
-        let inner = tokio::sync::Mutex::new(Some(repo));
-
-        Ok(Self { inner })
-    }
-
-    async fn clone(directory: &str, url: &str) -> Result<Self, Error>
-    where
-        Self: Sized,
-    {
-        let repo = RawRepositoryImplInner::clone(directory, url)?;
-        let inner = tokio::sync::Mutex::new(Some(repo));
-
-        Ok(Self { inner })
-    }
-
-    async fn retrieve_commit_hash(&self, revision_selection: String) -> Result<CommitHash, Error> {
-        helper_1(
-            self,
-            RawRepositoryImplInner::retrieve_commit_hash,
-            revision_selection,
-        )
-        .await
-    }
-
-    async fn list_branches(&self) -> Result<Vec<Branch>, Error> {
-        helper_0(self, RawRepositoryImplInner::list_branches).await
-    }
-
-    async fn create_branch(
-        &self,
-        branch_name: Branch,
-        commit_hash: CommitHash,
-    ) -> Result<(), Error> {
-        helper_2(
-            self,
-            RawRepositoryImplInner::create_branch,
-            branch_name,
-            commit_hash,
-        )
-        .await
-    }
-
-    async fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error> {
-        helper_1(self, RawRepositoryImplInner::locate_branch, branch).await
-    }
-
-    async fn get_branches(&self, commit_hash: CommitHash) -> Result<Vec<Branch>, Error> {
-        helper_1(self, RawRepositoryImplInner::get_branches, commit_hash).await
-    }
-
-    async fn move_branch(&mut self, branch: Branch, commit_hash: CommitHash) -> Result<(), Error> {
-        helper_2_mut(
-            self,
-            RawRepositoryImplInner::move_branch,
-            branch,
-            commit_hash,
-        )
-        .await
-    }
-
-    async fn delete_branch(&mut self, branch: Branch) -> Result<(), Error> {
-        helper_1_mut(self, RawRepositoryImplInner::delete_branch, branch).await
-    }
-
-    async fn list_tags(&self) -> Result<Vec<Tag>, Error> {
-        helper_0(self, RawRepositoryImplInner::list_tags).await
-    }
-
-    async fn create_tag(&mut self, tag: Tag, commit_hash: CommitHash) -> Result<(), Error> {
-        helper_2_mut(self, RawRepositoryImplInner::create_tag, tag, commit_hash).await
-    }
-
-    async fn locate_tag(&self, tag: Tag) -> Result<CommitHash, Error> {
-        helper_1(self, RawRepositoryImplInner::locate_tag, tag).await
-    }
-
-    async fn get_tag(&self, commit_hash: CommitHash) -> Result<Vec<Tag>, Error> {
-        helper_1(self, RawRepositoryImplInner::get_tag, commit_hash).await
-    }
-
-    async fn remove_tag(&mut self, tag: Tag) -> Result<(), Error> {
-        helper_1_mut(self, RawRepositoryImplInner::remove_tag, tag).await
-    }
-
-    async fn create_commit(
+    pub async fn create_commit(
         &mut self,
         commit_message: String,
         author_name: String,
@@ -519,7 +205,7 @@ impl RawRepository for RawRepositoryImpl {
     ) -> Result<CommitHash, Error> {
         helper_5_mut(
             self,
-            RawRepositoryImplInner::create_commit,
+            RawRepositoryInner::create_commit,
             commit_message,
             author_name,
             author_email,
@@ -529,123 +215,163 @@ impl RawRepository for RawRepositoryImpl {
         .await
     }
 
-    async fn create_semantic_commit(
+    /// Creates a semantic commit from the currently checked out branch.
+    ///
+    /// It fails if the `diff` is not `Diff::Reserved` or `Diff::None`.
+    pub async fn create_semantic_commit(
         &mut self,
         commit: SemanticCommit,
     ) -> Result<CommitHash, Error> {
-        helper_1_mut(self, RawRepositoryImplInner::create_semantic_commit, commit).await
+        helper_1_mut(self, RawRepositoryInner::create_semantic_commit, commit).await
     }
 
-    async fn read_semantic_commit(&self, commit_hash: CommitHash) -> Result<SemanticCommit, Error> {
-        helper_1(
-            self,
-            RawRepositoryImplInner::read_semantic_commit,
-            commit_hash,
-        )
-        .await
+    /// Reads the reserved state from the current working tree.
+    pub async fn read_semantic_commit(
+        &self,
+        commit_hash: CommitHash,
+    ) -> Result<SemanticCommit, Error> {
+        helper_1(self, RawRepositoryInner::read_semantic_commit, commit_hash).await
     }
 
-    async fn run_garbage_collection(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryImplInner::run_garbage_collection).await
+    /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
+    pub async fn run_garbage_collection(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::run_garbage_collection).await
     }
 
-    async fn checkout_clean(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryImplInner::checkout_clean).await
+    // ----------------------------
+    // Working-tree-related methods
+    // ----------------------------
+
+    /// Checkouts and cleans the current working tree.
+    /// This is same as `git checkout . && git clean -fd`.
+    pub async fn checkout_clean(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::checkout_clean).await
     }
 
-    async fn checkout(&mut self, branch: Branch) -> Result<(), Error> {
-        helper_1_mut(self, RawRepositoryImplInner::checkout, branch).await
+    /// Checkouts to the branch.
+    pub async fn checkout(&mut self, branch: Branch) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::checkout, branch).await
     }
 
-    async fn checkout_detach(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
-        helper_1_mut(self, RawRepositoryImplInner::checkout_detach, commit_hash).await
+    /// Checkouts to the commit and make `HEAD` in a detached mode.
+    pub async fn checkout_detach(&mut self, commit_hash: CommitHash) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::checkout_detach, commit_hash).await
     }
 
-    async fn get_head(&self) -> Result<CommitHash, Error> {
-        helper_0(self, RawRepositoryImplInner::get_head).await
+    // ---------------
+    // Various queries
+    // ---------------
+
+    /// Returns the commit hash of the current HEAD.
+    pub async fn get_head(&self) -> Result<CommitHash, Error> {
+        helper_0(self, RawRepositoryInner::get_head).await
     }
 
-    async fn get_initial_commit(&self) -> Result<CommitHash, Error> {
-        helper_0(self, RawRepositoryImplInner::get_initial_commit).await
+    /// Returns the commit hash of the initial commit.
+    ///
+    /// Fails if the repository is empty.
+    pub async fn get_initial_commit(&self) -> Result<CommitHash, Error> {
+        helper_0(self, RawRepositoryInner::get_initial_commit).await
     }
 
-    async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryImplInner::get_patch, commit_hash).await
+    /// Returns the patch of the given commit.
+    pub async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::get_patch, commit_hash).await
     }
 
-    async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryImplInner::show_commit, commit_hash).await
+    /// Returns the diff of the given commit.
+    pub async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::show_commit, commit_hash).await
     }
 
-    async fn list_ancestors(
+    /// Lists the ancestor commits of the given commit (The first element is the direct parent).
+    ///
+    /// It fails if there is a merge commit.
+    /// * `max`: the maximum number of entries to be returned.
+    pub async fn list_ancestors(
         &self,
         commit_hash: CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
-        helper_2(
-            self,
-            RawRepositoryImplInner::list_ancestors,
-            commit_hash,
-            max,
-        )
-        .await
+        helper_2(self, RawRepositoryInner::list_ancestors, commit_hash, max).await
     }
 
-    async fn query_commit_path(
+    /// Queries the commits from the very next commit of `ancestor` to `descendant`.
+    /// `ancestor` not included, `descendant` included.
+    ///
+    /// It fails if the two commits are the same.
+    /// It fails if the `ancestor` is not the merge base of the two commits.
+    pub async fn query_commit_path(
         &self,
         ancestor: CommitHash,
         descendant: CommitHash,
     ) -> Result<Vec<CommitHash>, Error> {
         helper_2(
             self,
-            RawRepositoryImplInner::query_commit_path,
+            RawRepositoryInner::query_commit_path,
             ancestor,
             descendant,
         )
         .await
     }
 
-    async fn list_children(&self, commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
-        helper_1(self, RawRepositoryImplInner::list_children, commit_hash).await
+    /// Returns the children commits of the given commit.
+    pub async fn list_children(&self, commit_hash: CommitHash) -> Result<Vec<CommitHash>, Error> {
+        helper_1(self, RawRepositoryInner::list_children, commit_hash).await
     }
 
-    async fn find_merge_base(
+    /// Returns the merge base of the two commits.
+    pub async fn find_merge_base(
         &self,
         commit_hash1: CommitHash,
         commit_hash2: CommitHash,
     ) -> Result<CommitHash, Error> {
         helper_2(
             self,
-            RawRepositoryImplInner::find_merge_base,
+            RawRepositoryInner::find_merge_base,
             commit_hash1,
             commit_hash2,
         )
         .await
     }
 
-    async fn read_reserved_state(&self) -> Result<ReservedState, Error> {
-        helper_0(self, RawRepositoryImplInner::read_reserved_state).await
+    /// Reads the reserved state from the currently checked out branch.
+    pub async fn read_reserved_state(&self) -> Result<ReservedState, Error> {
+        helper_0(self, RawRepositoryInner::read_reserved_state).await
     }
 
-    async fn add_remote(&mut self, remote_name: String, remote_url: String) -> Result<(), Error> {
+    // ----------------------
+    // Remote-related methods
+    // ----------------------
+
+    /// Adds a remote repository.
+    pub async fn add_remote(
+        &mut self,
+        remote_name: String,
+        remote_url: String,
+    ) -> Result<(), Error> {
         helper_2_mut(
             self,
-            RawRepositoryImplInner::add_remote,
+            RawRepositoryInner::add_remote,
             remote_name,
             remote_url,
         )
         .await
     }
 
-    async fn remove_remote(&mut self, remote_name: String) -> Result<(), Error> {
-        helper_1_mut(self, RawRepositoryImplInner::remove_remote, remote_name).await
+    /// Removes a remote repository.
+    pub async fn remove_remote(&mut self, remote_name: String) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::remove_remote, remote_name).await
     }
 
-    async fn fetch_all(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryImplInner::fetch_all).await
+    /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
+    pub async fn fetch_all(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::fetch_all).await
     }
 
-    async fn push_option(
+    /// Pushes to the remote repository with the push option.
+    /// This is same as `git push <remote_name> <branch_name> --push-option=<string>`.
+    pub async fn push_option(
         &self,
         remote_name: String,
         branch: Branch,
@@ -653,7 +379,7 @@ impl RawRepository for RawRepositoryImpl {
     ) -> Result<(), Error> {
         helper_3(
             self,
-            RawRepositoryImplInner::push_option,
+            RawRepositoryInner::push_option,
             remote_name,
             branch,
             option,
@@ -661,24 +387,31 @@ impl RawRepository for RawRepositoryImpl {
         .await
     }
 
-    async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
-        helper_0(self, RawRepositoryImplInner::list_remotes).await
+    /// Lists all the remote repositories.
+    ///
+    /// Returns `(remote_name, remote_url)`.
+    pub async fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
+        helper_0(self, RawRepositoryInner::list_remotes).await
     }
 
-    async fn list_remote_tracking_branches(
+    /// Lists all the remote tracking branches.
+    ///
+    /// Returns `(remote_name, branch_name, commit_hash)`
+    pub async fn list_remote_tracking_branches(
         &self,
     ) -> Result<Vec<(String, String, CommitHash)>, Error> {
-        helper_0(self, RawRepositoryImplInner::list_remote_tracking_branches).await
+        helper_0(self, RawRepositoryInner::list_remote_tracking_branches).await
     }
 
-    async fn locate_remote_tracking_branch(
+    /// Returns the commit of given remote branch.
+    pub async fn locate_remote_tracking_branch(
         &self,
         remote_name: String,
         branch_name: String,
     ) -> Result<CommitHash, Error> {
         helper_2(
             self,
-            RawRepositoryImplInner::locate_remote_tracking_branch,
+            RawRepositoryInner::locate_remote_tracking_branch,
             remote_name,
             branch_name,
         )

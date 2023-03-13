@@ -101,21 +101,21 @@ pub struct Config {
 ///
 /// - It **verifies** all the incoming changes and applies them to the local repository
 /// only if they are valid.
-pub struct DistributedRepository<T> {
-    raw: T,
+pub struct DistributedRepository {
+    raw: RawRepository,
     _config: Config,
 }
 
-impl<T: RawRepository> DistributedRepository<T> {
-    pub fn get_raw_mut(&mut self) -> &mut T {
+impl DistributedRepository {
+    pub fn get_raw_mut(&mut self) -> &mut RawRepository {
         &mut self.raw
     }
 
-    pub fn get_raw(&self) -> &T {
+    pub fn get_raw(&self) -> &RawRepository {
         &self.raw
     }
 
-    pub async fn new(raw: T, config: Config) -> Result<Self, Error> {
+    pub async fn new(raw: RawRepository, config: Config) -> Result<Self, Error> {
         Ok(Self {
             raw,
             _config: config,
