@@ -411,6 +411,39 @@ impl RawRepositoryInner {
     }
 
     pub(crate) fn checkout_clean(&mut self) -> Result<(), Error> {
+        // Remove any changes at tracked files and revert to the last commit.
+        let mut opts = git2::build::CheckoutBuilder::new();
+        opts.force();
+        self.repo.checkout_head(Some(&mut opts))?;
+        let head = self.repo.head()?.peel_to_commit()?;
+        self.repo.reset(head.as_object(), ResetType::Hard, None)?;
+
+        // Remove untracked files and directories from the working tree.
+        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
+        let mut status_opts = StatusOptions::new();
+        status_opts.include_untracked(true);
+        status_opts.show(StatusShow::IndexAndWorkdir);
+        let statuses = self.repo.statuses(Some(&mut status_opts))?;
+        for status in statuses.iter() {
+            if status.status() == Status::WT_NEW {
+                let path = status
+                    .path()
+                    .ok_or_else(|| Error::Unknown("path is not valid utf-8".to_string()))?;
+                let path = format!("{workdir}{path}");
+
+                if let Ok(metadata) = std::fs::metadata(&path) {
+                    if metadata.is_dir() {
+                        std::fs::remove_dir_all(&path).map_err(|_| {
+                            Error::Unknown(format!("failed to remove directory '{}'", path))
+                        })?;
+                    } else {
+                        std::fs::remove_file(&path).map_err(|_| {
+                            Error::Unknown(format!("failed to remove file '{}'", path))
+                        })?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
