@@ -266,6 +266,90 @@ async fn checkout_detach() {
     // assert_eq!(cur_head_name, "HEAD");
 }
 
+/// Reset the repository to the latest commit and delete any untracked files or directories.
+/// Ensure that all tracked files and directories are retrieved
+/// and that their contents are the same as before the reset.
+#[tokio::test]
+async fn checkout_clean() {
+    let td = TempDir::new().unwrap();
+    let mut repo = init_repository_with_initial_commit(td.path())
+        .await
+        .unwrap();
+    let root_path = td.path().to_str().unwrap();
+
+    // Create tracked files with new commit.
+    let path = format!("{}/tracked", root_path);
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "not modified").unwrap();
+    let path = format!("{}/tracked_before_rename", root_path);
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "before rename").unwrap();
+    let path = format!("{}/tracked_directory", root_path);
+    std::fs::create_dir(&path).unwrap();
+    let path = format!("{}/tracked_directory/tracked", root_path);
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "tracked").unwrap();
+    repo.create_commit(
+        "tracked".to_owned(),
+        "name".to_string(),
+        "test@email.com".to_string(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Modify tracked files and create untracked files.
+    let path = format!("{}/tracked", root_path);
+    std::fs::write(&path, "modified").unwrap();
+    let path = format!("{}/tracked_before_rename", root_path);
+    let path_rename = format!("{}/tracked_after_rename", root_path);
+    std::fs::rename(&path, &path_rename).unwrap();
+    std::fs::write(&path_rename, "after rename").unwrap();
+    let path = format!("{}/tracked_directory", root_path);
+    std::fs::remove_dir_all(&path).unwrap();
+    let path = format!("{}/untracked", root_path);
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "untracked").unwrap();
+    let path = format!("{}/untracked_directory", root_path);
+    std::fs::create_dir(&path).unwrap();
+    let path = format!("{}/untracked_directory/untracked", root_path);
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "untracked").unwrap();
+
+    repo.checkout_clean().await.unwrap();
+
+    // Tracked files should exist and its contents should be same as before calling checkout_clean().
+    let exist_path = [
+        "tracked",
+        "tracked_before_rename",
+        "tracked_directory",
+        "tracked_directory/tracked",
+    ];
+    for path in &exist_path {
+        let path = td.path().join(path);
+        assert!(path.exists());
+    }
+    let path = td.path().join("tracked");
+    let contents = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(contents, "not modified");
+    let path = td.path().join("tracked_before_rename");
+    let contents = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(contents, "before rename");
+
+    // Untracked files and directories should not exist.
+    let not_exist_path = [
+        "untracked",
+        "untracked_directory",
+        "untracked_directory/untracked",
+        "tracked_after_rename",
+    ];
+    for path in &not_exist_path {
+        let path = td.path().join(path);
+        assert!(!path.exists());
+    }
+}
+
 /*
     c3 (HEAD -> main)
     |
