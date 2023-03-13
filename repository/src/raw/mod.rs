@@ -7,8 +7,8 @@ mod tests;
 use super::*;
 use eyre::Result;
 use git2::{
-    ApplyLocation, BranchType, DiffFormat, IndexAddOption, ObjectType, Oid, Repository,
-    RepositoryInitOptions, Sort, Email, EmailCreateOptions
+    ApplyLocation, BranchType, DiffFormat, Email, EmailCreateOptions, IndexAddOption, ObjectType,
+    Oid, Repository, RepositoryInitOptions, ResetType, Sort, Status, StatusOptions, StatusShow,
 };
 use implementation::RawRepositoryInner;
 use simperby_common::reserved::ReservedState;
