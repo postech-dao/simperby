@@ -26,15 +26,13 @@ impl RawRepositoryInner {
             Ok(_repo) => Err(Error::InvalidRepository(
                 "there is an already existing repository".to_string(),
             )),
-            Err(_e) => {
+            Err(_) => {
                 let mut opts = RepositoryInitOptions::new();
-                opts.initial_head(init_commit_branch.as_str());
+                opts.initial_head(&init_commit_branch);
                 let repo = Repository::init_opts(directory, &opts)?;
                 {
                     // Set base configs.
                     let mut config = repo.config()?;
-                    config.set_str("user.name", "name")?; // TODO: user.name value
-                    config.set_str("user.email", "email")?; // TODO: user.email value
                     config.set_str("receive.advertisePushOptions", "true")?;
                     config.set_str("sendpack.sideband", "false")?;
 
@@ -43,7 +41,6 @@ impl RawRepositoryInner {
                     let id = index.write_tree()?;
                     let sig = repo.signature()?;
                     let tree = repo.find_tree(id)?;
-
                     repo.commit(Some("HEAD"), &sig, &sig, init_commit_message, &tree, &[])?;
                 }
                 Ok(Self { repo })
@@ -536,55 +533,26 @@ impl RawRepositoryInner {
         commit_hash: CommitHash,
         max: Option<usize>,
     ) -> Result<Vec<CommitHash>, Error> {
+        let mut ancestors = vec![];
         let oid = Oid::from_bytes(&commit_hash.hash)?;
-        let mut revwalk = self.repo.revwalk()?;
-        revwalk.push(oid)?;
-        revwalk.set_sorting(Sort::TOPOLOGICAL)?;
-
-        // Compare max and ancestor's size
-        let oids: Vec<Oid> = revwalk
-            .by_ref()
-            .collect::<Result<Vec<Oid>, git2::Error>>()?;
-        let oids = oids[1..oids.len()].to_vec();
-
-        let oids_ancestor = if let Some(num_max) = max {
-            for &oid in oids.iter().take(num_max) {
-                // TODO: Check first one should be commit_hash
-                let commit = self.repo.find_commit(oid)?;
-                let num_parents = commit.parents().len();
-
-                if num_parents > 1 {
-                    return Err(Error::InvalidRepository(format!(
-                        "There exists a merge commit, {oid}"
-                    )));
-                }
-                // TODO: Should check current commit's parent == oids[next]
-            }
-            oids[0..num_max].to_vec()
-        } else {
-            // If max is None
-            let mut i = 0;
-
-            loop {
-                // TODO: Check first one should be commit_hash
-                let commit = self.repo.find_commit(oids[i])?;
-                let num_parents = commit.parents().len();
-
-                if num_parents > 1 {
-                    return Err(Error::InvalidRepository(format!(
-                        "There exists a merge commit, {oid}"
-                    )));
-                }
-                // TODO: Should check current commit's parent == oids[next]
-                if num_parents == 0 {
+        let mut commit = self.repo.find_commit(oid)?;
+        while commit.parent_count() == 1 {
+            let parent = commit.parent(0)?;
+            ancestors.push(parent.id());
+            commit = parent;
+            if let Some(max) = max {
+                if ancestors.len() >= max {
                     break;
                 }
-                i += 1;
             }
-            oids
-        };
-
-        let ancestors = oids_ancestor
+        }
+        if commit.parent_count() > 1 {
+            return Err(Error::InvalidRepository(format!(
+                "there exists a merge commit, {}",
+                commit_hash
+            )));
+        }
+        let ancestors = ancestors
             .iter()
             .map(|&oid| {
                 let hash: [u8; 20] = oid
