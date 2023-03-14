@@ -33,6 +33,8 @@ impl RawRepositoryInner {
                 {
                     // Set base configs.
                     let mut config = repo.config()?;
+                    config.set_str("user.name", "user")?;
+                    config.set_str("user.email", "user@email.com")?;
                     config.set_str("receive.advertisePushOptions", "true")?;
                     config.set_str("sendpack.sideband", "false")?;
 

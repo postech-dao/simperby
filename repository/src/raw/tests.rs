@@ -350,6 +350,49 @@ async fn checkout_clean() {
     }
 }
 
+// Stash, apply a stash and drop a stash with tracked file.
+#[tokio::test]
+async fn stash() {
+    let td = TempDir::new().unwrap();
+    let mut repo = init_repository_with_initial_commit(td.path())
+        .await
+        .unwrap();
+
+    // Create a commit with tracked file which will be used as a stash file.
+    let path = td.path().join("stash_file");
+    std::fs::File::create(&path).unwrap();
+    std::fs::write(&path, "before modified").unwrap();
+    let commit_message = "stash".to_string();
+    let author_name = "name".to_string();
+    let author_email = "test@email.com".to_string();
+    repo.create_commit(
+        commit_message,
+        author_name.clone(),
+        author_email.clone(),
+        get_timestamp(),
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Modify a stash file and stash.
+    std::fs::write(&path, "after modified").unwrap();
+    repo.stash(author_name.clone(), author_email.clone(), get_timestamp())
+        .await
+        .unwrap();
+    assert!(path.exists());
+    let contents = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(contents, "before modified");
+    // Apply a stash.
+    repo.stash_apply().await.unwrap();
+    assert!(path.exists());
+    let contents = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(contents, "after modified");
+    // Drop a stash and applying a stash should cause an error.
+    repo.stash_drop().await.unwrap();
+    repo.stash_apply().await.unwrap_err();
+}
+
 /*
     c3 (HEAD -> main)
     |
