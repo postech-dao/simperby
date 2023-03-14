@@ -28,7 +28,7 @@ impl RawRepositoryInner {
             )),
             Err(_) => {
                 let mut opts = RepositoryInitOptions::new();
-                opts.initial_head(&init_commit_branch);
+                opts.initial_head(init_commit_branch);
                 let repo = Repository::init_opts(directory, &opts)?;
                 {
                     // Set base configs.
@@ -460,6 +460,30 @@ impl RawRepositoryInner {
         self.repo.checkout_tree(tree.as_object(), None)?;
         self.repo.set_head_detached(oid)?;
         Ok(())
+    }
+
+    pub(crate) fn stash(
+        &mut self,
+        author_name: String,
+        author_email: String,
+        author_timestamp: Timestamp,
+    ) -> Result<(), Error> {
+        // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
+        let time = git2::Time::new(author_timestamp, -540);
+        let signature = git2::Signature::new(&author_name, &author_email, &time)?;
+        self.repo
+            .stash_save2(&signature, None, Some(git2::StashFlags::DEFAULT))?;
+        Ok(())
+    }
+
+    pub(crate) fn stash_apply(&mut self) -> Result<(), Error> {
+        self.repo
+            .stash_apply(0, Some(&mut git2::StashApplyOptions::default()))
+            .map_err(Error::from)
+    }
+
+    pub(crate) fn stash_drop(&mut self) -> Result<(), Error> {
+        self.repo.stash_drop(0).map_err(Error::from)
     }
 
     pub(crate) fn get_head(&self) -> Result<CommitHash, Error> {
