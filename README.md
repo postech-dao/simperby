@@ -39,12 +39,15 @@ trustless interoperability.
 ### Development
 
 - [Simperby Development Guide](docs/dev.md)
+- [Modules](docs/modules.md)
+- [Directory Structure](docs/directory_structure.md)
 - [Rust SDK (WIP)](./README.md)
 - [Good First Issues](https://github.com/postech-dao/simperby/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 
 ### User Manual
 
 - [Simperby User Manual (WIP)](docs/manual.md)
+- [Command Line Interface](docs/cli.md)
 
 ## License
 
