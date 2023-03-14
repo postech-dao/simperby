@@ -33,8 +33,15 @@ impl RawRepositoryInner {
                 {
                     // Set base configs.
                     let mut config = repo.config()?;
-                    config.set_str("user.name", "user")?;
-                    config.set_str("user.email", "user@email.com")?;
+
+                    // Set user configs if they are not set.
+                    if config.get_string("user.name").is_err() {
+                        config.set_str("user.name", "user")?;
+                    }
+                    if config.get_string("user.email").is_err() {
+                        config.set_str("user.email", "user@simperby.net")?;
+                    }
+
                     config.set_str("receive.advertisePushOptions", "true")?;
                     config.set_str("sendpack.sideband", "false")?;
 
@@ -464,15 +471,8 @@ impl RawRepositoryInner {
         Ok(())
     }
 
-    pub(crate) fn stash(
-        &mut self,
-        author_name: String,
-        author_email: String,
-        author_timestamp: Timestamp,
-    ) -> Result<(), Error> {
-        // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
-        let time = git2::Time::new(author_timestamp, -540);
-        let signature = git2::Signature::new(&author_name, &author_email, &time)?;
+    pub(crate) fn stash(&mut self) -> Result<(), Error> {
+        let signature = self.repo.signature()?;
         self.repo
             .stash_save2(&signature, None, Some(git2::StashFlags::DEFAULT))?;
         Ok(())
