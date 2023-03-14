@@ -259,6 +259,33 @@ impl RawRepository {
         helper_1_mut(self, RawRepositoryInner::checkout_detach, commit_hash).await
     }
 
+    /// Save the local modifications to a new stash.
+    pub async fn stash(
+        &mut self,
+        author_name: String,
+        author_email: String,
+        author_timestamp: Timestamp,
+    ) -> Result<(), Error> {
+        helper_3_mut(
+            self,
+            RawRepositoryInner::stash,
+            author_name,
+            author_email,
+            author_timestamp,
+        )
+        .await
+    }
+
+    /// Apply the most recent stash.
+    pub async fn stash_apply(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::stash_apply).await
+    }
+
+    /// Remove the most recent stash.
+    pub async fn stash_drop(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::stash_drop).await
+    }
+
     // ---------------
     // Various queries
     // ---------------
