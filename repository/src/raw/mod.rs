@@ -260,20 +260,8 @@ impl RawRepository {
     }
 
     /// Save the local modifications to a new stash.
-    pub async fn stash(
-        &mut self,
-        author_name: String,
-        author_email: String,
-        author_timestamp: Timestamp,
-    ) -> Result<(), Error> {
-        helper_3_mut(
-            self,
-            RawRepositoryInner::stash,
-            author_name,
-            author_email,
-            author_timestamp,
-        )
-        .await
+    pub async fn stash(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::stash).await
     }
 
     /// Apply the most recent stash.

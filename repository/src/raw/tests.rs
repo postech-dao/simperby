@@ -377,9 +377,7 @@ async fn stash() {
 
     // Modify a stash file and stash.
     std::fs::write(&path, "after modified").unwrap();
-    repo.stash(author_name.clone(), author_email.clone(), get_timestamp())
-        .await
-        .unwrap();
+    repo.stash().await.unwrap();
     assert!(path.exists());
     let contents = std::fs::read_to_string(&path).unwrap();
     assert_eq!(contents, "before modified");
