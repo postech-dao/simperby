@@ -112,29 +112,3 @@ pub(crate) async fn helper_3<
     lock.replace(inner);
     result
 }
-
-pub(crate) async fn helper_5_mut<
-    T1: Send + Sync + 'static + Clone,
-    T2: Send + Sync + 'static + Clone,
-    T3: Send + Sync + 'static + Clone,
-    T4: Send + Sync + 'static + Clone,
-    T5: Send + Sync + 'static + Clone,
-    R: Send + Sync + 'static,
->(
-    s: &mut RawRepository,
-    f: impl Fn(&mut RawRepositoryInner, T1, T2, T3, T4, T5) -> R + Send + 'static,
-    a1: T1,
-    a2: T2,
-    a3: T3,
-    a4: T4,
-    a5: T5,
-) -> R {
-    let mut lock = s.inner.lock().await;
-    let mut inner = lock.take().expect("RawRepoImpl invariant violated");
-    let (result, inner) =
-        tokio::task::spawn_blocking(move || (f(&mut inner, a1, a2, a3, a4, a5), inner))
-            .await
-            .unwrap();
-    lock.replace(inner);
-    result
-}

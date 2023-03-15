@@ -253,22 +253,15 @@ impl RawRepositoryInner {
         self.repo.tag_delete(&tag).map_err(Error::from)
     }
 
-    pub(crate) fn create_commit(
-        &mut self,
-        commit_message: String,
-        author_name: String,
-        author_email: String,
-        author_timestamp: Timestamp,
-        diff: Option<String>,
-    ) -> Result<CommitHash, Error> {
-        if let Some(diff) = diff {
+    pub(crate) fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
+        if let Some(diff) = commit.diff {
             let diff = git2::Diff::from_buffer(diff.as_bytes())?;
             self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
         }
 
         // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
-        let time = git2::Time::new(author_timestamp, -540);
-        let signature = git2::Signature::new(&author_name, &author_email, &time)?;
+        let time = git2::Time::new(commit.timestamp, -540);
+        let signature = git2::Signature::new(&commit.author, &commit.author, &time)?;
         let mut index = self.repo.index()?;
         index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
@@ -281,7 +274,7 @@ impl RawRepositoryInner {
             Some("HEAD"),
             &signature,
             &signature,
-            &commit_message,
+            &commit.message,
             &tree,
             &[&parent_commit],
         )?;
