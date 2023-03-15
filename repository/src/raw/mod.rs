@@ -50,7 +50,7 @@ pub struct SemanticCommit {
     pub timestamp: Timestamp,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RawCommit {
     pub message: String,
     pub diff: Option<String>,
@@ -207,6 +207,10 @@ impl RawRepository {
     /// Committer will be the same as the author.
     pub async fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
         helper_1_mut(self, RawRepositoryInner::create_commit, commit).await
+    }
+
+    pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<RawCommit, Error> {
+        helper_1(self, RawRepositoryInner::read_commit, commit_hash).await
     }
 
     /// Creates a semantic commit from the currently checked out branch.

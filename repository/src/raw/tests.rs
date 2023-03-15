@@ -761,13 +761,24 @@ async fn patch() {
     let mut repo = init_repository_with_initial_commit(td.path())
         .await
         .unwrap();
+    let empty_commit = RawCommit {
+        message: "read_commit test".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp() / 1000,
+    };
+    let empty_commit_hash = repo.create_commit(empty_commit.clone()).await.unwrap();
+    let commit_retrieve = repo.read_commit(empty_commit_hash).await.unwrap();
+    assert_eq!(empty_commit.clone(), commit_retrieve);
+
     let path = td.path().join("patch_file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "patch test").unwrap();
     let message = "apply patch".to_string();
     let author = "name".to_string();
     let email = "test@email.com".to_string();
-    let timestamp = get_timestamp();
+    let timestamp = get_timestamp() / 1000;
     let commit = RawCommit {
         message: message.clone(),
         diff: None,
@@ -775,11 +786,12 @@ async fn patch() {
         email: email.clone(),
         timestamp,
     };
-    let patch_commit_original = repo.create_commit(commit).await.unwrap();
+    let patch_commit_original = repo.create_commit(commit.clone()).await.unwrap();
 
     let td2 = TempDir::new().unwrap();
     let path2 = td2.path();
     let mut repo2 = init_repository_with_initial_commit(path2).await.unwrap();
+    repo2.create_commit(empty_commit).await.unwrap();
 
     let head = repo.get_head().await.unwrap();
     let patch = repo.get_patch(head).await.unwrap();
@@ -790,7 +802,9 @@ async fn patch() {
         email,
         timestamp,
     };
-    let patch_commit = repo2.create_commit(commit).await.unwrap();
+    let patch_commit = repo2.create_commit(commit.clone()).await.unwrap();
+    let commit_retrieve = repo2.read_commit(patch_commit).await.unwrap();
+    assert_eq!(commit, commit_retrieve);
 
     assert_eq!(patch_commit_original, patch_commit);
     let patch_retrieve = repo2.get_patch(patch_commit).await.unwrap();
