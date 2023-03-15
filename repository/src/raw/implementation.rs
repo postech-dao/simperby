@@ -261,7 +261,7 @@ impl RawRepositoryInner {
 
         // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
         let time = git2::Time::new(commit.timestamp, -540);
-        let signature = git2::Signature::new(&commit.author, &commit.author, &time)?;
+        let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
         let mut index = self.repo.index()?;
         index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
@@ -281,6 +281,44 @@ impl RawRepositoryInner {
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
         Ok(CommitHash { hash })
+    }
+
+    pub(crate) fn read_commit(&self, commit_hash: CommitHash) -> Result<RawCommit, Error> {
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        let commit = self.repo.find_commit(oid)?;
+
+        let message = commit
+            .message()
+            .ok_or_else(|| Error::Unknown("message is not valid utf-8".to_string()))?
+            .to_string();
+        let diff = if commit.parent_count() == 0 {
+            None
+        } else {
+            let diff = self.get_patch(commit_hash)?;
+            if diff.is_empty() {
+                None
+            } else {
+                Some(diff)
+            }
+        };
+        let author = commit
+            .author()
+            .name()
+            .ok_or_else(|| Error::Unknown("name is not valid utf-8".to_string()))?
+            .to_string();
+        let email = commit
+            .author()
+            .email()
+            .ok_or_else(|| Error::Unknown("email is not valid utf-8".to_string()))?
+            .to_string();
+        let timestamp = commit.author().when().seconds();
+        Ok(RawCommit {
+            message,
+            diff,
+            author,
+            email,
+            timestamp,
+        })
     }
 
     pub(crate) fn create_semantic_commit(
