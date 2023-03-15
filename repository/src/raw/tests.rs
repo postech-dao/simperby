@@ -1,6 +1,6 @@
 use super::SemanticCommit;
 use crate::raw::Error;
-use crate::raw::{CommitHash, RawRepository};
+use crate::raw::{CommitHash, RawCommit, RawRepository};
 
 use simperby_common::utils::get_timestamp;
 use simperby_common::{test_utils::generate_standard_genesis, Diff, ToHash256};
@@ -86,16 +86,14 @@ async fn branch() {
     assert_eq!(branch_a_commit_hash, c1_commit_hash);
 
     // Make second commit with "main" branch
-    let c2_commit_hash = repo
-        .create_commit(
-            "second".to_owned(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: "second".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let c2_commit_hash = repo.create_commit(commit).await.unwrap();
 
     let branch_list_from_commit = repo.get_branches(c2_commit_hash).await.unwrap();
     assert_eq!(branch_list_from_commit, vec![MAIN.to_owned()]);
@@ -183,29 +181,27 @@ async fn checkout() {
     repo.create_branch(BRANCH_A.into(), first_commit_hash)
         .await
         .unwrap();
-    repo.create_commit(
-        "second".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "second".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
     // Create branch_b at c2 and commit c3
     let second_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     repo.create_branch(BRANCH_B.into(), second_commit_hash)
         .await
         .unwrap();
-    repo.create_commit(
-        "third".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "third".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     let first_commit_hash = repo.locate_branch(BRANCH_A.into()).await.unwrap();
     let second_commit_hash = repo.locate_branch(BRANCH_B.into()).await.unwrap();
@@ -242,15 +238,14 @@ async fn checkout_detach() {
 
     let first_commit_hash = repo.get_head().await.unwrap();
     // Make second commit with "main" branch
-    repo.create_commit(
-        "second".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "second".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     // Checkout to c1 and set HEAD detached mode
     repo.checkout_detach(first_commit_hash).await.unwrap();
@@ -289,15 +284,14 @@ async fn checkout_clean() {
     let path = format!("{}/tracked_directory/tracked", root_path);
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "tracked").unwrap();
-    repo.create_commit(
-        "tracked".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "tracked".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     // Modify tracked files and create untracked files.
     let path = format!("{}/tracked", root_path);
@@ -362,18 +356,14 @@ async fn stash() {
     let path = td.path().join("stash_file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "before modified").unwrap();
-    let commit_message = "stash".to_string();
-    let author_name = "name".to_string();
-    let author_email = "test@email.com".to_string();
-    repo.create_commit(
-        commit_message,
-        author_name.clone(),
-        author_email.clone(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "stash".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     // Modify a stash file and stash.
     std::fs::write(&path, "after modified").unwrap();
@@ -407,24 +397,22 @@ async fn initial_commit() {
 
     // Create branch_a, branch_b and commits
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
-    repo.create_commit(
-        "second".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
-    repo.create_commit(
-        "third".to_owned(),
-        "name".to_string(),
-        "test@email.com".to_string(),
-        get_timestamp(),
-        None,
-    )
-    .await
-    .unwrap();
+    let commit = RawCommit {
+        message: "second".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
+    let commit = RawCommit {
+        message: "third".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     let initial_commit_hash = repo.get_initial_commit().await.unwrap();
     assert_eq!(initial_commit_hash, first_commit_hash);
@@ -446,26 +434,22 @@ async fn ancestor() {
 
     let first_commit_hash = repo.locate_branch(MAIN.into()).await.unwrap();
     // Make second and third commits at "main" branch
-    let second_commit_hash = repo
-        .create_commit(
-            "second".to_owned(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
-    let third_commit_hash = repo
-        .create_commit(
-            "third".to_owned(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: "second".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let second_commit_hash = repo.create_commit(commit).await.unwrap();
+    let commit = RawCommit {
+        message: "third".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let third_commit_hash = repo.create_commit(commit).await.unwrap();
 
     // Get only one ancestor(direct parent)
     let ancestors = repo
@@ -519,28 +503,24 @@ async fn merge_base() {
     }
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
-    let _commit = repo
-        .create_commit(
-            "branch_a".to_owned(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: "branch_a".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
-    let _commit = repo
-        .create_commit(
-            "branch_b".to_owned(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: "branch_b".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    repo.create_commit(commit).await.unwrap();
 
     // Make merge base of (c2,c3)
     let commit_hash_main = repo.locate_branch(MAIN.into()).await.unwrap();
@@ -682,16 +662,14 @@ async fn semantic_commit() {
     let path = td.path().join("file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "file").unwrap();
-    let commit_file = repo
-        .create_commit(
-            "add a file".to_string(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: "add a file".to_string(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let commit_file = repo.create_commit(commit).await.unwrap();
 
     let semantic_commit_nonreserved = repo.read_semantic_commit(commit_file).await.unwrap();
     let patch = repo.show_commit(commit_file).await.unwrap();
@@ -723,30 +701,26 @@ async fn retrieve_commit_hash() {
 
     // Make a commit at "branch_a" branch
     repo.checkout(BRANCH_A.into()).await.unwrap();
-    let commit_hash_a = repo
-        .create_commit(
-            BRANCH_A.into(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: BRANCH_A.into(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let commit_hash_a = repo.create_commit(commit).await.unwrap();
     // Make a tag at "branch_a" branch
     repo.create_tag(TAG_A.into(), commit_hash_a).await.unwrap();
     // Make a commit at "branch_b" branch
     repo.checkout(BRANCH_B.into()).await.unwrap();
-    let commit_hash_b = repo
-        .create_commit(
-            BRANCH_B.into(),
-            "name".to_string(),
-            "test@email.com".to_string(),
-            get_timestamp(),
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: BRANCH_B.into(),
+        diff: None,
+        author: "name".to_string(),
+        email: "test@email.com".to_string(),
+        timestamp: get_timestamp(),
+    };
+    let commit_hash_b = repo.create_commit(commit).await.unwrap();
 
     // Retrieve commits by branch.
     let commit_hash_a_retrieve = repo.retrieve_commit_hash(BRANCH_A.into()).await.unwrap();
@@ -790,20 +764,18 @@ async fn patch() {
     let path = td.path().join("patch_file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "patch test").unwrap();
-    let commit_message = "apply patch".to_string();
-    let author_name = "name".to_string();
-    let author_email = "test@email.com".to_string();
+    let message = "apply patch".to_string();
+    let author = "name".to_string();
+    let email = "test@email.com".to_string();
     let timestamp = get_timestamp();
-    let patch_commit_original = repo
-        .create_commit(
-            commit_message.clone(),
-            author_name.clone(),
-            author_email.clone(),
-            timestamp,
-            None,
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message: message.clone(),
+        diff: None,
+        author: author.clone(),
+        email: email.clone(),
+        timestamp,
+    };
+    let patch_commit_original = repo.create_commit(commit).await.unwrap();
 
     let td2 = TempDir::new().unwrap();
     let path2 = td2.path();
@@ -811,16 +783,14 @@ async fn patch() {
 
     let head = repo.get_head().await.unwrap();
     let patch = repo.get_patch(head).await.unwrap();
-    let patch_commit = repo2
-        .create_commit(
-            commit_message,
-            author_name,
-            author_email,
-            timestamp,
-            Some(patch),
-        )
-        .await
-        .unwrap();
+    let commit = RawCommit {
+        message,
+        diff: Some(patch),
+        author,
+        email,
+        timestamp,
+    };
+    let patch_commit = repo2.create_commit(commit).await.unwrap();
 
     assert_eq!(patch_commit_original, patch_commit);
     let patch_retrieve = repo2.get_patch(patch_commit).await.unwrap();
