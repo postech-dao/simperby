@@ -21,7 +21,7 @@ broadcasted messages over the network.
 
 - Each module is intialized with an instance of `DMS`.
 - During each operation, the module may store some messages to its local DMS.
-- In the `flush()` operation, the module stores all the messages it wants to
+- During the `flush()` operation, the module stores all the messages it wants to
   broadcast. These messages may or may not have been stored by other operations.
   The module may also have another storage (other than DMS) to store its
   internal states, which can deduce the set of messages to be broadcasted upon
