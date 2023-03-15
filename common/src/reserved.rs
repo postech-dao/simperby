@@ -82,6 +82,12 @@ impl ReservedState {
     }
 
     pub fn apply_delegate(&mut self, tx: &TxDelegate) -> Result<Self, String> {
+        if tx.data.delegator == tx.data.delegatee {
+            return Err(format!(
+                "delegator and delegatee are the same: {}",
+                tx.data.delegator
+            ));
+        }
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
         }
@@ -495,6 +501,33 @@ mod tests {
                 .1,
             1
         );
+    }
+
+    #[test]
+    fn test_apply_delegate_on_consensus_failure() {
+        let (mut state, keys) = generate_standard_genesis(1);
+
+        let delegator = state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
+
+        let data: DelegationTransactionData = DelegationTransactionData {
+            // delegator and delegatee are the same
+            delegator: delegator.name.clone(),
+            delegatee: delegator.name,
+            governance: false,
+            block_height: 0,
+            timestamp: 0,
+            chain_name: state.genesis_info.chain_name.clone(),
+        };
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxDelegate { data, proof };
+
+        let new_state = state.apply_delegate(&tx);
+
+        if new_state.is_ok() {
+            panic!("it must fail when the delegator and the delegatee are the same");
+        }
     }
 
     #[test]
