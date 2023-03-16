@@ -364,6 +364,19 @@ impl RawRepository {
         helper_0(self, RawRepositoryInner::read_reserved_state).await
     }
 
+    /// Reads the reserved state at given commit hash.
+    pub async fn read_reserved_state_at_commit(
+        &self,
+        commit_hash: CommitHash,
+    ) -> Result<ReservedState, Error> {
+        helper_1(
+            self,
+            RawRepositoryInner::read_reserved_state_at_commit,
+            commit_hash,
+        )
+        .await
+    }
+
     // ----------------------
     // Remote-related methods
     // ----------------------

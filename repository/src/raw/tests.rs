@@ -628,23 +628,50 @@ async fn reserved_state() {
     let path = td.path();
     let mut repo = init_repository_with_initial_commit(path).await.unwrap();
 
-    let (rs, _) = generate_standard_genesis(10);
-
-    repo.checkout(MAIN.into()).await.unwrap();
-    let commit_hash = repo
+    let (rs1, _) = generate_standard_genesis(10);
+    let commit_hash1 = repo
         .create_semantic_commit(SemanticCommit {
             title: "test".to_owned(),
             body: "test-body".to_owned(),
-            diff: Diff::Reserved(Box::new(rs.clone())),
+            diff: Diff::Reserved(Box::new(rs1.clone())),
             author: "doesn't matter".to_owned(),
             timestamp: 0,
         })
         .await
         .unwrap();
-    let rs_after = repo.read_reserved_state().await.unwrap();
-    let _semantic_commit = repo.read_semantic_commit(commit_hash).await.unwrap();
+    let rs1_retrieve = repo.read_reserved_state().await.unwrap();
+    assert_eq!(rs1, rs1_retrieve);
+    let rs1_retrieve = repo
+        .read_reserved_state_at_commit(commit_hash1)
+        .await
+        .unwrap();
+    assert_eq!(rs1, rs1_retrieve);
+    // TODO: Check if semantic_commit_retrieve after implementation
+    // let semantic_commit_retrieve = repo.read_semantic_commit(commit_hash1).await.unwrap();
 
-    assert_eq!(rs_after, rs);
+    let (rs2, _) = generate_standard_genesis(5);
+    let commit_hash2 = repo
+        .create_semantic_commit(SemanticCommit {
+            title: "test".to_owned(),
+            body: "test-body".to_owned(),
+            diff: Diff::Reserved(Box::new(rs2.clone())),
+            author: "doesn't matter".to_owned(),
+            timestamp: 0,
+        })
+        .await
+        .unwrap();
+    let rs2_retrieve = repo.read_reserved_state().await.unwrap();
+    assert_eq!(rs2, rs2_retrieve);
+    let rs2_retrieve = repo
+        .read_reserved_state_at_commit(commit_hash2)
+        .await
+        .unwrap();
+    assert_eq!(rs2, rs2_retrieve);
+    let rs1_retrieve = repo
+        .read_reserved_state_at_commit(commit_hash1)
+        .await
+        .unwrap();
+    assert_eq!(rs1, rs1_retrieve);
 }
 
 #[tokio::test]
