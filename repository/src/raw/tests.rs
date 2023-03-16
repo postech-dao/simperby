@@ -311,7 +311,9 @@ async fn checkout_clean() {
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "untracked").unwrap();
 
+    repo.check_clean().await.unwrap_err();
     repo.checkout_clean().await.unwrap();
+    repo.check_clean().await.unwrap();
 
     // Tracked files should exist and its contents should be same as before calling checkout_clean().
     let exist_path = [

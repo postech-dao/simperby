@@ -271,6 +271,11 @@ impl RawRepository {
         helper_0_mut(self, RawRepositoryInner::stash_drop).await
     }
 
+    /// Checks if there are no unstaged, staged and untracked files.
+    pub async fn check_clean(&self) -> Result<(), Error> {
+        helper_0(self, RawRepositoryInner::check_clean).await
+    }
+
     // ---------------
     // Various queries
     // ---------------
