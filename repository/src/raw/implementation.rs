@@ -730,6 +730,73 @@ impl RawRepositoryInner {
         Ok(reserved_state)
     }
 
+    pub(crate) fn read_reserved_state_at_commit(
+        &self,
+        commit_hash: CommitHash,
+    ) -> Result<ReservedState, Error> {
+        let oid = Oid::from_bytes(&commit_hash.hash)?;
+        let commit = self.repo.find_commit(oid)?;
+        let tree = commit.tree()?;
+
+        let path = std::path::Path::new("reserved/genesis_info.json");
+        let entry = tree.get_path(path)?;
+        let blob = entry.to_object(&self.repo)?;
+        let blob = blob
+            .as_blob()
+            .ok_or_else(|| Error::Unknown("failed to get a blob".to_string()))?;
+        let content = std::str::from_utf8(blob.content())
+            .map_err(|_| Error::Unknown("content of genesis_info.json is not UTF-8".to_string()))?;
+        let genesis_info: GenesisInfo =
+            serde_spb::from_str(content).map_err(|e| Error::Unknown(e.to_string()))?;
+
+        let mut members: Vec<Member> = vec![];
+        let path = std::path::Path::new("reserved/members");
+        let entry = tree.get_path(path)?;
+        let members_tree = entry.to_object(&self.repo)?.peel_to_tree()?;
+        for entry in members_tree.iter() {
+            let blob = entry.to_object(&self.repo)?;
+            let blob = blob
+                .as_blob()
+                .ok_or_else(|| Error::Unknown("failed to get a blob".to_string()))?;
+            let content = std::str::from_utf8(blob.content())
+                .map_err(|_| Error::Unknown("content of member is not UTF-8".to_string()))?;
+            let member: Member =
+                serde_spb::from_str(content).map_err(|e| Error::Unknown(e.to_string()))?;
+            members.push(member);
+        }
+        members.sort_by(|m1, m2| m1.name.cmp(&m2.name));
+
+        let path = std::path::Path::new("reserved/consensus_leader_order.json");
+        let entry = tree.get_path(path)?;
+        let blob = entry.to_object(&self.repo)?;
+        let blob = blob
+            .as_blob()
+            .ok_or_else(|| Error::Unknown("failed to get a blob".to_string()))?;
+        let content = std::str::from_utf8(blob.content()).map_err(|_| {
+            Error::Unknown("content of consensus_leader_order.json is not UTF-8".to_string())
+        })?;
+        let consensus_leader_order: Vec<MemberName> =
+            serde_spb::from_str(content).map_err(|e| Error::Unknown(e.to_string()))?;
+
+        let path = std::path::Path::new("reserved/version");
+        let entry = tree.get_path(path)?;
+        let blob = entry.to_object(&self.repo)?;
+        let blob = blob
+            .as_blob()
+            .ok_or_else(|| Error::Unknown("failed to get a blob".to_string()))?;
+        let content = std::str::from_utf8(blob.content())
+            .map_err(|_| Error::Unknown("content of version is not UTF-8".to_string()))?;
+        let version: String =
+            serde_spb::from_str(content).map_err(|e| Error::Unknown(e.to_string()))?;
+
+        Ok(ReservedState {
+            genesis_info,
+            members,
+            consensus_leader_order,
+            version,
+        })
+    }
+
     pub(crate) fn add_remote(
         &mut self,
         remote_name: String,
