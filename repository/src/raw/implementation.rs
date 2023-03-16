@@ -519,6 +519,33 @@ impl RawRepositoryInner {
         self.repo.stash_drop(0).map_err(Error::from)
     }
 
+    pub(crate) fn check_clean(&self) -> Result<(), Error> {
+        let mut options = StatusOptions::new();
+        options.include_untracked(true);
+        options.recurse_untracked_dirs(true);
+        let statuses = self.repo.statuses(Some(&mut options))?;
+        let mut has_changes = false;
+
+        for status in statuses.iter() {
+            if status.status() == Status::WT_NEW
+                || status.status() == Status::WT_MODIFIED
+                || status.status() == Status::WT_DELETED
+                || status.status() == Status::INDEX_NEW
+                || status.status() == Status::INDEX_MODIFIED
+                || status.status() == Status::INDEX_DELETED
+            {
+                has_changes = true;
+                break;
+            }
+        }
+        if has_changes {
+            return Err(Error::InvalidRepository(
+                "Working tree is not clean".to_string(),
+            ))?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn get_head(&self) -> Result<CommitHash, Error> {
         let head = self.repo.head()?;
         let oid = head
