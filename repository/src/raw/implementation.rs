@@ -556,6 +556,18 @@ impl RawRepositoryInner {
         Ok(CommitHash { hash })
     }
 
+    pub(crate) fn get_currently_checkout_branch(&self) -> Result<Option<Branch>, Error> {
+        let head = self.repo.head()?;
+        let branch = head
+            .shorthand()
+            .ok_or_else(|| Error::Unknown("branch is not valid utf-8.".to_string()))?;
+        if branch == "HEAD" {
+            Ok(None)
+        } else {
+            Ok(Some(branch.to_string()))
+        }
+    }
+
     pub(crate) fn get_initial_commit(&self) -> Result<CommitHash, Error> {
         // Check if the repository is empty
         self.repo
