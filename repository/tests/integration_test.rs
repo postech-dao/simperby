@@ -168,15 +168,6 @@ async fn sync_by_push() {
         mirrors: Vec::new(),
         long_range_attack_distance: 1,
     };
-    let peers = vec![Peer {
-        public_key: keys[0].0.clone(),
-        name: "server-node".to_owned(),
-        address: format!("127.0.0.1:{}", 1).parse().unwrap(),
-        ports: vec![("repository".to_owned(), port)].into_iter().collect(),
-        message: "".to_owned(),
-        recently_seen_timestamp: 0,
-    }];
-    let peers = SharedKnownPeers::new_static(peers);
 
     let server_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
@@ -191,11 +182,10 @@ async fn sync_by_push() {
     .await;
 
     let mut server_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{server_node_dir}/repository/repo"))
+        RawRepository::open(&format!("{server_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config.clone(),
-        peers.clone(),
         None,
     )
     .await
@@ -213,19 +203,23 @@ async fn sync_by_push() {
     ))
     .await;
     let mut client_node_repo = DistributedRepository::new(
-        RawRepositoryImpl::open(&format!("{client_node_dir}/repository/repo"))
+        RawRepository::open(&format!("{client_node_dir}/repository/repo"))
             .await
             .unwrap(),
         config,
-        peers.clone(),
         Some(keys[1].1.clone()),
     )
     .await
     .unwrap();
+    client_node_repo
+        .get_raw_mut()
+        .add_remote("server".to_string(), format!("git://127.0.0.1:{port}/repo"))
+        .await
+        .unwrap();
 
     // Step 0: create an agenda and let the client push that
     let (agenda, agenda_commit) = client_node_repo
-        .create_agenda(keys[0].0.clone())
+        .create_agenda(rs.query_name(&keys[0].0).unwrap())
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
@@ -239,6 +233,7 @@ async fn sync_by_push() {
             keys.iter()
                 .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
                 .collect(),
+            0,
         )
         .await
         .unwrap();
