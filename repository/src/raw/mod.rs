@@ -280,6 +280,12 @@ impl RawRepository {
         helper_0(self, RawRepositoryInner::get_head).await
     }
 
+    /// Returns the currently checked-out branch, if any.
+    /// If the repository is in a detached HEAD state, it returns None.
+    pub async fn get_currently_checkout_branch(&self) -> Result<Option<Branch>, Error> {
+        helper_0(self, RawRepositoryInner::get_currently_checkout_branch).await
+    }
+
     /// Returns the commit hash of the initial commit.
     ///
     /// Fails if the repository is empty.

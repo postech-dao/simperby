@@ -212,12 +212,18 @@ async fn checkout() {
     repo.checkout(BRANCH_A.into()).await.unwrap();
     let head_commit_hash = repo.get_head().await.unwrap();
     assert_eq!(head_commit_hash, first_commit_hash);
+    let branch = repo.get_currently_checkout_branch().await.unwrap();
+    assert_eq!(branch, Some("branch_a".to_string()));
     repo.checkout(BRANCH_B.into()).await.unwrap();
     let head_commit_hash = repo.get_head().await.unwrap();
     assert_eq!(head_commit_hash, second_commit_hash);
+    let branch = repo.get_currently_checkout_branch().await.unwrap();
+    assert_eq!(branch, Some("branch_b".to_string()));
     repo.checkout(MAIN.into()).await.unwrap();
     let head_commit_hash = repo.get_head().await.unwrap();
     assert_eq!(head_commit_hash, third_commit_hash);
+    let branch = repo.get_currently_checkout_branch().await.unwrap();
+    assert_eq!(branch, Some("main".to_string()));
 }
 
 /*
@@ -249,6 +255,8 @@ async fn checkout_detach() {
 
     // Checkout to c1 and set HEAD detached mode
     repo.checkout_detach(first_commit_hash).await.unwrap();
+    let branch = repo.get_currently_checkout_branch().await.unwrap();
+    assert_eq!(branch, None);
 
     let cur_head_commit_hash = repo.get_head().await.unwrap();
     assert_eq!(cur_head_commit_hash, first_commit_hash);
