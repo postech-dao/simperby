@@ -269,7 +269,6 @@ impl DistributedRepository {
 
     /// Broadcasts all the local messages.
     pub async fn broadcast(&mut self) -> Result<(), Error> {
-        utils::add_remotes(self, &self.peers.read().await).await?;
         let agendas = self.get_agendas().await?;
         let blocks = self.get_blocks().await?;
         let remotes = self.raw.list_remotes().await?;

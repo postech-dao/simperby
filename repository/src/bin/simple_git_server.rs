@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use simperby_common::PublicKey;
 use simperby_common::Signature;
 use simperby_common::TypedSignature;
-use simperby_network::SharedKnownPeers;
 use simperby_repository::{raw::*, *};
 
 /**
@@ -39,21 +38,16 @@ pub enum Commands {
 async fn main() {
     let args = Cli::parse();
     let path = args.path.display().to_string();
-    let raw = RawRepositoryImpl::open(&format!("{path}/repository/repo"))
+    let raw = RawRepository::open(&format!("{path}/repository/repo"))
         .await
         .unwrap();
     let config = Config {
         mirrors: Vec::new(),
         long_range_attack_distance: 1,
     };
-    let mut drepo = simperby_repository::DistributedRepository::new(
-        raw,
-        config,
-        SharedKnownPeers::new_static(Vec::new()),
-        None,
-    )
-    .await
-    .unwrap();
+    let mut drepo = simperby_repository::DistributedRepository::new(raw, config, None)
+        .await
+        .unwrap();
 
     match args.command {
         Commands::CheckPush {
