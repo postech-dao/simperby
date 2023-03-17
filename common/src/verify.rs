@@ -64,9 +64,12 @@ pub fn verify_finalization_proof(
 ) -> Result<(), Error> {
     let total_voting_power: VotingPower = header.validator_set.iter().map(|(_, v)| v).sum();
     let mut voted_validators = HashSet::new();
-    for signature in block_finalization_proof {
+    for signature in &block_finalization_proof.signatures {
         signature
-            .verify(header)
+            .verify(&FinalizationSignTarget {
+                block_hash: header.to_hash256(),
+                round: block_finalization_proof.round,
+            })
             .map_err(|e| Error::CryptoError("invalid finalization proof".to_string(), e))?;
         voted_validators.insert(signature.signer());
     }
@@ -507,7 +510,7 @@ mod test {
     ) -> ReservedState {
         let genesis_header: BlockHeader = BlockHeader {
             author: validator_keypair[author_index].0.clone(),
-            prev_block_finalization_proof: vec![],
+            prev_block_finalization_proof: FinalizationProof::genesis(),
             previous_hash: Hash256::zero(),
             height: 0,
             timestamp: time,
@@ -529,6 +532,7 @@ mod test {
                 genesis_proof: generate_unanimous_finalization_proof(
                     validator_keypair,
                     &genesis_header,
+                    0,
                 ),
                 chain_name: "PDAO Chain".to_string(),
             },
@@ -616,12 +620,22 @@ mod test {
     fn generate_unanimous_finalization_proof(
         validator_keypair: &[(PublicKey, PrivateKey)],
         header: &BlockHeader,
+        round: ConsensusRound,
     ) -> FinalizationProof {
-        let mut finalization_proof: Vec<TypedSignature<BlockHeader>> = vec![];
+        let mut signatures: Vec<TypedSignature<FinalizationSignTarget>> = vec![];
         for (_, private_key) in validator_keypair {
-            finalization_proof.push(TypedSignature::sign(header, private_key).unwrap());
+            signatures.push(
+                TypedSignature::sign(
+                    &FinalizationSignTarget {
+                        round,
+                        block_hash: header.to_hash256(),
+                    },
+                    private_key,
+                )
+                .unwrap(),
+            );
         }
-        finalization_proof
+        FinalizationProof { round, signatures }
     }
 
     fn generate_block_commit(
@@ -637,6 +651,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 validator_keypair,
                 &previous_header,
+                0,
             ),
             previous_hash: Commit::Block(previous_header.clone()).to_hash256(),
             height: previous_header.height + 1,
@@ -663,7 +678,7 @@ mod test {
         let start_header: BlockHeader = generate_block_header(
             &validator_keypair,
             0,
-            vec![],
+            FinalizationProof::genesis(),
             Hash256::zero(),
             0,
             0,
@@ -776,6 +791,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
                 &csv.header,
+                0,
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 2,
@@ -819,6 +835,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
                 &csv.header,
+                0,
             ),
             previous_hash: Hash256::zero(),
             height: csv.header.height + 1,
@@ -862,6 +879,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
                 &csv.header,
+                0,
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
@@ -905,6 +923,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
                 &csv.header,
+                0,
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
@@ -951,12 +970,13 @@ mod test {
                 &generate_block_header(
                     &validator_keypair[1..],
                     0,
-                    vec![],
+                    FinalizationProof::genesis(),
                     csv.header.to_hash256(),
                     csv.header.height + 1,
                     2,
                     OneshotMerkleTree::create(vec![]).root(),
                 ),
+                0,
             ),
             csv.header.to_hash256(),
             csv.header.height + 1,
@@ -989,13 +1009,12 @@ mod test {
         // Apply block commit with invalid finalization proof for low voting power
         csv.apply_commit(&Commit::Block(BlockHeader {
             author: validator_keypair[0].0.clone(),
-            prev_block_finalization_proof: vec![generate_unanimous_finalization_proof(
-                &validator_keypair,
-                &csv.header,
-            )
-            .first()
-            .unwrap()
-            .clone()],
+            prev_block_finalization_proof: {
+                let mut proof =
+                    generate_unanimous_finalization_proof(&validator_keypair, &csv.header, 0);
+                proof.signatures = vec![proof.signatures[0].clone()];
+                proof
+            },
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,
             timestamp: 2,
@@ -1038,6 +1057,7 @@ mod test {
             prev_block_finalization_proof: generate_unanimous_finalization_proof(
                 &validator_keypair,
                 &csv.header,
+                0,
             ),
             previous_hash: Commit::Block(csv.header.clone()).to_hash256(),
             height: csv.header.height + 1,

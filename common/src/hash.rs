@@ -42,6 +42,12 @@ impl ToHash256 for Member {
     }
 }
 
+impl ToHash256 for FinalizationSignTarget {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(serde_spb::to_vec(self).unwrap())
+    }
+}
+
 impl ToHash256 for BlockHeader {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_spb::to_vec(self).unwrap())
@@ -173,11 +179,15 @@ mod tests {
         let mut offset = 0;
 
         let author = unsafe { read::<PublicKey>(&mut offset, &encoded) };
-        let prev_block_finalization_proof_len = unsafe { read::<usize>(&mut offset, &encoded) };
-        let mut prev_block_finalization_proof = Vec::new();
-        for _ in 0..prev_block_finalization_proof_len {
-            prev_block_finalization_proof
-                .push(unsafe { read::<TypedSignature<BlockHeader>>(&mut offset, &encoded) });
+        let prev_block_finalization_proof_round =
+            unsafe { read::<ConsensusRound>(&mut offset, &encoded) };
+        let prev_block_finalization_proof_signatures_len =
+            unsafe { read::<usize>(&mut offset, &encoded) };
+        let mut prev_block_finalization_proof_signatures = Vec::new();
+        for _ in 0..prev_block_finalization_proof_signatures_len {
+            prev_block_finalization_proof_signatures.push(unsafe {
+                read::<TypedSignature<FinalizationSignTarget>>(&mut offset, &encoded)
+            });
         }
         let previous_hash = unsafe { read::<Hash256>(&mut offset, &encoded) };
         let height = unsafe { read::<BlockHeight>(&mut offset, &encoded) };
@@ -197,7 +207,10 @@ mod tests {
 
         let header_decoded = BlockHeader {
             author,
-            prev_block_finalization_proof,
+            prev_block_finalization_proof: FinalizationProof {
+                round: prev_block_finalization_proof_round,
+                signatures: prev_block_finalization_proof_signatures,
+            },
             previous_hash,
             height,
             timestamp,

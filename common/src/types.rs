@@ -7,7 +7,6 @@ pub type Timestamp = i64;
 /// A block height. The genesis block is at height 0.
 pub type BlockHeight = u64;
 pub type ConsensusRound = u64;
-pub type FinalizationProof = Vec<TypedSignature<BlockHeader>>;
 pub type MemberName = String;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -29,6 +28,27 @@ pub struct Member {
     // - Unlock-Automatically-After-T-Seconds
     // - Unlock-If-The-Delegatee-Is-Not-Active
     // - Unlock-If-The-Validator-Set-Changes
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct FinalizationSignTarget {
+    pub block_hash: Hash256,
+    pub round: ConsensusRound,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct FinalizationProof {
+    pub round: ConsensusRound,
+    pub signatures: Vec<TypedSignature<FinalizationSignTarget>>,
+}
+
+impl FinalizationProof {
+    pub fn genesis() -> Self {
+        FinalizationProof {
+            round: 0,
+            signatures: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
