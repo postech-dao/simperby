@@ -330,10 +330,10 @@ mod tests {
         let block = Commit::Block(BlockHeader {
             height: 3,
             author: PublicKey::zero(),
-            prev_block_finalization_proof: vec![TypedSignature::new(
-                Signature::zero(),
-                PublicKey::zero(),
-            )],
+            prev_block_finalization_proof: FinalizationProof {
+                round: 0,
+                signatures: vec![TypedSignature::new(Signature::zero(), PublicKey::zero())],
+            },
             previous_hash: Hash256::hash("hello1"),
             timestamp: 0,
             commit_merkle_root: Hash256::hash("hello2"),
@@ -417,10 +417,13 @@ mod tests {
     fn format_fp() {
         let fp = LastFinalizationProof {
             height: 3,
-            proof: vec![
-                TypedSignature::new(Signature::zero(), PublicKey::zero()),
-                TypedSignature::new(Signature::zero(), PublicKey::zero()),
-            ],
+            proof: FinalizationProof {
+                round: 0,
+                signatures: vec![
+                    TypedSignature::new(Signature::zero(), PublicKey::zero()),
+                    TypedSignature::new(Signature::zero(), PublicKey::zero()),
+                ],
+            },
         };
         assert_eq!(
             fp,
