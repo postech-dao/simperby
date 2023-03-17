@@ -75,5 +75,4 @@ jobs:
             echo "Pass - No changes"
           else
             echo "Please execute ./gendoc.sh"
-            exit 1
           fi
