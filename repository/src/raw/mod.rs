@@ -264,7 +264,7 @@ impl RawRepository {
         helper_0_mut(self, RawRepositoryInner::stash_pop).await
     }
 
-    /// Applys the most recent stash.
+    /// Applies the most recent stash.
     pub async fn stash_apply(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::stash_apply).await
     }
