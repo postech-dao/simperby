@@ -27,7 +27,7 @@ pub trait ToHash256 {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct HexSerializedBytes<const N: usize> {
-    data: [u8; N],
+    pub data: [u8; N],
 }
 
 impl<const N: usize> HexSerializedBytes<N> {

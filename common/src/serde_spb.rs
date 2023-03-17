@@ -1,5 +1,6 @@
 use serde::{de::DeserializeOwned, ser::Serialize};
-use serde_json::Error;
+
+pub type Error = serde_json::Error;
 
 pub fn to_string<T: Serialize>(t: &T) -> Result<String, Error> {
     serde_json::to_string_pretty(t)

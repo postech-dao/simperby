@@ -23,7 +23,7 @@ pub fn generate_standard_genesis(
         .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
         author: PublicKey::zero(),
-        prev_block_finalization_proof: Vec::new(),
+        prev_block_finalization_proof: FinalizationProof::genesis(),
         previous_hash: Hash256::zero(),
         height: 0,
         timestamp: 0,
@@ -37,10 +37,22 @@ pub fn generate_standard_genesis(
     };
     let genesis_info = GenesisInfo {
         header: genesis_header.clone(),
-        genesis_proof: keys
-            .iter()
-            .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
-            .collect::<Vec<_>>(),
+        genesis_proof: FinalizationProof {
+            round: 0,
+            signatures: keys
+                .iter()
+                .map(|(_, private_key)| {
+                    TypedSignature::sign(
+                        &FinalizationSignTarget {
+                            block_hash: genesis_header.to_hash256(),
+                            round: 0,
+                        },
+                        private_key,
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>(),
+        },
         chain_name: "test-chain".to_string(),
     };
     (
@@ -92,7 +104,7 @@ pub fn generate_delegated_genesis(
         .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
         author: PublicKey::zero(),
-        prev_block_finalization_proof: Vec::new(),
+        prev_block_finalization_proof: FinalizationProof::genesis(),
         previous_hash: Hash256::zero(),
         height: 0,
         timestamp: 0,
@@ -106,10 +118,22 @@ pub fn generate_delegated_genesis(
     };
     let genesis_info = GenesisInfo {
         header: genesis_header.clone(),
-        genesis_proof: keys
-            .iter()
-            .map(|(_, private_key)| TypedSignature::sign(&genesis_header, private_key).unwrap())
-            .collect::<Vec<_>>(),
+        genesis_proof: FinalizationProof {
+            round: 0,
+            signatures: keys
+                .iter()
+                .map(|(_, private_key)| {
+                    TypedSignature::sign(
+                        &FinalizationSignTarget {
+                            block_hash: genesis_header.to_hash256(),
+                            round: 0,
+                        },
+                        private_key,
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>(),
+        },
         chain_name: "test-chain".to_string(),
     };
     (

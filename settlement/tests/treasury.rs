@@ -209,10 +209,23 @@ fn relay_1() {
     };
     csv.apply_commit(&Commit::Block(block_header.clone()))
         .unwrap();
-    let fp = keys
+    let signatures = keys
         .iter()
-        .map(|(_, private_key)| TypedSignature::sign(&block_header, private_key).unwrap())
+        .map(|(_, private_key)| {
+            TypedSignature::sign(
+                &FinalizationSignTarget {
+                    block_hash: block_header.to_hash256(),
+                    round: 0,
+                },
+                private_key,
+            )
+            .unwrap()
+        })
         .collect::<Vec<_>>();
+    let fp = FinalizationProof {
+        round: 0,
+        signatures,
+    };
 
     // Setup Mythereum
     let tether = Rc::new(RefCell::new(TetherContract {
