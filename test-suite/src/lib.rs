@@ -95,15 +95,15 @@ pub fn dispense_port() -> u16 {
         .expect("wtf did we have tests more than 1000?")
 }
 
-pub async fn create_test_dms(
+pub async fn create_test_dms<M: DmsMessage>(
     dms_key: String,
-    peers: Vec<PublicKey>,
+    members: Vec<PublicKey>,
     private_key: PrivateKey,
-) -> Dms {
+) -> Dms<M> {
     let path = create_temp_dir();
     StorageImpl::create(&path).await.unwrap();
     let storage = StorageImpl::open(&path).await.unwrap();
-    Dms::new(storage, dms::Config { dms_key, peers }, private_key)
+    Dms::new(storage, dms::Config { dms_key, members }, private_key)
         .await
         .unwrap()
 }
@@ -116,11 +116,10 @@ pub async fn setup_server_client_nodes(
     Vec<ClientNetworkConfig>,
     Vec<PublicKey>,
 ) {
-    let (public_key, private_key) = generate_keypair_random();
+    let (_, private_key) = generate_keypair_random();
     let server = ServerNetworkConfig {
         network_id: network_id.clone(),
         members: Vec::new(),
-        public_key,
         private_key,
         ports: vec![(format!("dms-{network_id}"), dispense_port())]
             .into_iter()
@@ -128,14 +127,13 @@ pub async fn setup_server_client_nodes(
     };
     let mut clients = Vec::new();
     for _ in 0..client_n {
-        let (public_key, private_key) = generate_keypair_random();
+        let (_, private_key) = generate_keypair_random();
         let network_config = ClientNetworkConfig {
             network_id: network_id.clone(),
             members: Vec::new(),
-            public_key,
             private_key: private_key.clone(),
             peers: vec![Peer {
-                public_key: server.public_key.clone(),
+                public_key: server.private_key.public_key(),
                 name: "server".to_owned(),
                 address: "127.0.0.1:1".parse().unwrap(),
                 ports: server.ports.clone(),
@@ -147,9 +145,9 @@ pub async fn setup_server_client_nodes(
     }
     let mut members = clients
         .iter()
-        .map(|c| c.public_key.clone())
+        .map(|c| c.private_key.public_key())
         .collect::<Vec<_>>();
-    members.push(server.public_key.clone());
+    members.push(server.private_key.public_key());
 
     (server, clients, members)
 }
