@@ -89,7 +89,7 @@ pub enum Commands {
     /// Clone a remote Simperby repository to the current directory,
     /// and initialize a new Simperby node after verification.
     ///
-    /// This is same as `git clone && simperby init`.
+    /// This is same as `git clone && cd <directory> && simperby init`.
     Clone {
         /// The URL of the remote repository.
         url: String,
@@ -142,11 +142,12 @@ pub enum Commands {
     ///
     /// 1. Is it a valid Git repository?
     /// 2. Does it contain a valid `.simperby/` directory?
-    /// 3. Does it have a valid `reserved/` directory?
+    /// 3. Does it have a valid `reserved/` directory and `.gitignore`?
     /// 4. Does it have all the protected branches and tags?
     /// 5. Does the reserved state at `finalized` branch match the block header?
     /// 6. What phase is the `work` branch in?
     /// 7. Does the `fp` branch match the last block header?
+    /// 8. Isn't your repository behind the latest consensus status? (finalized but not yet received the actual commits)
     Status {
         /// If enabled, it performs a full verification of the entire history
         /// of the chain, starting from the genesis commit.
