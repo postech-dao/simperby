@@ -37,8 +37,6 @@ pub struct ClientNetworkConfig {
     pub network_id: String,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
-    /// The public key of this node.
-    pub public_key: PublicKey,
     /// The private key of this node.
     pub private_key: PrivateKey,
     /// The peer nodes to broadcast the message.
@@ -51,8 +49,6 @@ pub struct ServerNetworkConfig {
     pub network_id: String,
     /// The set of the members of the network.
     pub members: Vec<PublicKey>,
-    /// The public key of this node.
-    pub public_key: PublicKey,
     /// The private key of this node.
     pub private_key: PrivateKey,
     /// The map of `identifier->port` where an `identifier` represents each network service
@@ -60,4 +56,5 @@ pub struct ServerNetworkConfig {
     /// The server advertises this port mappings on the peer discovery protocol,
     /// so that other peers can know on which port the server provides a specific service.
     pub ports: HashMap<String, u16>,
+    // TODO: add various configurations for NAT traversal
 }
