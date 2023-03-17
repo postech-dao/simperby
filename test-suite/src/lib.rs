@@ -41,16 +41,13 @@ pub async fn run_command(command: impl AsRef<str>) {
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
     run_command(format!(
-        "cd {path} && mkdir repository && cd repository && mkdir repo && cd repo && git init"
+        "cd {path} && mkdir repository && cd repository && git init"
     ))
     .await;
-    let path = format!("{path}/repository/repo");
-    simperby_node::simperby_repository::raw::reserved_state::write_reserved_state(
-        &path,
-        &reserved_state,
-    )
-    .await
-    .unwrap();
+    let path = format!("{path}/repository");
+    simperby_repository::raw::reserved_state::write_reserved_state(&path, &reserved_state)
+        .await
+        .unwrap();
     println!("> Pre-genesis repository is created at {path}");
 
     run_command(format!("cd {path} && git add -A")).await;
@@ -59,14 +56,6 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
     ))
     .await;
     run_command(format!("cd {path} && git commit -m 'genesis'")).await;
-}
-
-pub async fn copy_repository(source_path: &str, dest_path: &str) {
-    run_command(format!("mkdir -p {dest_path}/repository")).await;
-    run_command(format!(
-        "cp -r {source_path}/repository/repo {dest_path}/repository/repo"
-    ))
-    .await;
 }
 
 pub fn create_temp_dir() -> String {
