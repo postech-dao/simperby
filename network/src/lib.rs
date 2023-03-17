@@ -1,21 +1,20 @@
-pub mod dms2;
+pub mod dms;
 #[cfg(never)]
 mod peer_discovery;
 pub mod primitives;
 pub mod storage;
 
-use primitives::*;
 use serde::{Deserialize, Serialize};
 use simperby_common::{crypto::*, MemberName, Timestamp};
 use std::collections::HashMap;
 use std::net::SocketAddrV4;
 
 pub type Error = eyre::Error;
-pub type Dms = dms::DistributedMessageSet<storage::StorageImpl>;
+pub type Dms<T> = dms::DistributedMessageSet<storage::StorageImpl, T>;
 
-/// TODO: I kept the name file `dms2` for simple Git diff.
-/// We should rename it to `dms` later.
-pub use dms2 as dms;
+pub use dms::{DmsKey, DmsMessage, Message, MessageCommitmentProof};
+pub use primitives::*;
+pub use storage::StorageImpl;
 
 /// The information of a network peer that is discovered by the discovery protocol.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
