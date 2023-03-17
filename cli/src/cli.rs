@@ -96,21 +96,6 @@ pub enum Commands {
     },
 
     // ----- Modification Commands ----- //
-    /// Sync the `finalized` branch to the `work` branch.
-    ///
-    /// This will verify every commit along the way.
-    /// If the `work` branch is not a descendant of the
-    /// current `finalized` (i.e., cannot be fast-forwarded), it fails.
-    ///
-    /// Note that you MUST provide `last_finalization_proof` as an argument which verifies
-    /// finalization of the last block of the `work` branch (which must also be the last commit)
-    /// This is because the finalization proof for a block exists in the next block.
-    /// In other words, if your `work` branch contains N blocks, (N-1) preceding blocks are
-    /// verified by its (N-1) following block, but the last block must be manually verified.
-    Sync {
-        #[clap(short, long, action)]
-        last_finalization_proof: String,
-    },
     /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
         /// If enabled, it will remove
@@ -177,13 +162,20 @@ pub enum Commands {
     #[command(subcommand)]
     Peer(PeerCommand),
     /// Become a server node indefinitely, serving all message propagations and Git requests.
+    /// This is same as regularly running the `update` and `broadcast` commands.
     ///
     /// You cannot perform any other operations while running this command;
     /// you have to run another shell to perform client-side, synchronous operations.
     Serve,
     /// Update the node state by fetching data from the p2p network,
     /// verifying incoming data, and applying to the repository and consensus & governance status.
-    Update,
+    Update {
+        /// If enabled, it performs only local updates without fetching data from the network.
+        ///
+        /// "Local updates" means changes (new commits) that have been manually created or git-fetched by the user.
+        #[clap(long, action)]
+        no_network: bool,
+    },
     /// Broadcast relevant data to the p2p network.
     ///
     /// This may contain
