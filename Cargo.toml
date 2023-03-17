@@ -1,11 +1,9 @@
 [workspace]
 members = [
     "common",
-    "node",
     "test-suite",
     "network",
     "vetomint",
-    "cli",
     "repository",
     "consensus",
     "governance",
