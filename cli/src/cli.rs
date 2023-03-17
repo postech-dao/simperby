@@ -43,6 +43,19 @@ pub enum CreateCommands {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum PeerCommand {
+    /// Add a peer with the given name and address.
+    Add { address: String, name: String },
+    /// Remove the peer with the given name.
+    Remove { name: String },
+    /// Updates the peer list using the peer discovery protocol.
+    /// This may leave some remote repositories with the prefix `>`.
+    Update,
+    /// Prints the status of the discovered peers.
+    Status,
+}
+
+#[derive(Debug, Subcommand)]
 pub enum SignCommands {
     TxDelegate {
         delegator: MemberName,
@@ -138,8 +151,6 @@ pub enum Commands {
     // ----- Information Commands ----- //
     /// Show the overall information of the given commit.
     Show { revision: String },
-    /// Show the current status of the p2p network.
-    Network,
     /// Show the status of the Simperby repository.
     ///
     /// It checkes the following for the current directory:
@@ -159,6 +170,12 @@ pub enum Commands {
     },
 
     // ----- Network Commands ----- //
+    /// Show the current status of the p2p network.
+    Network,
+    /// Manages the peer list for the p2p network.
+    /// Note that this is independent from the Git remotes.
+    #[command(subcommand)]
+    Peer(PeerCommand),
     /// Become a server node indefinitely, serving all message propagations and Git requests.
     ///
     /// You cannot perform any other operations while running this command;
