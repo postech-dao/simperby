@@ -26,7 +26,7 @@ pub struct ConsensusParams {
 /// the lower layer's responsibility to verifiy and refine the raw messages (containing such cryptography-related info) into this abstracted data.
 /// Also all the identifiers (for blocks and validators) become integer indices here, and
 /// the lower layer will keep the mapping from the actual data to the indices.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum ConsensusEvent {
     /// Signals to start the process
     Start,
@@ -62,7 +62,7 @@ pub enum ConsensusEvent {
 }
 
 /// A response that the consensus might emit for a given event, which must be properly handled by the lower layer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ConsensusResponse {
     BroadcastProposal {
         proposal: BlockIdentifier,
@@ -79,6 +79,7 @@ pub enum ConsensusResponse {
     },
     FinalizeBlock {
         proposal: BlockIdentifier,
+        round: Round,
         proof: Vec<ValidatorIndex>,
     },
     ViolationReport {
