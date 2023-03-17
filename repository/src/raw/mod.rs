@@ -38,19 +38,17 @@ impl From<git2::Error> for Error {
     }
 }
 
-/// A commit with abstracted diff.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A commit with abstracted diff. The committer is always the same as the author.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticCommit {
     pub title: String,
     pub body: String,
     pub diff: Diff,
-    /// Note that this is only for the physical Git commit;
-    /// this is not handled by the Simperby core protocol
     pub author: MemberName,
     pub timestamp: Timestamp,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RawCommit {
     pub message: String,
     pub diff: Option<String>,
@@ -256,17 +254,22 @@ impl RawRepository {
         helper_1_mut(self, RawRepositoryInner::checkout_detach, commit_hash).await
     }
 
-    /// Save the local modifications to a new stash.
+    /// Saves the local modifications to a new stash.
     pub async fn stash(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::stash).await
     }
 
-    /// Apply the most recent stash.
+    /// Pops the most recent stash.
+    pub async fn stash_pop(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::stash_pop).await
+    }
+
+    /// Applys the most recent stash.
     pub async fn stash_apply(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::stash_apply).await
     }
 
-    /// Remove the most recent stash.
+    /// Removes the most recent stash.
     pub async fn stash_drop(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::stash_drop).await
     }

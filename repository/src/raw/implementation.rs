@@ -509,6 +509,12 @@ impl RawRepositoryInner {
         Ok(())
     }
 
+    pub(crate) fn stash_pop(&mut self) -> Result<(), Error> {
+        self.repo
+            .stash_pop(0, Some(&mut git2::StashApplyOptions::default()))
+            .map_err(Error::from)
+    }
+
     pub(crate) fn stash_apply(&mut self) -> Result<(), Error> {
         self.repo
             .stash_apply(0, Some(&mut git2::StashApplyOptions::default()))
