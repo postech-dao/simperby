@@ -121,6 +121,7 @@ fn normal_1() {
             vec![ConsensusResponse::FinalizeBlock {
                 proposal: 0,
                 proof: (0..4).filter(|x| *x != (i + 3) % 4).collect(),
+                round: 0
             }]
         );
     }
