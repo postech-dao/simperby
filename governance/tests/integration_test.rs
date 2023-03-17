@@ -13,34 +13,28 @@ async fn basic_1() {
     let (server_network_config, client_network_configs, members) =
         setup_server_client_nodes(network_id.clone(), 3).await;
 
-    let mut server_node = Governance::new(
-        Arc::new(RwLock::new(
-            create_test_dms(
-                network_id.clone(),
-                members.clone(),
-                server_network_config.private_key.clone(),
-            )
-            .await,
-        )),
-        Some(server_network_config.private_key.clone()),
-    )
+    let mut server_node = Governance::new(Arc::new(RwLock::new(
+        create_test_dms(
+            network_id.clone(),
+            members.clone(),
+            server_network_config.private_key.clone(),
+        )
+        .await,
+    )))
     .await
     .unwrap();
 
     let mut client_nodes = Vec::new();
     for network_config in client_network_configs.iter() {
         client_nodes.push((
-            Governance::new(
-                Arc::new(RwLock::new(
-                    create_test_dms(
-                        network_id.clone(),
-                        members.clone(),
-                        network_config.private_key.clone(),
-                    )
-                    .await,
-                )),
-                Some(network_config.private_key.clone()),
-            )
+            Governance::new(Arc::new(RwLock::new(
+                create_test_dms(
+                    network_id.clone(),
+                    members.clone(),
+                    network_config.private_key.clone(),
+                )
+                .await,
+            )))
             .await
             .unwrap(),
             network_config,
@@ -60,11 +54,10 @@ async fn basic_1() {
             4
         );
     });
-
-    sleep_ms(1000).await;
-
+    sleep_ms(500).await;
     for (node, network_config) in client_nodes.iter_mut() {
         node.vote(agenda_hash).await.unwrap();
+        node.flush().await.unwrap();
         dms::DistributedMessageSet::broadcast(node.get_dms(), network_config)
             .await
             .unwrap();
@@ -74,6 +67,7 @@ async fn basic_1() {
         dms::DistributedMessageSet::fetch(node.get_dms(), network_config)
             .await
             .unwrap();
+        node.update().await.unwrap();
         assert_eq!(node.read().await.unwrap().votes[&agenda_hash].len(), 4);
     }
     serve_task.await.unwrap();
