@@ -5,7 +5,7 @@ use eyre::Error;
 use merkle_tree::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use simperby_common::*;
+use simperby_core::*;
 
 /// An abstract information about a block from a settlement chain.
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]

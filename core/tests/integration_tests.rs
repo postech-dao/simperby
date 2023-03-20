@@ -1,6 +1,6 @@
 use light_client::*;
 use merkle_tree::*;
-use simperby_common::{verify::CommitSequenceVerifier, *};
+use simperby_core::{verify::CommitSequenceVerifier, *};
 use simperby_test_suite::*;
 
 #[test]

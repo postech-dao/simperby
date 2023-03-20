@@ -11,7 +11,7 @@ use git2::{
     Oid, Repository, RepositoryInitOptions, ResetType, Sort, Status, StatusOptions, StatusShow,
 };
 use implementation::RawRepositoryInner;
-use simperby_common::reserved::ReservedState;
+use simperby_core::reserved::ReservedState;
 use std::convert::TryFrom;
 use std::str;
 use templates::*;

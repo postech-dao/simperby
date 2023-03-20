@@ -1,5 +1,5 @@
 use simperby_node::node::genesis;
-use simperby_node::simperby_common::*;
+use simperby_node::simperby_core::*;
 use simperby_node::simperby_repository;
 use simperby_test_suite::*;
 use simperby_node::Config;

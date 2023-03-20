@@ -95,7 +95,7 @@ impl Drop for StorageImpl {
 mod tests {
     use super::*;
     use rand::prelude::*;
-    use simperby_common::*;
+    use simperby_core::*;
 
     fn generate_random_string() -> String {
         let mut rng = rand::thread_rng();

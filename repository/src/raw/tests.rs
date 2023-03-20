@@ -2,8 +2,8 @@ use super::SemanticCommit;
 use crate::raw::Error;
 use crate::raw::{CommitHash, RawCommit, RawRepository};
 
-use simperby_common::utils::get_timestamp;
-use simperby_common::{test_utils::generate_standard_genesis, Diff, ToHash256};
+use simperby_core::utils::get_timestamp;
+use simperby_core::{test_utils::generate_standard_genesis, Diff, ToHash256};
 use std::path::Path;
 use tempfile::TempDir;
 

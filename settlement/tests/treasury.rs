@@ -5,9 +5,9 @@
 use light_client::LightClient;
 use merkle_tree::*;
 use rust_decimal::Decimal;
-use simperby_common::merkle_tree::MerkleProof;
-use simperby_common::verify::CommitSequenceVerifier;
-use simperby_common::*;
+use simperby_core::merkle_tree::MerkleProof;
+use simperby_core::verify::CommitSequenceVerifier;
+use simperby_core::*;
 use simperby_settlement::execution::*;
 use std::cell::RefCell;
 use std::collections::HashMap;

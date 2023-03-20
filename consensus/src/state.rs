@@ -1,7 +1,7 @@
 use super::ProgressResult;
 use eyre::eyre;
 use serde::{Deserialize, Serialize};
-use simperby_common::*;
+use simperby_core::*;
 use simperby_network::*;
 use std::collections::{BTreeMap, BTreeSet};
 use vetomint::{
@@ -41,7 +41,7 @@ impl DmsMessage for ConsensusMessage {
         &self,
         dms_key: &DmsKey,
         private_key: &PrivateKey,
-    ) -> Result<MessageCommitmentProof, simperby_common::CryptoError>
+    ) -> Result<MessageCommitmentProof, simperby_core::CryptoError>
     where
         Self: Sized,
     {
@@ -68,7 +68,7 @@ impl DmsMessage for ConsensusMessage {
         &self,
         proof: &MessageCommitmentProof,
         dms_key: &DmsKey,
-    ) -> Result<(), simperby_common::CryptoError> {
+    ) -> Result<(), simperby_core::CryptoError> {
         match self {
             ConsensusMessage::NonNilPreCommitted(round, block_hash) => proof.signature.verify(
                 FinalizationSignTarget {

@@ -1,7 +1,7 @@
 //! This module is temporary and will be removed in the future.
 #![allow(dead_code)]
 
-use simperby_common::*;
+use simperby_core::*;
 use simperby_network::Peer;
 use simperby_node::{simperby_repository::CommitHash, *};
 use simperby_test_suite::*;

@@ -14,7 +14,7 @@ use messages::*;
 use rpc::*;
 use serde_tc::http::*;
 use serde_tc::{serde_tc_full, StubCall};
-use simperby_common::*;
+use simperby_core::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;

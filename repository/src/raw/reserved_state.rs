@@ -1,6 +1,6 @@
 use eyre::Error;
 use reserved::ReservedState;
-use simperby_common::*;
+use simperby_core::*;
 use std::path::Path;
 use tokio::fs;
 
@@ -86,7 +86,7 @@ pub async fn write_reserved_state(path: &str, state: &ReservedState) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simperby_common::test_utils::generate_standard_genesis;
+    use simperby_core::test_utils::generate_standard_genesis;
     use tempfile::TempDir;
 
     #[tokio::test]

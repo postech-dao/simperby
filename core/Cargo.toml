@@ -1,5 +1,5 @@
 [package]
-name = "simperby-common"
+name = "simperby-core"
 version = "0.0.0"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"

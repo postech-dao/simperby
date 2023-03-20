@@ -5,7 +5,7 @@ pub mod primitives;
 pub mod storage;
 
 use serde::{Deserialize, Serialize};
-use simperby_common::{crypto::*, MemberName, Timestamp};
+use simperby_core::{crypto::*, MemberName, Timestamp};
 use std::collections::HashMap;
 use std::net::SocketAddrV4;
 

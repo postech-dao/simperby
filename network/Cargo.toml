@@ -14,7 +14,7 @@ chrono = { version = "0.4", features = ["serde"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 futures = "0.3"
 log = "0.4"
-simperby-common = { version = "0.0.0", path = "../common" }
+simperby-core = { version = "0.0.0", path = "../core" }
 # libp2p = { version = "0.50.0", features = ["tcp", "tokio", "yamux", "noise", "kad", "identify", "macros"], optional = true }
 thiserror = "1.0"
 serde-tc = "0.4.1"

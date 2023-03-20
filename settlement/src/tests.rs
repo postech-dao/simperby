@@ -2,7 +2,7 @@
 
 use super::*;
 use execution::*;
-use simperby_common::{verify::CommitSequenceVerifier, *};
+use simperby_core::{verify::CommitSequenceVerifier, *};
 use std::time::Duration;
 use tokio::time::sleep;
 

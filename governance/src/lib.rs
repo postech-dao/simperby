@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use simperby_common::*;
+use simperby_core::*;
 use simperby_network::*;
 use std::collections::HashMap;
 use std::sync::Arc;

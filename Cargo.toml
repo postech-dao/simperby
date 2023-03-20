@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "common",
+    "core",
     "test-suite",
     "network",
     "vetomint",

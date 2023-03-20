@@ -12,7 +12,7 @@ tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
 log = "0.4"
 thiserror = "1.0"
-simperby-common = { version = "0.0.0", path = "../common" }
+simperby-core = { version = "0.0.0", path = "../core" }
 rust_decimal = "1.25.0"
 hex = "0.4.3"
 

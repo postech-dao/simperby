@@ -1,4 +1,4 @@
-use simperby_common::*;
+use simperby_core::*;
 use simperby_governance::*;
 use simperby_network::*;
 use simperby_test_suite::*;

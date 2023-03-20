@@ -1,6 +1,6 @@
 #![cfg(never)]
 
-use simperby_common::*;
+use simperby_core::*;
 use simperby_network::Peer;
 use simperby_node::{genesis, *};
 use simperby_repository::raw::RawRepository;

@@ -12,7 +12,7 @@ tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 log = "0.4"
-simperby-common = { version = "0.0.0", path = "../common" }
+simperby-core = { version = "0.0.0", path = "../core" }
 simperby-repository = { version = "0.0.0", path = "../repository" }
 simperby-node = { version = "0.0.0", path = "../node" }
 thiserror = "1.0.32"

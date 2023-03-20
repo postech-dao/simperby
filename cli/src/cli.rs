@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-use simperby_common::MemberName;
-use simperby_node::simperby_common::BlockHeight;
+use simperby_core::MemberName;
+use simperby_node::simperby_core::BlockHeight;
 
 /**
 Welcome to the Simperby CLI!
