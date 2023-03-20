@@ -7,13 +7,13 @@ use common::{
 use itertools::Itertools;
 #[allow(unused_imports)]
 use log::debug;
-use simperby_common::{
+use simperby_consensus::{Consensus, ConsensusMessage, Precommit, Prevote, ProgressResult};
+use simperby_core::{
     self as common,
     crypto::{Hash256, PublicKey},
     utils::get_timestamp,
     BlockHeader, VotingPower,
 };
-use simperby_consensus::{Consensus, ConsensusMessage, Precommit, Prevote, ProgressResult};
 use simperby_network::{
     primitives::Storage, storage::StorageImpl, NetworkConfig, SharedKnownPeers,
 };

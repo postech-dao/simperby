@@ -12,7 +12,7 @@ tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 log = "0.4"
-simperby-common = { version = "0.0.0", path = "../common" }
+simperby-core = { version = "0.0.0", path = "../core" }
 simperby-network = { version = "0.0.0", path = "../network" }
 simperby-governance = { version = "0.0.0", path = "../governance" }
 simperby-consensus = { version = "0.0.0", path = "../consensus" }

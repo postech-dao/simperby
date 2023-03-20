@@ -2,8 +2,8 @@ mod state;
 
 use eyre::eyre;
 use serde::{Deserialize, Serialize};
-use simperby_common::utils::get_timestamp;
-use simperby_common::*;
+use simperby_core::utils::get_timestamp;
+use simperby_core::*;
 use simperby_network::*;
 use state::*;
 use std::collections::BTreeSet;

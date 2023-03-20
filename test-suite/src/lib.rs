@@ -1,5 +1,5 @@
 use path_slash::PathExt as _;
-use simperby_common::*;
+use simperby_core::*;
 use simperby_network::*;
 use tempfile::TempDir;
 

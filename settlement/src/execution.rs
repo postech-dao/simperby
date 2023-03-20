@@ -1,5 +1,5 @@
 use super::*;
-use simperby_common::*;
+use simperby_core::*;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Execution {

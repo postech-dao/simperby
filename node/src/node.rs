@@ -1,6 +1,6 @@
 use super::*;
 use eyre::eyre;
-use simperby_common::utils::get_timestamp;
+use simperby_core::utils::get_timestamp;
 use simperby_consensus::{Consensus, ConsensusParameters, ProgressResult};
 use simperby_network::primitives::Storage;
 use simperby_network::{dms::Config as DmsConfig, storage::StorageImpl, Dms};

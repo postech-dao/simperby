@@ -31,14 +31,14 @@
 //! - `sign`
 pub mod node;
 
-pub use simperby_common;
+pub use simperby_core;
 pub use simperby_network;
 pub use simperby_repository;
 
 use eyre::Result;
 use serde::{Deserialize, Serialize};
-use simperby_common::crypto::*;
-use simperby_common::*;
+use simperby_core::crypto::*;
+use simperby_core::*;
 use simperby_governance::Governance;
 use simperby_network::Peer;
 use simperby_repository::raw::{RawRepository, SemanticCommit};

@@ -1,4 +1,4 @@
-use simperby_common::*;
+use simperby_core::*;
 use simperby_repository::{raw::*, *};
 use simperby_test_suite::*;
 use std::sync::Arc;

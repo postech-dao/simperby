@@ -1,6 +1,6 @@
 use super::primitive::PeerDiscoveryPrimitiveImpl;
 use crate::{primitives::PeerDiscoveryPrimitive, *};
-use simperby_common::crypto::*;
+use simperby_core::crypto::*;
 
 use chrono::Utc;
 use rand::{thread_rng, Rng};

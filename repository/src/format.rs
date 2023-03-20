@@ -1,7 +1,7 @@
 use crate::{raw::SemanticCommit, UNKNOWN_COMMIT_AUTHOR};
 use eyre::{eyre, Error};
 use regex::Regex;
-use simperby_common::{reserved::ReservedState, *};
+use simperby_core::{reserved::ReservedState, *};
 
 /// Converts a commit to a semantic commit.
 pub fn to_semantic_commit(
@@ -290,7 +290,7 @@ pub fn fp_from_semantic_commit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simperby_common::test_utils::generate_standard_genesis;
+    use simperby_core::test_utils::generate_standard_genesis;
 
     #[test]
     fn format_transaction_commit() {

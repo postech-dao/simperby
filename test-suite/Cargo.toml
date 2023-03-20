@@ -13,7 +13,7 @@ chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 log = "0.4"
 simperby-repository = { path = "../repository" }
-simperby-common = { path = "../common" }
+simperby-core = { path = "../core" }
 simperby-network = { path = "../network"}
 rand = "0.8"
 path-slash = "0.2.1"
