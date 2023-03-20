@@ -281,17 +281,17 @@ impl Signature {
         let recovery_id = RecoveryId::from_i32(
             self.signature.data[64..65][0] as i32 - EVM_EC_RECOVERY_OFFSET as i32,
         )
-        .unwrap();
+        .map_err(|e| Error::InvalidFormat(e.to_string()))?;
         if recovery_id.to_i32() != 0 && recovery_id.to_i32() != 1 {
-            println!("recid: {}", recovery_id.to_i32());
             return Err(Error::VerificationFailed);
         }
         let signature =
-            RecoverableSignature::from_compact(&self.signature.data[0..64], recovery_id).unwrap();
+            RecoverableSignature::from_compact(&self.signature.data[0..64], recovery_id)
+                .map_err(|e| Error::InvalidFormat(e.to_string()))?;
         let secp = Secp256k1::new();
         let public_key = secp
             .recover_ecdsa(&message, &signature)
-            .map_err(|_| Error::VerificationFailed)?
+            .map_err(|e| Error::InvalidFormat(e.to_string()))?
             .serialize();
         PublicKey::from_array(public_key)
     }
