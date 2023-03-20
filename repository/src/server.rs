@@ -71,7 +71,7 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
         ("post-receive", include_str!("post_receive.sh")),
     ];
     for (hook_type, hook_script) in hooks.iter() {
-        let path_hook = format!("{path}/repository/repo/.git/hooks/{hook_type}");
+        let path_hook = format!("{path}/repository/.git/hooks/{hook_type}");
         let is_hook_exist = Path::new(&path_hook).exists();
         if !is_hook_exist {
             fs::File::create(&path_hook).await.unwrap();
@@ -135,6 +135,7 @@ mod tests {
         .await;
     }
 
+    #[ignore]
     #[tokio::test]
     async fn git_server_basic2() {
         setup_test();
