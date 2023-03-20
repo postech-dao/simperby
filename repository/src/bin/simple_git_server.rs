@@ -1,8 +1,10 @@
 use clap::{Parser, Subcommand};
-use simperby_common::PublicKey;
-use simperby_common::Signature;
-use simperby_common::TypedSignature;
+use simperby_core::PublicKey;
+use simperby_core::Signature;
+use simperby_core::TypedSignature;
 use simperby_repository::{raw::*, *};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /**
 Welcome to the Simperby Simple Git Server!
@@ -38,11 +40,12 @@ pub enum Commands {
 async fn main() {
     let args = Cli::parse();
     let path = args.path.display().to_string();
-    let raw = RawRepository::open(&format!("{path}/repository/repo"))
-        .await
-        .unwrap();
+    let raw = Arc::new(RwLock::new(
+        RawRepository::open(&format!("{path}/repository"))
+            .await
+            .unwrap(),
+    ));
     let config = Config {
-        mirrors: Vec::new(),
         long_range_attack_distance: 1,
     };
     let mut drepo = simperby_repository::DistributedRepository::new(raw, config, None)
@@ -60,8 +63,8 @@ async fn main() {
             let commit_hash = CommitHash {
                 hash: hex::decode(&commit).unwrap().try_into().unwrap(),
             };
-            let signature: Signature = simperby_common::serde_spb::from_str(&signature).unwrap();
-            let signer: PublicKey = simperby_common::serde_spb::from_str(&signer).unwrap();
+            let signature: Signature = simperby_core::serde_spb::from_str(&signature).unwrap();
+            let signer: PublicKey = simperby_core::serde_spb::from_str(&signer).unwrap();
             let typed_signature = TypedSignature::new(signature, signer);
 
             let result = drepo
@@ -79,14 +82,20 @@ async fn main() {
                 hash: hex::decode(&commit).unwrap().try_into().unwrap(),
             };
             // TODO: handle inner Result<(), String>.
-            let result = drepo.get_pushed(commit_hash).await;
+            let result = drepo.sync(commit_hash).await;
             match result {
                 Ok(_) => std::process::exit(0),
                 Err(_) => std::process::exit(1),
             }
         }
         Commands::AfterPush { branch } => {
-            drepo.get_raw_mut().delete_branch(branch).await.unwrap();
+            drepo
+                .get_raw()
+                .write()
+                .await
+                .delete_branch(branch)
+                .await
+                .unwrap();
         }
     }
     std::process::exit(0);
