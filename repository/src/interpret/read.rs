@@ -210,9 +210,53 @@ pub async fn read_agendas(raw: &RawRepository) -> Result<Vec<(CommitHash, Hash25
 }
 
 pub async fn read_governance_approved_agendas(
-    _raw: &RawRepository,
+    raw: &RawRepository,
 ) -> Result<Vec<(CommitHash, Hash256)>, Error> {
-    todo!()
+    let mut agendas: Vec<(CommitHash, Hash256)> = vec![];
+    let branches = read_local_branches(raw).await?;
+    let last_header_commit_hash = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
+    for (branch, branch_commit_hash) in branches {
+        // Check if the branch is an agenda branch
+        if branch.as_str().starts_with("a-") {
+            // Check if the agenda branch is rebased on top of the `finalized` branch
+            let find_merge_base_result = raw
+                .find_merge_base(last_header_commit_hash, branch_commit_hash)
+                .await
+                .map_err(|e| match e {
+                    raw::Error::NotFound(_) => {
+                        eyre!(IntegrityError::new(format!(
+                            "cannot find merge base for branch {branch} and finalized branch"
+                        )))
+                    }
+                    _ => eyre!(e),
+                })?;
+
+            if last_header_commit_hash != find_merge_base_result {
+                log::warn!(
+                    "branch {} should be rebased on top of the {} branch",
+                    branch,
+                    FINALIZED_BRANCH_NAME
+                );
+                continue;
+            }
+
+            // Push currently valid and height-acceptable agendas to the list
+            let commits = read_commits(raw, last_header_commit_hash, branch_commit_hash).await?;
+            let last_header = read_last_finalized_block_header(raw).await?;
+            for (commit, hash) in commits {
+                if let Commit::AgendaProof(agenda_proof) = commit {
+                    if agenda_proof.height == last_header.height + 1 {
+                        agendas.push((hash, agenda_proof.to_hash256()));
+                    }
+
+                    let agenda_commit_hash = raw.list_ancestors(hash, Some(1)).await?[0];
+
+                    agendas.push((agenda_commit_hash, agenda_proof.agenda_hash));
+                }
+            }
+        }
+    }
+    Ok(agendas)
 }
 
 pub async fn read_blocks(raw: &RawRepository) -> Result<Vec<(CommitHash, Hash256)>, Error> {
