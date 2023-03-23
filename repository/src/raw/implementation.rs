@@ -582,7 +582,7 @@ impl RawRepositoryInner {
 
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push_head()?;
-        revwalk.set_sorting(Sort::TIME | Sort::REVERSE)?;
+        revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
         let initial_oid = revwalk
             .next()
             .ok_or_else(|| Error::Unknown("failed to get revwalk".to_string()))??;

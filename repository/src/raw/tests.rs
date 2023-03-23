@@ -91,7 +91,7 @@ async fn branch() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let c2_commit_hash = repo.create_commit(commit).await.unwrap();
 
@@ -186,7 +186,7 @@ async fn checkout() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
     // Create branch_b at c2 and commit c3
@@ -199,7 +199,7 @@ async fn checkout() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -249,7 +249,7 @@ async fn checkout_detach() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -297,7 +297,7 @@ async fn checkout_clean() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -371,7 +371,7 @@ async fn stash() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -412,7 +412,7 @@ async fn initial_commit() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
     let commit = RawCommit {
@@ -420,7 +420,7 @@ async fn initial_commit() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -449,7 +449,7 @@ async fn ancestor() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let second_commit_hash = repo.create_commit(commit).await.unwrap();
     let commit = RawCommit {
@@ -457,7 +457,7 @@ async fn ancestor() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let third_commit_hash = repo.create_commit(commit).await.unwrap();
 
@@ -518,7 +518,7 @@ async fn merge_base() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
     // Make a commit at "branch_b" branch
@@ -528,7 +528,7 @@ async fn merge_base() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     repo.create_commit(commit).await.unwrap();
 
@@ -704,7 +704,7 @@ async fn semantic_commit() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let commit_file = repo.create_commit(commit).await.unwrap();
 
@@ -743,7 +743,7 @@ async fn retrieve_commit_hash() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let commit_hash_a = repo.create_commit(commit).await.unwrap();
     // Make a tag at "branch_a" branch
@@ -755,7 +755,7 @@ async fn retrieve_commit_hash() {
         diff: None,
         author: "name".to_string(),
         email: "test@email.com".to_string(),
-        timestamp: get_timestamp(),
+        timestamp: get_timestamp() / 1000,
     };
     let commit_hash_b = repo.create_commit(commit).await.unwrap();
 

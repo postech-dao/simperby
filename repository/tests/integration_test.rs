@@ -1,5 +1,5 @@
 use simperby_core::*;
-use simperby_repository::{raw::*, *};
+use simperby_repository::{format::from_semantic_commit, raw::*, *};
 use simperby_test_suite::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -228,7 +228,7 @@ async fn sync_by_push() {
         server_node_repo.read_agendas().await.unwrap(),
         vec![(agenda_commit, agenda.to_hash256())]
     );
-    let agenda_proof = client_node_repo
+    let agenda_proof_commit = client_node_repo
         .approve(
             &agenda.to_hash256(),
             keys.iter()
@@ -239,7 +239,7 @@ async fn sync_by_push() {
         .await
         .unwrap();
     simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git branch -f work {agenda_proof}"
+        "cd {client_node_dir}/repository && git branch -f work {agenda_proof_commit}"
     ))
     .await;
 
@@ -252,6 +252,32 @@ async fn sync_by_push() {
     assert_eq!(
         server_node_repo.read_blocks().await.unwrap(),
         vec![(block_commit, block.to_hash256())]
+    );
+
+    let agenda_proof = from_semantic_commit(
+        client_node_repo
+            .get_raw()
+            .read()
+            .await
+            .read_semantic_commit(agenda_proof_commit)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let agenda_proof = match agenda_proof {
+        Commit::AgendaProof(agenda_proof) => Ok(agenda_proof),
+        _ => Err("not an agenda proof commit"),
+    }
+    .unwrap();
+    assert_eq!(
+        server_node_repo
+            .read_governance_approved_agendas()
+            .await
+            .unwrap(),
+        vec![
+            (agenda_proof_commit, agenda_proof.to_hash256()),
+            (agenda_commit, agenda.to_hash256())
+        ]
     );
 
     // Step 2: finalize a block and let the client push that
@@ -276,7 +302,6 @@ async fn sync_by_push() {
                 round: 0,
             },
         )
-        //.sync(&block.to_hash256(), &block_proof)
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
