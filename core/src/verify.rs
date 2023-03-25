@@ -87,9 +87,23 @@ pub fn verify_finalization_proof(
     Ok(())
 }
 
+/// Verifies the version of input reserved state is valid.
+pub fn verify_version_syntax(s: &str) -> bool {
+    let mut segments = s.split('.');
+
+    let is_valid_segment = |segment: &str| {
+        segment.parse::<u32>().map_or(false, |number| number < 10)
+    };
+
+    segments.next().map_or(false, is_valid_segment)
+        && segments.next().map_or(false, is_valid_segment)
+        && segments.next().map_or(false, is_valid_segment)
+        && segments.next().is_none()
+}
+
 // Phases of the `CommitSequenceVerifier`.
 //
-// Note that `Phase::X` is agenda phase where `Commit::X` is the last commit.
+// Note that `Phase::X` is the phase where `Commit::X` is the last commit.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Phase {
     // The transaction phase.
@@ -131,6 +145,9 @@ pub struct CommitSequenceVerifier {
 impl CommitSequenceVerifier {
     /// Creates a new `CommitSequenceVerifier` with the given block header.
     pub fn new(start_header: BlockHeader, reserved_state: ReservedState) -> Result<Self, Error> {
+        // if verify_reserved_state(&self, reserved_state)? {
+        //     return Err(Error::InvalidArgument(format!("Reserved state is not valid")));
+        // }
         Ok(Self {
             header: start_header.clone(),
             phase: Phase::Block,
@@ -173,14 +190,33 @@ impl CommitSequenceVerifier {
 
     /// Verifies whether the given reserved state is valid from the current state.
     pub fn verify_reserved_state(&self, _rs: &ReservedState) -> Result<(), Error> {
-        // TODO:
-        // 1. Check that the number of members is at least 4.
-        // 2. Check that the version advances correctly.
+        if _rs.members.len() < 4 {
+            return Err(Error::InvalidArgument(format!("Number of members is not over 4")));
+        }
+        if self.reserved_state.version != _rs.version {
+            if !(self.reserved_state.version < _rs.version && verify_version_syntax(&_rs.version)) {
+                return Err(Error::InvalidArgument(format!("Version advances is incorrect")));
+            }
+        }
         // 3. Check that `consensus_leader_order` is correct.
-        // 4. Check that `genesis_info` stays the same.
+        if self.reserved_state.consensus_leader_order != _rs.consensus_leader_order {
+            return Err(Error::InvalidArgument(format!("Consensus leader order is incorrect")));
+        }
+        if self.reserved_state.genesis_info != _rs.genesis_info {
+            return Err(Error::InvalidArgument(format!("Genesis_info is not stays the same")));
+        }
         // 5. Check that the newly added (if exists) `Member::name` is unique.
-        // 6. Check that `member` monotonicaly increases (refer to `Member::expelled`).
-        // 7. Check that the delegation state doesn't change.
+        if !self.reserved_state.members.iter().all(|m1| _rs.members.iter().any(|m2| m1.public_key == m2.public_key)) {
+            return Err(Error::InvalidArgument(format!("New member set do not have all previous member")));
+        }
+        let public_key_set: HashSet<&PublicKey> = _rs.members.iter().map(|m| &m.public_key).collect();
+        if public_key_set.len() != _rs.members.len() {
+            return Err(Error::InvalidArgument(format!("Newly added member public keys are not unique")));
+        }
+        // 6. Check that `member` monotonic increases (refer to `Member::expelled`).
+        if _rs.members.iter().any(|member| member.expelled) {
+            return Err(Error::InvalidArgument(format!("Member expulsion time not monotonic increasing")));
+        }
         Ok(())
     }
 
@@ -188,6 +224,9 @@ impl CommitSequenceVerifier {
     pub fn apply_commit(&mut self, commit: &Commit) -> Result<(), Error> {
         match (commit, &mut self.phase) {
             (Commit::Block(block_header), Phase::AgendaProof { agenda_proof: _ }) => {
+                if self.reserved_state.version != block_header.version {
+                    return Err(Error::InvalidArgument(format!("Version of header is not match reserved_state")));
+                }
                 verify_header_to_header(&self.header, block_header)?;
                 // Verify commit merkle root
                 let commit_merkle_root =
@@ -202,12 +241,10 @@ impl CommitSequenceVerifier {
                 self.phase = Phase::Block;
                 self.commits_for_next_block = vec![];
             }
-            (
-                Commit::Block(block_header),
-                Phase::ExtraAgendaTransaction {
-                    last_extra_agenda_timestamp,
-                },
-            ) => {
+            (Commit::Block(block_header), Phase::ExtraAgendaTransaction {last_extra_agenda_timestamp,}) => {
+                if self.reserved_state.version != block_header.version {
+                    return Err(Error::InvalidArgument(format!("Version of header is not match reserved_state")));
+                }
                 verify_header_to_header(&self.header, block_header)?;
                 // Check if the block contains all the extra-agenda transactions.
                 if block_header.timestamp < *last_extra_agenda_timestamp {
@@ -232,6 +269,7 @@ impl CommitSequenceVerifier {
             (Commit::Transaction(tx), Phase::Block) => {
                 // Update reserved_state for reserved-diff transactions.
                 if let Diff::Reserved(rs) = &tx.diff {
+                    self.verify_reserved_state(rs)?;
                     self.reserved_state = *rs.clone();
                 }
                 self.phase = Phase::Transaction {
@@ -239,13 +277,7 @@ impl CommitSequenceVerifier {
                     preceding_transactions: vec![],
                 };
             }
-            (
-                Commit::Transaction(tx),
-                Phase::Transaction {
-                    last_transaction,
-                    preceding_transactions,
-                },
-            ) => {
+            (Commit::Transaction(tx), Phase::Transaction {last_transaction, preceding_transactions}) => {
                 // Check if transactions are in chronological order
                 if tx.timestamp < last_transaction.timestamp {
                     return Err(Error::InvalidArgument(format!(
@@ -255,6 +287,7 @@ impl CommitSequenceVerifier {
                 }
                 // Update reserved_state for reserved-diff transactions.
                 if let Diff::Reserved(rs) = &tx.diff {
+                    self.verify_reserved_state(rs)?;
                     self.reserved_state = *rs.clone();
                 }
                 preceding_transactions.push(last_transaction.clone());
@@ -281,13 +314,7 @@ impl CommitSequenceVerifier {
                     agenda: agenda.clone(),
                 };
             }
-            (
-                Commit::Agenda(agenda),
-                Phase::Transaction {
-                    last_transaction,
-                    preceding_transactions,
-                },
-            ) => {
+            (Commit::Agenda(agenda), Phase::Transaction {last_transaction, preceding_transactions}) => {
                 // Check if agenda is associated with the current block sequence.
                 if agenda.height != self.header.height + 1 {
                     return Err(Error::InvalidArgument(format!(
@@ -398,12 +425,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }
             }
-            (
-                Commit::ExtraAgendaTransaction(tx),
-                Phase::ExtraAgendaTransaction {
-                    last_extra_agenda_timestamp,
-                },
-            ) => {
+            (Commit::ExtraAgendaTransaction(tx), Phase::ExtraAgendaTransaction {last_extra_agenda_timestamp}) => {
                 match tx {
                     ExtraAgendaTransaction::Delegate(tx) => {
                         // Update reserved reserved_state by applying delegation
@@ -434,8 +456,7 @@ impl CommitSequenceVerifier {
                     ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }
             }
-            (Commit::ChatLog(_chat_log), _) => unimplemented!(),
-            (commit, phase) => {
+            (Commit::ChatLog(_chat_log), _) => unimplemented!(), (commit, phase) => {
                 return Err(Error::PhaseMismatch(
                     format!("{commit:?}"),
                     format!("{phase:?}"),
@@ -498,6 +519,7 @@ mod test {
                 consensus_voting_power: *voting_power,
                 governance_delegatee: None,
                 consensus_delegatee: None,
+                expelled: false,
             });
         }
         members
@@ -582,6 +604,7 @@ mod test {
             consensus_voting_power: 1,
             governance_delegatee: None,
             consensus_delegatee: None,
+            expelled: false,
         });
         reserved_state
             .consensus_leader_order
@@ -1567,4 +1590,16 @@ mod test {
 
     // TODO: add test cases where the `Report` extra-agenda transactions are invalid.
     // These test cases are TODO because the `Report` extra-agenda transaction is not implemented yet.
+
+    //#[test]
+    // Test the case where check verify_reserved_state function run well
+    // fn check_verify_reserved_state_run() {
+    //     let (validator_keypair, reserved_state, mut csv) = setup_test(3);
+    //     csv.verify_reserved_state(&reserved_state).unwrap_err();
+
+
+    //     //make wrong reserved_state
+    //     //chech vrs function
+        
+    // }
 }

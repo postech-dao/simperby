@@ -19,6 +19,7 @@ pub fn generate_standard_genesis(
             consensus_voting_power: 1,
             governance_delegatee: None,
             consensus_delegatee: None,
+            expelled: false,
         })
         .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
@@ -100,6 +101,7 @@ pub fn generate_delegated_genesis(
             } else {
                 None
             },
+            expelled: false,
         })
         .collect::<Vec<_>>();
     let genesis_header = BlockHeader {
