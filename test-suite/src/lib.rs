@@ -98,47 +98,40 @@ pub async fn create_test_dms<M: DmsMessage>(
 }
 
 pub async fn setup_server_client_nodes(
-    network_id: String,
+    dms_key: String,
     client_n: usize,
 ) -> (
-    ServerNetworkConfig,
-    Vec<ClientNetworkConfig>,
+    (ServerNetworkConfig, PrivateKey),
+    Vec<(ClientNetworkConfig, PrivateKey)>,
     Vec<PublicKey>,
 ) {
-    let (_, private_key) = generate_keypair_random();
+    let (_, server_private_key) = generate_keypair_random();
     let server = ServerNetworkConfig {
-        network_id: network_id.clone(),
-        members: Vec::new(),
-        private_key,
-        ports: vec![(format!("dms-{network_id}"), dispense_port())]
-            .into_iter()
-            .collect(),
+        port: dispense_port(),
     };
     let mut clients = Vec::new();
     for _ in 0..client_n {
         let (_, private_key) = generate_keypair_random();
         let network_config = ClientNetworkConfig {
-            network_id: network_id.clone(),
-            members: Vec::new(),
-            private_key: private_key.clone(),
             peers: vec![Peer {
-                public_key: server.private_key.public_key(),
+                public_key: server_private_key.public_key(),
                 name: "server".to_owned(),
                 address: "127.0.0.1:1".parse().unwrap(),
-                ports: server.ports.clone(),
+                ports: vec![(format!("dms-{dms_key}"), server.port)]
+                    .into_iter()
+                    .collect(),
                 message: "".to_owned(),
                 recently_seen_timestamp: 0,
             }],
         };
-        clients.push(network_config);
+        clients.push((network_config, private_key));
     }
-    let mut members = clients
+    let mut pubkeys = clients
         .iter()
-        .map(|c| c.private_key.public_key())
+        .map(|(_, private_key)| private_key.public_key())
         .collect::<Vec<_>>();
-    members.push(server.private_key.public_key());
-
-    (server, clients, members)
+    pubkeys.push(server_private_key.public_key());
+    ((server, server_private_key), clients, pubkeys)
 }
 
 pub async fn sleep_ms(ms: u64) {
