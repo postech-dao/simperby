@@ -1,7 +1,7 @@
 pub mod dms;
+
 #[cfg(never)]
 mod peer_discovery;
-pub mod primitives;
 pub mod storage;
 
 use serde::{Deserialize, Serialize};
@@ -12,9 +12,8 @@ use std::net::SocketAddrV4;
 pub type Error = eyre::Error;
 pub type Dms<T> = dms::DistributedMessageSet<storage::StorageImpl, T>;
 
-pub use dms::{DmsKey, DmsMessage, Message, MessageCommitmentProof};
-pub use primitives::*;
-pub use storage::StorageImpl;
+pub use dms::{Config, DmsKey, DmsMessage, MessageCommitmentProof};
+pub use storage::{Storage, StorageError, StorageImpl};
 
 /// The information of a network peer that is discovered by the discovery protocol.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
