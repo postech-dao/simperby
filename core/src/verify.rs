@@ -186,7 +186,7 @@ impl CommitSequenceVerifier {
 
     /// Verifies the given commit and updates the internal reserved_state of CommitSequenceVerifier.
     pub fn apply_commit(&mut self, commit: &Commit) -> Result<(), Error> {
-        match (commit, &mut self.phase) {
+        match (commit, &self.phase) {
             (Commit::Block(block_header), Phase::AgendaProof { agenda_proof: _ }) => {
                 verify_header_to_header(&self.header, block_header)?;
                 // Verify commit merkle root
@@ -257,8 +257,12 @@ impl CommitSequenceVerifier {
                 if let Diff::Reserved(rs) = &tx.diff {
                     self.reserved_state = *rs.clone();
                 }
+                let mut preceding_transactions = preceding_transactions.clone();
                 preceding_transactions.push(last_transaction.clone());
-                *last_transaction = tx.clone();
+                self.phase = Phase::Transaction {
+                    last_transaction: tx.clone(),
+                    preceding_transactions,
+                };
             }
             (Commit::Agenda(agenda), Phase::Block) => {
                 // Check if agenda is associated with the current block sequence.
@@ -416,7 +420,9 @@ impl CommitSequenceVerifier {
                                 format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.data.timestamp)
                             ));
                         }
-                        *last_extra_agenda_timestamp = tx.data.timestamp;
+                        self.phase = Phase::ExtraAgendaTransaction {
+                            last_extra_agenda_timestamp: tx.data.timestamp,
+                        };
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
                         // Update reserved reserved_state by applying undelegation
@@ -429,7 +435,9 @@ impl CommitSequenceVerifier {
                                 format!("invalid extra-agenda transaction timestamp: expected larger than or equal to the last transaction timestamp {}, got {}", last_extra_agenda_timestamp, tx.data.timestamp)
                             ));
                         }
-                        *last_extra_agenda_timestamp = tx.data.timestamp;
+                        self.phase = Phase::ExtraAgendaTransaction {
+                            last_extra_agenda_timestamp: tx.data.timestamp,
+                        };
                     }
                     ExtraAgendaTransaction::Report(_tx) => unimplemented!(),
                 }
