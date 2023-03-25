@@ -5,12 +5,6 @@ pub async fn serve<S: Storage, M: DmsMessage>(
     dms: Arc<RwLock<DistributedMessageSet<S, M>>>,
     network_config: ServerNetworkConfig,
 ) -> Result<(), Error> {
-    let port_key = format!("dms-{}", dms.read().await.config.dms_key);
-    let port = network_config
-        .ports
-        .get(&port_key)
-        .ok_or_else(|| eyre!(format!("`ports` has no field of {port_key}")))?;
-
     let rpc_task = async move {
         let wrapped_dms = Arc::new(parking_lot::RwLock::new(Some(dms)));
         let wrapped_dms_ = Arc::clone(&wrapped_dms);
@@ -24,7 +18,7 @@ pub async fn serve<S: Storage, M: DmsMessage>(
         }
         let _drop_helper = DropHelper { wrapped_dms };
         run_server(
-            *port,
+            network_config.port,
             [(
                 "dms".to_owned(),
                 create_http_object(Arc::new(DmsWrapper { dms: wrapped_dms_ })

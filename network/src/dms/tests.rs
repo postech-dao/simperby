@@ -19,59 +19,6 @@ fn generate_random_string() -> String {
     Hash256::hash(format!("{s1}{s2}").as_bytes()).to_string()[0..16].to_owned()
 }
 
-/// Returns the only-serving-node and the others, with the `Peer` info for the serving node.
-/// `size` includes the serving node.
-///
-/// TODO: clients having themselves as a peer must be allowed.
-fn generate_node_configs(
-    serving_node_port: u16,
-    size: usize,
-) -> (
-    ServerNetworkConfig,
-    Vec<ClientNetworkConfig>,
-    Vec<PublicKey>,
-) {
-    let mut client_configs = Vec::new();
-    let mut keys = Vec::new();
-    for _ in 0..size {
-        keys.push(generate_keypair_random());
-    }
-    let network_id = generate_random_string();
-    let server_peer = Peer {
-        public_key: keys[0].0.clone(),
-        name: format!("{}", keys[0].0),
-        address: SocketAddrV4::new("127.0.0.1".parse().unwrap(), serving_node_port),
-        ports: [(format!("dms-{network_id}"), serving_node_port)]
-            .iter()
-            .cloned()
-            .collect(),
-        message: "".to_owned(),
-        recently_seen_timestamp: 0,
-    };
-
-    for i in 0..size - 1 {
-        client_configs.push(ClientNetworkConfig {
-            network_id: network_id.clone(),
-            members: keys.iter().map(|(x, _)| x).cloned().collect(),
-            private_key: keys[i + 1].1.clone(),
-            peers: vec![server_peer.clone()],
-        });
-    }
-    (
-        ServerNetworkConfig {
-            network_id: network_id.clone(),
-            ports: [(format!("dms-{network_id}"), serving_node_port)]
-                .iter()
-                .cloned()
-                .collect(),
-            members: keys.iter().map(|(x, _)| x).cloned().collect(),
-            private_key: keys[0].1.clone(),
-        },
-        client_configs,
-        keys.into_iter().map(|(x, _)| x).collect(),
-    )
-}
-
 async fn create_dms(config: Config, private_key: PrivateKey) -> Dms {
     let path = create_temp_dir();
     StorageImpl::create(&path).await.unwrap();
@@ -82,13 +29,13 @@ async fn create_dms(config: Config, private_key: PrivateKey) -> Dms {
 #[tokio::test]
 async fn single_1() {
     let key = generate_random_string();
-    let network_config = generate_node_configs(dispense_port(), 1).0;
+    let ((_, private_key), _, _) = setup_server_client_nodes("doesn't matter".to_owned(), 1).await;
     let mut dms = create_dms(
         Config {
             dms_key: key,
-            members: vec![network_config.private_key.public_key()],
+            members: vec![private_key.public_key()],
         },
-        network_config.private_key.clone(),
+        private_key,
     )
     .await;
 
@@ -112,6 +59,43 @@ async fn single_1() {
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>()
     );
+}
+
+pub async fn setup_server_client_nodes(
+    dms_key: String,
+    client_n: usize,
+) -> (
+    (ServerNetworkConfig, PrivateKey),
+    Vec<(ClientNetworkConfig, PrivateKey)>,
+    Vec<PublicKey>,
+) {
+    let (_, server_private_key) = generate_keypair_random();
+    let server = ServerNetworkConfig {
+        port: dispense_port(),
+    };
+    let mut clients = Vec::new();
+    for _ in 0..client_n {
+        let (_, private_key) = generate_keypair_random();
+        let network_config = ClientNetworkConfig {
+            peers: vec![Peer {
+                public_key: server_private_key.public_key(),
+                name: "server".to_owned(),
+                address: "127.0.0.1:1".parse().unwrap(),
+                ports: vec![(format!("dms-{dms_key}"), server.port)]
+                    .into_iter()
+                    .collect(),
+                message: "".to_owned(),
+                recently_seen_timestamp: 0,
+            }],
+        };
+        clients.push((network_config, private_key));
+    }
+    let mut pubkeys = clients
+        .iter()
+        .map(|(_, private_key)| private_key.public_key())
+        .collect::<Vec<_>>();
+    pubkeys.push(server_private_key.public_key());
+    ((server, server_private_key), clients, pubkeys)
 }
 
 async fn run_client_node(
@@ -141,9 +125,9 @@ async fn run_client_node(
 
 #[tokio::test]
 async fn multi_1() {
-    let (server_network_config, client_network_configs, members) =
-        generate_node_configs(dispense_port(), 5);
-    let key = server_network_config.network_id.clone();
+    let key = "multi_1".to_owned();
+    let ((server_network_config, server_private_key), client_network_config_and_keys, members) =
+        setup_server_client_nodes(key.clone(), 5).await;
 
     let server_dms = Arc::new(RwLock::new(
         create_dms(
@@ -151,7 +135,7 @@ async fn multi_1() {
                 dms_key: key.clone(),
                 members: members.clone(),
             },
-            server_network_config.private_key.clone(),
+            server_private_key,
         )
         .await,
     ));
@@ -159,14 +143,16 @@ async fn multi_1() {
     let mut tasks = Vec::new();
 
     let range_step = 10;
-    for (i, client_network_config) in client_network_configs.iter().enumerate() {
+    for (i, (client_network_config, private_key)) in
+        client_network_config_and_keys.iter().enumerate()
+    {
         let dms = Arc::new(RwLock::new(
             create_dms(
                 Config {
                     dms_key: key.clone(),
                     members: members.clone(),
                 },
-                client_network_config.private_key.clone(),
+                private_key.clone(),
             )
             .await,
         ));
@@ -195,7 +181,7 @@ async fn multi_1() {
             .map(|x| x.message)
             .collect::<Vec<_>>();
         assert_eq!(
-            (0..(range_step * client_network_configs.len()))
+            (0..(range_step * client_network_config_and_keys.len()))
                 .map(|x| format!("{x}"))
                 .collect::<std::collections::BTreeSet<_>>(),
             messages
