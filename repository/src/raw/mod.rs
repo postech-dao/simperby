@@ -283,6 +283,11 @@ impl RawRepository {
     // Various queries
     // ---------------
 
+    /// Returns the path of working directory.
+    pub async fn get_working_directory_path(&self) -> Result<String, Error> {
+        helper_0(self, RawRepositoryInner::get_working_directory_path).await
+    }
+
     /// Returns the commit hash of the current HEAD.
     pub async fn get_head(&self) -> Result<CommitHash, Error> {
         helper_0(self, RawRepositoryInner::get_head).await

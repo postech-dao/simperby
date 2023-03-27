@@ -349,7 +349,7 @@ impl RawRepositoryInner {
                 Ok(CommitHash { hash })
             }
             Diff::Reserved(reserved_state) => {
-                let path = self.repo.workdir().unwrap().to_str().unwrap();
+                let path = self.get_working_directory_path()?;
                 tokio::runtime::Handle::current()
                     .block_on(async move {
                         reserved_state::write_reserved_state(&format!("{path}/"), &reserved_state)
@@ -456,7 +456,7 @@ impl RawRepositoryInner {
         self.repo.reset(head.as_object(), ResetType::Hard, None)?;
 
         // Remove untracked files and directories from the working tree.
-        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
+        let workdir = self.get_working_directory_path()?;
         let mut status_opts = StatusOptions::new();
         status_opts.include_untracked(true);
         status_opts.show(StatusShow::IndexAndWorkdir);
@@ -550,6 +550,19 @@ impl RawRepositoryInner {
             ))?;
         }
         Ok(())
+    }
+
+    pub(crate) fn get_working_directory_path(&self) -> Result<String, Error> {
+        let path = self
+            .repo
+            .workdir()
+            .ok_or_else(|| Error::Unknown("this repository is bare repository".to_string()))?
+            .to_str()
+            .ok_or_else(|| {
+                Error::Unknown("the path of repository is not valid unicode".to_string())
+            })?
+            .to_string();
+        Ok(path)
     }
 
     pub(crate) fn get_head(&self) -> Result<CommitHash, Error> {
@@ -729,7 +742,7 @@ impl RawRepositoryInner {
     }
 
     pub(crate) fn read_reserved_state(&self) -> Result<ReservedState, Error> {
-        let path = self.repo.workdir().unwrap().to_str().unwrap();
+        let path = self.get_working_directory_path()?;
         let reserved_state = tokio::runtime::Handle::current()
             .block_on(async move { reserved_state::read_reserved_state(&format!("{path}/")).await })
             .map_err(|e| Error::Unknown(e.to_string()))?;
@@ -841,7 +854,7 @@ impl RawRepositoryInner {
         branch: Branch,
         option: Option<String>,
     ) -> Result<(), Error> {
-        let workdir = self.repo.workdir().unwrap().to_str().unwrap();
+        let workdir = self.get_working_directory_path()?;
         if let Some(option_string) = option {
             run_command(format!(
                 "cd {workdir} && git push --quiet {remote_name} {branch} --push-option='{option_string}'"
