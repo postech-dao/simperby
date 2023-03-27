@@ -117,6 +117,7 @@ pub async fn scenario_1(
         author: chain_info.reserved_state.consensus_leader_order[0].clone(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&transactions),
+        previous_block_hash: chain_info.last_finalized_header.to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {

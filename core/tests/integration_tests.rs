@@ -26,6 +26,7 @@ fn basic1() {
         author: rs.query_name(&keys[0].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
+        previous_block_hash: csv.get_header().to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {
@@ -41,7 +42,7 @@ fn basic1() {
     let block_header = BlockHeader {
         author: keys[0].0.clone(),
         prev_block_finalization_proof: genesis_info.genesis_proof,
-        previous_hash: genesis_info.header.to_hash256(),
+        previous_hash: csv.get_header().to_hash256(),
         height: 1,
         timestamp: 0,
         commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
@@ -109,6 +110,7 @@ fn basic2() {
         author: reserved_state.query_name(&keys[1].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
+        previous_block_hash: csv.get_header().to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {
@@ -124,7 +126,7 @@ fn basic2() {
     let block_header = BlockHeader {
         author: keys[1].0.clone(),
         prev_block_finalization_proof: genesis_info.genesis_proof,
-        previous_hash: genesis_info.header.to_hash256(),
+        previous_hash: csv.get_header().to_hash256(),
         height: 1,
         timestamp: 0,
         commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
@@ -191,6 +193,7 @@ fn basic3() {
         author: rs.query_name(&keys[0].0).unwrap(),
         timestamp,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx.clone()]),
+        previous_block_hash: csv.get_header().to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
 
@@ -223,7 +226,7 @@ fn basic3() {
     let block_header = BlockHeader {
         author: keys[0].0.clone(),
         prev_block_finalization_proof: genesis_info.genesis_proof,
-        previous_hash: genesis_info.header.to_hash256(),
+        previous_hash: csv.get_header().to_hash256(),
         height,
         timestamp,
         commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
@@ -289,6 +292,7 @@ fn basic3() {
         author: rs.query_name(&keys[1].0).unwrap(),
         timestamp,
         transactions_hash: Agenda::calculate_transactions_hash(&[]),
+        previous_block_hash: block_header.to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
 

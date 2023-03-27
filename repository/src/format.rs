@@ -317,6 +317,7 @@ mod tests {
             author: "doesn't matter".to_owned(),
             timestamp: 123,
             transactions_hash: Hash256::hash("hello"),
+            previous_block_hash: Hash256::hash("hello"),
         });
         assert_eq!(
             agenda,
