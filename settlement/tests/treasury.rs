@@ -182,6 +182,7 @@ fn relay_1() {
         author: reserved_state.query_name(&keys[0].0).unwrap(),
         timestamp: 0,
         transactions_hash: Agenda::calculate_transactions_hash(&[tx1.clone(), tx2.clone()]),
+        previous_block_hash: csv.get_header().to_hash256(),
     };
     csv.apply_commit(&Commit::Agenda(agenda.clone())).unwrap();
     csv.apply_commit(&Commit::AgendaProof(AgendaProof {
@@ -197,7 +198,7 @@ fn relay_1() {
     let block_header = BlockHeader {
         author: keys[0].0.clone(), // Note that keys[0] is member-0001
         prev_block_finalization_proof: genesis_info.genesis_proof,
-        previous_hash: genesis_info.header.to_hash256(),
+        previous_hash: csv.get_header().to_hash256(),
         height: 1,
         timestamp: 0,
         commit_merkle_root: BlockHeader::calculate_commit_merkle_root(

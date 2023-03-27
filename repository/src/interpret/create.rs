@@ -123,6 +123,7 @@ pub async fn create_agenda(
         timestamp: get_timestamp(),
         transactions_hash: Agenda::calculate_transactions_hash(&transactions),
         height: last_header.height + 1,
+        previous_block_hash: last_header.to_hash256(),
     };
     let agenda_commit = Commit::Agenda(agenda.clone());
     verifier.apply_commit(&agenda_commit).map_err(|_| {
