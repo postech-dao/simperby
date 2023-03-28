@@ -9,7 +9,7 @@ use format::*;
 use futures::prelude::*;
 use interpret::*;
 use log::info;
-use raw::RawRepository;
+use raw::{RawCommit, RawRepository};
 use serde::{Deserialize, Serialize};
 use simperby_core::reserved::ReservedState;
 use simperby_core::utils::get_timestamp;
@@ -17,6 +17,7 @@ use simperby_core::verify::CommitSequenceVerifier;
 use simperby_core::*;
 use std::sync::Arc;
 use std::{collections::HashSet, fmt};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
 pub type Branch = String;
@@ -196,6 +197,12 @@ impl DistributedRepository {
         todo!()
     }
 
+    /// Checks the existence of `.gitignore` file and `.simperby/` entry in `.gitignore`.
+    /// This returns true if both exist.
+    pub async fn check_gitignore(&self) -> Result<bool, Error> {
+        check_gitignore(&*self.raw.read().await).await
+    }
+
     // ---------------
     // Operations that interact with possible local works
     // (manually added commits or remote tracking branches)
@@ -328,6 +335,12 @@ impl DistributedRepository {
         proof: FinalizationProof,
     ) -> Result<CommitHash, Error> {
         finalize(&mut *self.raw.write().await, block_commit_hash, proof).await
+    }
+
+    /// Creates a commit that adds `.simperby/` entry to `.gitignore`.
+    /// It fails if it exists normally.
+    pub async fn commit_gitignore(&mut self) -> Result<(), Error> {
+        commit_gitignore(&mut *self.raw.write().await).await
     }
 
     // ---------------

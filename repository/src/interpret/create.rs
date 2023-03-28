@@ -327,3 +327,28 @@ pub async fn finalize(
         Err(eyre!("commit {} is not a block commit", block_commit_hash))
     }
 }
+
+pub async fn commit_gitignore(raw: &mut RawRepository) -> Result<(), Error> {
+    raw.check_clean().await?;
+    if check_gitignore(raw).await? {
+        return Err(eyre!(".simperby/ entry already exists in .gitignore"));
+    }
+    let path = raw.get_working_directory_path().await?;
+    let path = std::path::Path::new(&path).join(".gitignore");
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await?;
+    file.write_all(b".simperby/\n").await?;
+
+    let commit = RawCommit {
+        message: "Add `.simperby/` entry to .gitignore".to_string(),
+        diff: None,
+        author: "Simperby".to_string(),
+        email: "hi@simperby.net".to_string(),
+        timestamp: get_timestamp() / 1000,
+    };
+    raw.create_commit_all(commit).await?;
+    Ok(())
+}
