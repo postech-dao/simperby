@@ -254,14 +254,75 @@ impl RawRepositoryInner {
     }
 
     pub(crate) fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
-        if let Some(diff) = commit.diff {
-            let diff = git2::Diff::from_buffer(diff.as_bytes())?;
-            self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
+        // If staged files exist, stash before creating a commit.
+        let index = self.repo.index()?;
+        if !index.is_empty() {
+            self.stash()?;
         }
+        let result = {
+            // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
+            let time = git2::Time::new(commit.timestamp, -540);
+            let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
+            let mut index = self.repo.index()?;
 
+            // Add only files in patch to the index.
+            if let Some(diff) = commit.diff {
+                let diff = git2::Diff::from_buffer(diff.as_bytes())?;
+                self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
+                let paths = diff
+                    .deltas()
+                    .map(|delta| {
+                        let path = delta
+                            .new_file()
+                            .path()
+                            .ok_or_else(|| {
+                                Error::Unknown("failed to get the path of diff file".to_string())
+                            })?
+                            .to_str()
+                            .ok_or_else(|| {
+                                Error::Unknown(
+                                    "the path of diff file is not valid unicode".to_string(),
+                                )
+                            })?;
+                        Ok(path)
+                    })
+                    .collect::<Result<Vec<&str>, Error>>()?;
+                for path in paths {
+                    index.add_path(std::path::Path::new(path))?;
+                }
+            }
+            let id = index.write_tree()?;
+            let tree = self.repo.find_tree(id)?;
+            let head = self.get_head()?;
+            let parent_oid = Oid::from_bytes(&head.hash)?;
+            let parent_commit = self.repo.find_commit(parent_oid)?;
+
+            let oid = self.repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                &commit.message,
+                &tree,
+                &[&parent_commit],
+            )?;
+            index.clear()?;
+            let hash = <[u8; 20]>::try_from(oid.as_bytes())
+                .map_err(|_| Error::Unknown("err".to_string()))?;
+            Ok(CommitHash { hash })
+        };
+        // Pop stash after creating a commit.
+        if !index.is_empty() {
+            self.stash_pop()?;
+        }
+        result
+    }
+
+    pub(crate) fn create_commit_all(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
         // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
         let time = git2::Time::new(commit.timestamp, -540);
         let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
+
+        // Add all files to the index.
         let mut index = self.repo.index()?;
         index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
         let id = index.write_tree()?;
@@ -278,6 +339,7 @@ impl RawRepositoryInner {
             &tree,
             &[&parent_commit],
         )?;
+        index.clear()?;
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
         Ok(CommitHash { hash })

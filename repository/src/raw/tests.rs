@@ -299,7 +299,7 @@ async fn checkout_clean() {
         email: "test@email.com".to_string(),
         timestamp: get_timestamp() / 1000,
     };
-    repo.create_commit(commit).await.unwrap();
+    repo.create_commit_all(commit).await.unwrap();
 
     // Modify tracked files and create untracked files.
     let path = format!("{}/tracked", root_path);
@@ -373,7 +373,7 @@ async fn stash() {
         email: "test@email.com".to_string(),
         timestamp: get_timestamp() / 1000,
     };
-    repo.create_commit(commit).await.unwrap();
+    repo.create_commit_all(commit).await.unwrap();
 
     // Modify a stash file and stash.
     std::fs::write(&path, "after modified").unwrap();
@@ -706,7 +706,7 @@ async fn semantic_commit() {
         email: "test@email.com".to_string(),
         timestamp: get_timestamp() / 1000,
     };
-    let commit_file = repo.create_commit(commit).await.unwrap();
+    let commit_file = repo.create_commit_all(commit).await.unwrap();
 
     let semantic_commit_nonreserved = repo.read_semantic_commit(commit_file).await.unwrap();
     let patch = repo.show_commit(commit_file).await.unwrap();
@@ -823,7 +823,7 @@ async fn patch() {
         email: email.clone(),
         timestamp,
     };
-    let patch_commit_original = repo.create_commit(commit.clone()).await.unwrap();
+    let patch_commit_original = repo.create_commit_all(commit.clone()).await.unwrap();
 
     let td2 = TempDir::new().unwrap();
     let path2 = td2.path();

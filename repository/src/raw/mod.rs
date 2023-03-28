@@ -200,13 +200,23 @@ impl RawRepository {
     // Commit-related methods
     // ----------------------
 
-    /// Creates a commit from the currently checked out branch.
+    /// Creates a commit from the currently checked out branch by applying the patch.
     ///
+    /// The commit will be empty commit if `diff` in `RawCommit` is None.
     /// Committer will be the same as the author.
     pub async fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
         helper_1_mut(self, RawRepositoryInner::create_commit, commit).await
     }
 
+    /// Creates a commit from the currently checked out branch without applying the patch.
+    ///
+    /// `diff` in `RawCommit` is not used in this function.
+    /// This is same as `git add . && git commit -m "commit_message"`.
+    pub async fn create_commit_all(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
+        helper_1_mut(self, RawRepositoryInner::create_commit_all, commit).await
+    }
+
+    /// Reads the raw commit at given commit hash.
     pub async fn read_commit(&self, commit_hash: CommitHash) -> Result<RawCommit, Error> {
         helper_1(self, RawRepositoryInner::read_commit, commit_hash).await
     }
@@ -221,7 +231,7 @@ impl RawRepository {
         helper_1_mut(self, RawRepositoryInner::create_semantic_commit, commit).await
     }
 
-    /// Reads the reserved state from the current working tree.
+    /// Reads the semantic commmit at given commit hash.
     pub async fn read_semantic_commit(
         &self,
         commit_hash: CommitHash,
