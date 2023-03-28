@@ -301,3 +301,19 @@ pub async fn read_blocks(raw: &RawRepository) -> Result<Vec<(CommitHash, Hash256
     }
     Ok(blocks)
 }
+
+pub async fn check_gitignore(raw: &RawRepository) -> Result<bool, Error> {
+    let path = raw.get_working_directory_path().await?;
+    let path = std::path::Path::new(&path).join(".gitignore");
+    if !path.exists() {
+        return Ok(false);
+    }
+    let file = tokio::fs::File::open(path).await?;
+    let mut lines = tokio::io::BufReader::new(file).lines();
+    while let Some(line) = lines.next_line().await? {
+        if line == ".simperby/" {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
