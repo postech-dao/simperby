@@ -382,13 +382,13 @@ async fn stash() {
     let contents = std::fs::read_to_string(&path).unwrap();
     assert_eq!(contents, "before modified");
     // Apply a stash.
-    repo.stash_apply().await.unwrap();
+    repo.stash_apply(false).await.unwrap();
     assert!(path.exists());
     let contents = std::fs::read_to_string(&path).unwrap();
     assert_eq!(contents, "after modified");
     // Drop a stash and applying a stash should cause an error.
     repo.stash_drop().await.unwrap();
-    repo.stash_apply().await.unwrap_err();
+    repo.stash_apply(false).await.unwrap_err();
 }
 
 /*

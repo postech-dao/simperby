@@ -8,7 +8,8 @@ use super::*;
 use eyre::Result;
 use git2::{
     ApplyLocation, BranchType, DiffFormat, Email, EmailCreateOptions, IndexAddOption, ObjectType,
-    Oid, Repository, RepositoryInitOptions, ResetType, Sort, Status, StatusOptions, StatusShow,
+    Oid, Repository, RepositoryInitOptions, ResetType, Sort, StashApplyOptions, StashFlags, Status,
+    StatusOptions, StatusShow,
 };
 use implementation::RawRepositoryInner;
 use simperby_core::reserved::ReservedState;
@@ -270,13 +271,15 @@ impl RawRepository {
     }
 
     /// Pops the most recent stash.
-    pub async fn stash_pop(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryInner::stash_pop).await
+    /// If index is true, this is same as `git stash pop --index`.
+    pub async fn stash_pop(&mut self, index: bool) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::stash_pop, index).await
     }
 
     /// Applies the most recent stash.
-    pub async fn stash_apply(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryInner::stash_apply).await
+    /// If index is true, this is same as `git stash apply --index`.
+    pub async fn stash_apply(&mut self, index: bool) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::stash_apply, index).await
     }
 
     /// Removes the most recent stash.

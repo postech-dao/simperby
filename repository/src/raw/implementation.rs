@@ -255,15 +255,15 @@ impl RawRepositoryInner {
 
     pub(crate) fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
         // Check if there are tracked-modified or staged files except untracked files.
-        let is_changes_exist;
+        let has_changes;
         {
             let statuses = self.repo.statuses(None)?;
-            is_changes_exist = statuses
+            has_changes = statuses
                 .iter()
                 .any(|entry| entry.status() != Status::WT_NEW);
         }
         // Stash before creating a commit if those files exist.
-        if is_changes_exist {
+        if has_changes {
             self.stash()?;
         }
 
@@ -320,8 +320,8 @@ impl RawRepositoryInner {
             Ok(CommitHash { hash })
         };
         // Pop stash after creating a commit.
-        if is_changes_exist {
-            self.stash_pop()?;
+        if has_changes {
+            self.stash_pop(true)?;
         }
         result
     }
@@ -575,20 +575,28 @@ impl RawRepositoryInner {
     pub(crate) fn stash(&mut self) -> Result<(), Error> {
         let signature = self.repo.signature()?;
         self.repo
-            .stash_save2(&signature, None, Some(git2::StashFlags::DEFAULT))?;
+            .stash_save2(&signature, None, Some(StashFlags::DEFAULT))?;
         Ok(())
     }
 
-    pub(crate) fn stash_pop(&mut self) -> Result<(), Error> {
-        self.repo
-            .stash_pop(0, Some(&mut git2::StashApplyOptions::default()))
-            .map_err(Error::from)
+    pub(crate) fn stash_pop(&mut self, index: bool) -> Result<(), Error> {
+        let mut option = StashApplyOptions::new();
+        let option = if index {
+            Some(option.reinstantiate_index())
+        } else {
+            Some(&mut option)
+        };
+        self.repo.stash_pop(0, option).map_err(Error::from)
     }
 
-    pub(crate) fn stash_apply(&mut self) -> Result<(), Error> {
-        self.repo
-            .stash_apply(0, Some(&mut git2::StashApplyOptions::default()))
-            .map_err(Error::from)
+    pub(crate) fn stash_apply(&mut self, index: bool) -> Result<(), Error> {
+        let mut option = StashApplyOptions::new();
+        let option = if index {
+            Some(option.reinstantiate_index())
+        } else {
+            Some(&mut option)
+        };
+        self.repo.stash_apply(0, option).map_err(Error::from)
     }
 
     pub(crate) fn stash_drop(&mut self) -> Result<(), Error> {
