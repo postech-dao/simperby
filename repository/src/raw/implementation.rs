@@ -254,19 +254,30 @@ impl RawRepositoryInner {
     }
 
     pub(crate) fn create_commit(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
-        // If staged files exist, stash before creating a commit.
-        let index = self.repo.index()?;
-        if !index.is_empty() {
+        // Check if there are tracked-modified or staged files except untracked files.
+        let is_changes_exist;
+        {
+            let statuses = self.repo.statuses(None)?;
+            is_changes_exist = statuses
+                .iter()
+                .any(|entry| entry.status() != Status::WT_NEW);
+        }
+        // Stash before creating a commit if those files exist.
+        if is_changes_exist {
             self.stash()?;
         }
+
         let result = {
             // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
             let time = git2::Time::new(commit.timestamp, -540);
             let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
             let mut index = self.repo.index()?;
+            let head = self.get_head()?;
+            let parent_oid = Oid::from_bytes(&head.hash)?;
+            let parent_commit = self.repo.find_commit(parent_oid)?;
 
-            // Add only files in patch to the index.
-            if let Some(diff) = commit.diff {
+            // Only add files in patch to the index.
+            let tree = if let Some(diff) = commit.diff {
                 let diff = git2::Diff::from_buffer(diff.as_bytes())?;
                 self.repo.apply(&diff, ApplyLocation::WorkDir, None)?;
                 let paths = diff
@@ -290,12 +301,11 @@ impl RawRepositoryInner {
                 for path in paths {
                     index.add_path(std::path::Path::new(path))?;
                 }
-            }
-            let id = index.write_tree()?;
-            let tree = self.repo.find_tree(id)?;
-            let head = self.get_head()?;
-            let parent_oid = Oid::from_bytes(&head.hash)?;
-            let parent_commit = self.repo.find_commit(parent_oid)?;
+                let id = index.write_tree()?;
+                self.repo.find_tree(id)?
+            } else {
+                parent_commit.tree()?
+            };
 
             let oid = self.repo.commit(
                 Some("HEAD"),
@@ -305,13 +315,12 @@ impl RawRepositoryInner {
                 &tree,
                 &[&parent_commit],
             )?;
-            index.clear()?;
             let hash = <[u8; 20]>::try_from(oid.as_bytes())
                 .map_err(|_| Error::Unknown("err".to_string()))?;
             Ok(CommitHash { hash })
         };
         // Pop stash after creating a commit.
-        if !index.is_empty() {
+        if is_changes_exist {
             self.stash_pop()?;
         }
         result
@@ -339,7 +348,6 @@ impl RawRepositoryInner {
             &tree,
             &[&parent_commit],
         )?;
-        index.clear()?;
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
         Ok(CommitHash { hash })
