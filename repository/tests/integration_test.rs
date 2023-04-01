@@ -15,41 +15,34 @@ async fn sync_by_fetch() {
     let server_node_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
 
+    DistributedRepository::genesis(RawRepository::open(&server_node_dir).await.unwrap())
+        .await
+        .unwrap();
     let mut server_node_repo = DistributedRepository::new(
         Arc::new(RwLock::new(
-            RawRepository::open(&format!("{server_node_dir}/repository"))
-                .await
-                .unwrap(),
+            RawRepository::open(&server_node_dir).await.unwrap(),
         )),
         config.clone(),
         None,
     )
     .await
     .unwrap();
-    server_node_repo.genesis().await.unwrap();
-
     let server_node_dir_clone = server_node_dir.clone();
     let git_server = tokio::spawn(async move {
-        let _server =
-            server::run_server_legacy(&format!("{server_node_dir_clone}/repository"), port).await;
+        let _server = server::run_server_legacy(&server_node_dir_clone, port).await;
         sleep_ms(12000).await;
     });
-
     let client_node_dir = create_temp_dir();
+    simperby_test_suite::run_command(format!("cp -a {server_node_dir}/. {client_node_dir}/")).await;
+
     simperby_test_suite::run_command(format!(
-        "cp -r {server_node_dir}/repository {client_node_dir}/repository"
+        "cd {client_node_dir} && git remote add peer git://127.0.0.1:{port}/"
     ))
     .await;
 
-    simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git remote add peer git://127.0.0.1:{port}/"
-    ))
-    .await;
     let mut client_node_repo = DistributedRepository::new(
         Arc::new(RwLock::new(
-            RawRepository::open(&format!("{client_node_dir}/repository"))
-                .await
-                .unwrap(),
+            RawRepository::open(&client_node_dir).await.unwrap(),
         )),
         config.clone(),
         None,
@@ -62,10 +55,7 @@ async fn sync_by_fetch() {
         .create_agenda(rs.query_name(&keys[0].0).unwrap())
         .await
         .unwrap();
-    simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git fetch --all"
-    ))
-    .await;
+    simperby_test_suite::run_command(format!("cd {client_node_dir} && git fetch --all")).await;
     client_node_repo.sync_all().await.unwrap();
     assert_eq!(
         client_node_repo.read_agendas().await.unwrap(),
@@ -82,7 +72,7 @@ async fn sync_by_fetch() {
         .await
         .unwrap();
     simperby_test_suite::run_command(format!(
-        "cd {server_node_dir}/repository && git branch -f work {agenda_proof}"
+        "cd {server_node_dir} && git branch -f work {agenda_proof}"
     ))
     .await;
 
@@ -91,10 +81,7 @@ async fn sync_by_fetch() {
         .create_block(keys[0].0.clone())
         .await
         .unwrap();
-    simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git fetch --all"
-    ))
-    .await;
+    simperby_test_suite::run_command(format!("cd {client_node_dir} && git fetch --all")).await;
     client_node_repo.sync_all().await.unwrap();
     assert_eq!(
         client_node_repo.read_blocks().await.unwrap(),
@@ -126,10 +113,7 @@ async fn sync_by_fetch() {
         .await
         .unwrap();
 
-    simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git fetch --all"
-    ))
-    .await;
+    simperby_test_suite::run_command(format!("cd {client_node_dir} && git fetch --all")).await;
     client_node_repo.sync_all().await.unwrap();
     assert_eq!(
         client_node_repo
@@ -170,47 +154,45 @@ async fn sync_by_push() {
     setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
     // Add push configs to server repository.
     simperby_test_suite::run_command(format!(
-        "cd {server_node_dir}/repository && git config receive.advertisePushOptions true"
+        "cd {server_node_dir} && git config receive.advertisePushOptions true"
     ))
     .await;
     simperby_test_suite::run_command(format!(
-        "cd {server_node_dir}/repository && git config sendpack.sideband false"
+        "cd {server_node_dir} && git config sendpack.sideband false"
     ))
     .await;
 
-    let mut server_node_repo = DistributedRepository::new(
+    DistributedRepository::genesis(RawRepository::open(&server_node_dir).await.unwrap())
+        .await
+        .unwrap();
+    let server_node_repo = DistributedRepository::new(
         Arc::new(RwLock::new(
-            RawRepository::open(&format!("{server_node_dir}/repository"))
-                .await
-                .unwrap(),
+            RawRepository::open(&server_node_dir).await.unwrap(),
         )),
         config.clone(),
         None,
     )
     .await
     .unwrap();
-    server_node_repo.genesis().await.unwrap();
 
-    let _git_server =
-        simperby_repository::server::run_server(&server_node_dir, port, &build_simple_git_server())
-            .await;
+    let _git_server = simperby_repository::server::run_server(
+        &server_node_dir,
+        port,
+        PushVerifier::VerifierExecutable(build_simple_git_server()),
+    )
+    .await;
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let client_node_dir = create_temp_dir();
-    simperby_test_suite::run_command(format!(
-        "cp -r {server_node_dir}/repository {client_node_dir}/repository"
-    ))
-    .await;
+    simperby_test_suite::run_command(format!("cp -a {server_node_dir}/. {client_node_dir}/")).await;
 
     simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git remote add peer git://127.0.0.1:{port}/"
+        "cd {client_node_dir} && git remote add peer git://127.0.0.1:{port}/"
     ))
     .await;
     let mut client_node_repo = DistributedRepository::new(
         Arc::new(RwLock::new(
-            RawRepository::open(&format!("{client_node_dir}/repository"))
-                .await
-                .unwrap(),
+            RawRepository::open(&client_node_dir).await.unwrap(),
         )),
         config,
         Some(keys[1].1.clone()),
@@ -239,7 +221,7 @@ async fn sync_by_push() {
         .await
         .unwrap();
     simperby_test_suite::run_command(format!(
-        "cd {client_node_dir}/repository && git branch -f work {agenda_proof_commit}"
+        "cd {client_node_dir} && git reset --hard {agenda_proof_commit}"
     ))
     .await;
 

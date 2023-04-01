@@ -71,7 +71,7 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
         ("post-receive", include_str!("post_receive.sh")),
     ];
     for (hook_type, hook_script) in hooks.iter() {
-        let path_hook = format!("{path}/repository/.git/hooks/{hook_type}");
+        let path_hook = format!("{path}/.git/hooks/{hook_type}");
         let is_hook_exist = Path::new(&path_hook).exists();
         if !is_hook_exist {
             fs::File::create(&path_hook).await.unwrap();
@@ -116,23 +116,20 @@ mod tests {
 
         let td = TempDir::new().unwrap();
         let path = td.path().to_slash().unwrap().into_owned();
-        run_command(format!("cd {path} && mkdir repo && cd repo && git init")).await;
-        run_command(format!("cd {path}/repo && echo 'hello' > hello.txt")).await;
-        run_command(format!("cd {path}/repo && git add -A")).await;
+        run_command(format!("cd {path} && git init")).await;
+        run_command(format!("cd {path} && echo 'hello' > hello.txt")).await;
+        run_command(format!("cd {path} && git add -A")).await;
         run_command(format!(
-            "cd {path}/repo && git config user.name 'Test' && git config user.email 'test@test.com'"
+            "cd {path} && git config user.name 'Test' && git config user.email 'test@test.com'"
         ))
         .await;
-        run_command(format!("cd {path}/repo && git commit -m 'hello'")).await;
+        run_command(format!("cd {path} && git commit -m 'hello'")).await;
         let _server = run_server_legacy(&path, port).await;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         let td2 = TempDir::new().unwrap();
         let path2 = td2.path().to_slash().unwrap().into_owned();
         run_command(format!("ls {path2}")).await;
-        run_command(format!(
-            "cd {path2} && git clone git://127.0.0.1:{port}/repo"
-        ))
-        .await;
+        run_command(format!("cd {path2} && git clone git://127.0.0.1:{port}/")).await;
     }
 
     #[ignore]
@@ -146,26 +143,26 @@ mod tests {
         let path_server = td_server.path().to_slash().unwrap().into_owned();
 
         run_command(format!(
-            "cd {path_server} && mkdir repository && cd repository && mkdir repo && cd repo && git init"
+            "cd {path_server} && mkdir repo && cd repo && git init"
         ))
         .await;
         run_command(format!(
-            "cd {path_server}/repository/repo && git config user.name 'Test' && git config user.email 'test@test.com'"
+            "cd {path_server}/repo && git config user.name 'Test' && git config user.email 'test@test.com'"
         ))
         .await;
         // `receive.advertisePushOptions` is necessary for server to get push operation with push options.
         run_command(format!(
-            "cd {path_server}/repository/repo && git config receive.advertisePushOptions true"
+            "cd {path_server}/repo && git config receive.advertisePushOptions true"
         ))
         .await;
         // `sendpack.sideband` is necessary for server to process push operation in Windows.
         // If not, the process stops at the end of push operation.
         run_command(format!(
-            "cd {path_server}/repository/repo && git config sendpack.sideband false"
+            "cd {path_server}/repo && git config sendpack.sideband false"
         ))
         .await;
         run_command(format!(
-            "cd {path_server}/repository/repo && echo 'init' > init.txt && git add -A && git commit -m 'init'"
+            "cd {path_server}/repo && echo 'init' > init.txt && git add -A && git commit -m 'init'"
         ))
         .await;
 

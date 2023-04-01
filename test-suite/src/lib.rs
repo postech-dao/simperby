@@ -40,12 +40,8 @@ pub async fn run_command(command: impl AsRef<str>) {
 /// Creates a `repository` directory inside the given directory
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
-    run_command(format!(
-        "cd {path} && mkdir repository && cd repository && git init"
-    ))
-    .await;
-    let path = format!("{path}/repository");
-    simperby_repository::raw::reserved_state::write_reserved_state(&path, &reserved_state)
+    run_command(format!("cd {path} && git init")).await;
+    simperby_repository::raw::reserved_state::write_reserved_state(path, &reserved_state)
         .await
         .unwrap();
     println!("> Pre-genesis repository is created at {path}");
@@ -56,6 +52,7 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
     ))
     .await;
     run_command(format!("cd {path} && git commit -m 'genesis'")).await;
+    run_command(format!("cd {path} && git checkout -b main")).await;
 }
 
 pub fn create_temp_dir() -> String {
