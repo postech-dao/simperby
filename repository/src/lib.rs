@@ -98,8 +98,8 @@ impl DistributedRepository {
     /// - creates `work` branch at the same place with the `finalized` branch.
     ///
     /// Note that `genesis` can be called on any commit except a merge commit.
-    pub async fn genesis(&mut self) -> Result<(), Error> {
-        genesis(&mut *self.raw.write().await).await
+    pub async fn genesis(mut raw: RawRepository) -> Result<(), Error> {
+        genesis(&mut raw).await
     }
 
     // ---------------
