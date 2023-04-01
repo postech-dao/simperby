@@ -101,14 +101,15 @@ pub async fn setup_server_client_nodes(
     (ServerNetworkConfig, PrivateKey),
     Vec<(ClientNetworkConfig, PrivateKey)>,
     Vec<PublicKey>,
+    FinalizationInfo,
 ) {
+    let (fi, keys) = simperby_core::test_utils::generate_fi(client_n);
     let (_, server_private_key) = generate_keypair_random();
     let server = ServerNetworkConfig {
         port: dispense_port(),
     };
     let mut clients = Vec::new();
-    for _ in 0..client_n {
-        let (_, private_key) = generate_keypair_random();
+    for (_, private_key) in keys {
         let network_config = ClientNetworkConfig {
             peers: vec![Peer {
                 public_key: server_private_key.public_key(),
@@ -128,7 +129,7 @@ pub async fn setup_server_client_nodes(
         .map(|(_, private_key)| private_key.public_key())
         .collect::<Vec<_>>();
     pubkeys.push(server_private_key.public_key());
-    ((server, server_private_key), clients, pubkeys)
+    ((server, server_private_key), clients, pubkeys, fi)
 }
 
 pub async fn sleep_ms(ms: u64) {
