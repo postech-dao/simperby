@@ -90,22 +90,21 @@ pub async fn create_agenda(
     author: MemberName,
 ) -> Result<(Agenda, CommitHash), Error> {
     let last_header = read_last_finalized_block_header(raw).await?;
-    let work_commit = raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+    raw.check_clean()
+        .await
+        .map_err(|e| eyre!("repository is not clean: {e}"))?;
+    let head = raw.get_head().await?;
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
 
     // Check if the `work` branch is rebased on top of the `finalized` branch.
-    if raw.find_merge_base(last_header_commit, work_commit).await? != last_header_commit {
-        return Err(eyre!(
-            "branch {} should be rebased on {}",
-            WORK_BRANCH_NAME,
-            FINALIZED_BRANCH_NAME
-        ));
+    if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
+        return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }
     // Check the validity of the commit sequence
     let reserved_state = read_last_finalized_reserved_state(raw).await?;
     let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
         .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
-    let commits = read_commits(raw, last_header_commit, work_commit).await?;
+    let commits = read_commits(raw, last_header_commit, head).await?;
     for (commit, hash) in commits.iter() {
         verifier
             .apply_commit(commit)
@@ -133,16 +132,6 @@ pub async fn create_agenda(
     let semantic_commit = to_semantic_commit(&agenda_commit, reserved_state)?;
 
     raw.checkout_clean().await?;
-    raw.checkout(WORK_BRANCH_NAME.into())
-        .await
-        .map_err(|e| match e {
-            raw::Error::NotFound(_) => {
-                eyre!(IntegrityError::new(format!(
-                    "failed to checkout to the work branch: {e}"
-                )))
-            }
-            _ => eyre!(e),
-        })?;
     let result = raw.create_semantic_commit(semantic_commit).await?;
     let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
     agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
@@ -155,31 +144,20 @@ pub async fn create_block(
     raw: &mut RawRepository,
     author: PublicKey,
 ) -> Result<(BlockHeader, CommitHash), Error> {
-    let work_commit = raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+    raw.check_clean()
+        .await
+        .map_err(|e| eyre!("repository is not clean: {e}"))?;
+    let head = raw.get_head().await?;
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
 
     // Check if the `work` branch is rebased on top of the `finalized` branch.
-    if raw.find_merge_base(last_header_commit, work_commit).await? != last_header_commit {
-        return Err(eyre!(
-            "branch {} should be rebased on {}",
-            WORK_BRANCH_NAME,
-            FINALIZED_BRANCH_NAME
-        ));
+    if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
+        return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }
 
     // Check the validity of the commit sequence
-    let commits = read_commits(raw, last_header_commit, work_commit).await?;
+    let commits = read_commits(raw, last_header_commit, head).await?;
     let last_header = read_last_finalized_block_header(raw).await?;
-    raw.checkout(WORK_BRANCH_NAME.into())
-        .await
-        .map_err(|e| match e {
-            raw::Error::NotFound(_) => {
-                eyre!(IntegrityError::new(format!(
-                    "failed to checkout to the work branch: {e}"
-                )))
-            }
-            _ => eyre!(e),
-        })?;
     let reserved_state = read_last_finalized_reserved_state(raw).await?;
     let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
         .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
@@ -219,16 +197,6 @@ pub async fn create_block(
     let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
 
     raw.checkout_clean().await?;
-    raw.checkout(WORK_BRANCH_NAME.into())
-        .await
-        .map_err(|e| match e {
-            raw::Error::NotFound(_) => {
-                eyre!(IntegrityError::new(format!(
-                    "failed to checkout to the work branch: {e}"
-                )))
-            }
-            _ => eyre!(e),
-        })?;
     let result = raw.create_semantic_commit(semantic_commit).await?;
     let mut block_branch_name = block_commit.to_hash256().to_string();
     block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
@@ -241,21 +209,20 @@ pub async fn create_extra_agenda_transaction(
     raw: &mut RawRepository,
     transaction: &ExtraAgendaTransaction,
 ) -> Result<CommitHash, Error> {
-    let work_commit = raw.locate_branch(WORK_BRANCH_NAME.into()).await?;
+    raw.check_clean()
+        .await
+        .map_err(|e| eyre!("repository is not clean: {e}"))?;
+    let head = raw.get_head().await?;
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
     let reserved_state = read_last_finalized_reserved_state(raw).await?;
 
     // Check if the `work` branch is rebased on top of the `finalized` branch.
-    if raw.find_merge_base(last_header_commit, work_commit).await? != last_header_commit {
-        return Err(eyre!(
-            "branch {} should be rebased on {}",
-            WORK_BRANCH_NAME,
-            FINALIZED_BRANCH_NAME
-        ));
+    if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
+        return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }
 
     // Check the validity of the commit sequence
-    let commits = read_commits(raw, last_header_commit, work_commit).await?;
+    let commits = read_commits(raw, last_header_commit, head).await?;
     let last_header = read_last_finalized_block_header(raw).await?;
     let mut verifier = CommitSequenceVerifier::new(last_header.clone(), reserved_state.clone())
         .map_err(|e| eyre!("failed to create a commit sequence verifier: {}", e))?;
@@ -275,7 +242,6 @@ pub async fn create_extra_agenda_transaction(
     let semantic_commit = to_semantic_commit(&extra_agenda_tx_commit, reserved_state)?;
 
     raw.checkout_clean().await?;
-    raw.checkout(WORK_BRANCH_NAME.into()).await?;
     let result = raw.create_semantic_commit(semantic_commit).await?;
     Ok(result)
 }

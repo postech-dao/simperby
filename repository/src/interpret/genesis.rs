@@ -22,8 +22,6 @@ pub async fn genesis(raw: &mut RawRepository) -> Result<(), Error> {
         })?;
     let result = raw.create_semantic_commit(semantic_commit).await?;
     // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
-    let _ = raw.create_branch(WORK_BRANCH_NAME.into(), result).await;
-    // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
     let _ = raw.create_branch(FP_BRANCH_NAME.into(), result).await;
     raw.checkout(FP_BRANCH_NAME.into())
         .await
@@ -40,5 +38,26 @@ pub async fn genesis(raw: &mut RawRepository) -> Result<(), Error> {
         proof: reserved_state.genesis_info.genesis_proof.clone(),
     }))
     .await?;
+
+    match raw.locate_branch("main".to_owned()).await {
+        Ok(_) => {
+            raw.checkout_detach(raw.get_head().await?).await?;
+            raw.move_branch(
+                "main".to_owned(),
+                raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?,
+            )
+            .await?;
+            raw.checkout("main".to_owned()).await?;
+        }
+        Err(raw::Error::NotFound(_)) => {
+            raw.create_branch(
+                "main".to_owned(),
+                raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?,
+            )
+            .await?;
+            raw.checkout("main".to_owned()).await?;
+        }
+        Err(e) => return Err(e.into()),
+    }
     Ok(())
 }

@@ -165,8 +165,7 @@ pub async fn sync_all(raw: &mut RawRepository) -> Result<Vec<(String, Result<(),
         .await?
         .into_iter()
         .filter(|s| {
-            s.as_str() != WORK_BRANCH_NAME
-                && s.as_str() != FINALIZED_BRANCH_NAME
+            s.as_str() != FINALIZED_BRANCH_NAME
                 && s.as_str() != FP_BRANCH_NAME
                 && !s.starts_with("a-")
                 && !s.starts_with("b-")
@@ -203,10 +202,7 @@ pub async fn clean(raw: &mut RawRepository, hard: bool) -> Result<(), Error> {
     let branches = read_local_branches(raw).await?;
     let last_header = read_last_finalized_block_header(raw).await?;
     for (branch, branch_commit_hash) in branches {
-        if !(branch.as_str() == WORK_BRANCH_NAME
-            || branch.as_str() == FINALIZED_BRANCH_NAME
-            || branch.as_str() == FP_BRANCH_NAME)
-        {
+        if !(branch.as_str() == FINALIZED_BRANCH_NAME || branch.as_str() == FP_BRANCH_NAME) {
             if hard {
                 raw.delete_branch(branch.to_string()).await?;
             } else {
