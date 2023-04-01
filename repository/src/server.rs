@@ -58,12 +58,19 @@ pub async fn run_server_legacy(path: &str, port: u16) -> GitServer {
     GitServer { child, daemon_pid }
 }
 
+pub enum PushVerifier {
+    AlwaysAccept,
+    AlwaysReject,
+    VerifierExecutable(String),
+}
+
 /// Runs a Simperby Git server with a push hook enabled.
 ///
 /// - `path` is the path to the root directory of a Simperby blockchain (not the repository path)
 /// - `port` is the port to run the server on
-/// - `simperby_executable_path` is the path to the Simperby executable, which will be executed by the hook.
-pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -> GitServer {
+/// - `verifier_path` is the path to the verifier executable, which will be executed by the hook.
+///   If `None`, this server will unconditionally accept all pushes.
+pub async fn run_server(path: &str, port: u16, verifier_path: PushVerifier) -> GitServer {
     // Make a pre-receive hook file and give it an execution permission.
     let hooks = [
         ("pre-receive", include_str!("pre_receive.sh")),
@@ -80,17 +87,39 @@ pub async fn run_server(path: &str, port: u16, simperby_executable_path: &str) -
         raw::run_command(format!("chmod +x {path_hook}")).unwrap();
     }
 
-    let td = tempfile::TempDir::new().unwrap();
-    let pid_path = format!("{}/pid", td.path().to_slash().unwrap().into_owned());
+    let td_ = tempfile::TempDir::new().unwrap();
+    let td = td_.path().to_slash().unwrap().into_owned();
+    std::mem::forget(td_);
+    let pid_path = format!("{td}/pid");
+    let path_true = format!("{td}/true.sh");
+    let path_false = format!("{td}/false.sh");
+    fs::File::create(&path_true).await.unwrap();
+    fs::File::create(&path_false).await.unwrap();
+    let content_true = r#"#!/bin/sh
+exit 0
+"#;
+    let content_false = r#"#!/bin/sh
+exit 1
+"#;
+    fs::write(&path_true, content_true).await.unwrap();
+    fs::write(&path_false, content_false).await.unwrap();
+    raw::run_command(format!("chmod +x {path_true}")).unwrap();
+    raw::run_command(format!("chmod +x {path_false}")).unwrap();
+
+    let verifier_path = match verifier_path {
+        PushVerifier::AlwaysAccept => path_true,
+        PushVerifier::AlwaysReject => path_false,
+        PushVerifier::VerifierExecutable(x) => x,
+    };
     let child = std::process::Command::new("git")
         .arg("daemon")
-        .arg(format!("--base-path={path}/repository"))
+        .arg(format!("--base-path={path}"))
         .arg("--export-all")
         .arg("--enable=receive-pack")
         .arg(format!("--port={port}"))
         .arg(format!("--pid-file={pid_path}"))
         .arg("--reuseaddr")
-        .env("SIMPERBY_EXECUTABLE_PATH", simperby_executable_path)
+        .env("SIMPERBY_EXECUTABLE_PATH", verifier_path)
         .env("SIMPERBY_ROOT_PATH", path)
         .spawn()
         .unwrap();
@@ -166,27 +195,9 @@ mod tests {
         ))
         .await;
 
-        // Make .sh example files for testing the server hook.
-        let td_simperby = TempDir::new().unwrap();
-        let path_simperby = td_simperby.path().to_slash().unwrap().into_owned();
-        let path_true = format!("{path_simperby}/true.sh");
-        let path_false = format!("{path_simperby}/false.sh");
-        fs::File::create(&path_true).await.unwrap();
-        fs::File::create(&path_false).await.unwrap();
-        let content_true = r#"#!/bin/sh
-exit 0
-"#;
-        let content_false = r#"#!/bin/sh
-exit 1
-"#;
-        fs::write(&path_true, content_true).await.unwrap();
-        fs::write(&path_false, content_false).await.unwrap();
-        run_command(format!("chmod +x {path_true}")).await;
-        run_command(format!("chmod +x {path_false}")).await;
-
         // Open a git server with simperby executable which always returns true.
         let path_server_clone = path_server.to_owned();
-        let server = run_server(&path_server_clone, port, &path_true).await;
+        let server = run_server(&path_server_clone, port, PushVerifier::AlwaysAccept).await;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         // Make a local repository by cloning above server repository.
@@ -229,7 +240,7 @@ exit 1
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         // Open a git server with simperby executable which always returns false.
-        let _server = run_server(&path_server, port, &path_false).await;
+        let _server = run_server(&path_server, port, PushVerifier::AlwaysReject).await;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         run_command(format!(
             "cd {path_local}/repo && echo 'hello2' > hello2.txt && git add . && git commit -m 'hello2'"
