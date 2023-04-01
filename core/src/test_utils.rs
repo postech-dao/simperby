@@ -1,5 +1,16 @@
 use crate::*;
 
+pub fn generate_fi(member_number: usize) -> (FinalizationInfo, Vec<(PublicKey, PrivateKey)>) {
+    let (rs, keys) = generate_standard_genesis(member_number);
+    let fi = FinalizationInfo {
+        header: rs.genesis_info.header.clone(),
+        commit_hash: CommitHash::zero(),
+        proof: rs.genesis_info.genesis_proof.clone(),
+        reserved_state: rs,
+    };
+    (fi, keys)
+}
+
 /// Generates a standard test chain config returning the genesis reserved-state
 /// and the associated key pairs of the members.
 pub fn generate_standard_genesis(
