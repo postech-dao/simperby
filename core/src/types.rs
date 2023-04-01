@@ -1,5 +1,6 @@
 use crate::{crypto::*, reserved::ReservedState};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 pub type VotingPower = u64;
 /// A UNIX timestamp measured in milliseconds.
@@ -201,5 +202,61 @@ pub enum Commit {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct LastFinalizationProof {
     pub height: BlockHeight,
+    pub proof: FinalizationProof,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
+pub struct CommitHash {
+    pub hash: [u8; 20],
+}
+
+impl CommitHash {
+    pub fn zero() -> Self {
+        Self { hash: [0; 20] }
+    }
+}
+
+impl ToHash256 for CommitHash {
+    fn to_hash256(&self) -> Hash256 {
+        Hash256::hash(self.hash)
+    }
+}
+
+impl Serialize for CommitHash {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(hex::encode(self.hash).as_str())
+    }
+}
+
+impl fmt::Display for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.hash).as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for CommitHash {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let hash = hex::decode(s).map_err(serde::de::Error::custom)?;
+        if hash.len() != 20 {
+            return Err(serde::de::Error::custom("invalid length"));
+        }
+        let mut hash_array = [0; 20];
+        hash_array.copy_from_slice(&hash);
+        Ok(CommitHash { hash: hash_array })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct FinalizationInfo {
+    pub header: BlockHeader,
+    pub commit_hash: CommitHash,
+    pub reserved_state: ReservedState,
     pub proof: FinalizationProof,
 }
