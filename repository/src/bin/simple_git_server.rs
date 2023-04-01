@@ -38,11 +38,7 @@ pub enum Commands {
 async fn main() {
     let args = Cli::parse();
     let path = args.path.display().to_string();
-    let raw = Arc::new(RwLock::new(
-        RawRepository::open(&format!("{path}/repository"))
-            .await
-            .unwrap(),
-    ));
+    let raw = Arc::new(RwLock::new(RawRepository::open(&path).await.unwrap()));
     let config = Config {
         long_range_attack_distance: 1,
     };
