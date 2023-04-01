@@ -1,5 +1,5 @@
 use simperby_core::*;
-use simperby_repository::{format::from_semantic_commit, raw::*, *};
+use simperby_repository::{format::from_semantic_commit, raw::*, server::*, *};
 use simperby_test_suite::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;

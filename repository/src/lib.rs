@@ -44,13 +44,6 @@ impl IntegrityError {
     }
 }
 
-pub struct FinalizationInfo {
-    pub header: BlockHeader,
-    pub commit_hash: CommitHash,
-    pub reserved_state: ReservedState,
-    pub proof: FinalizationProof,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// The distance that if a commit is past this far,
@@ -151,7 +144,8 @@ impl DistributedRepository {
     /// 4. the canonical history of the `finalized` branch.
     /// 5. the reserved state in a valid format.
     pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
-        todo!()
+        // TODO
+        Ok(true)
     }
 
     /// Checks the existence of `.gitignore` file and `.simperby/` entry in `.gitignore`.
@@ -252,6 +246,8 @@ impl DistributedRepository {
     ///
     /// After verification, it will create an agenda-proof commit,
     /// and update the corresponding `a-#` branch to it
+    ///
+    /// TODO: get `AgendaProof` instead.
     pub async fn approve(
         &mut self,
         agenda_hash: &Hash256,
