@@ -26,10 +26,7 @@ You should have a basic understanding of
   snapshots and diffs using whatever Git client**.
 6. **Peers** can also **fetch blockchain data from each other, verify commits,
   and synchronize** the blockchain state or pending proposals.
-7. The node operator may create their own transactions as commits and push them
-  to a designated branch (`work`) to create **a proposal to rebase on the
-  `finalized` branch**.
-8. **Simperby functions as a general distributed Git repository**, that can
+7. **Simperby functions as a general distributed Git repository**, that can
   contain any useful data for the organization. This is trivially achieved
   because **Simperby takes Git commits as blockchain transactions.** Any commits
   made on the canonical branch (`finalized`) of the repository will be stored
@@ -138,25 +135,22 @@ TODO
 ### Branches
 
 These are the names of the branches that are specially treated by the Simperby
-node. Branches other than `work` and `p` are managed by the node; it will be
-rejected if pushed.
+node.
 
 1. `finalized`: always points to the last finalized block. It is strongly
   protected; users can't push to this branch.
-2. `work`: the only branch that users can freely push or force-push. CLI
-  commands like `create` interact with this.
-3. `p`: the block proposal for this node. The node operator may push or
+1. `p`: the block proposal for this node. The node operator may push or
   force-push to this branch. When pushed, the Git server will check the validity
   of the branch. The consensus engine will recognize this branch and propose to
   the consensus. It stands for 'block proposal'.
-4. `a-<hash>`: a valid agenda (but not yet approved) propagated from other
+1. `a-<hash>`: a valid agenda (but not yet approved) propagated from other
   nodes. If the governance has approved the agenda, it will point to the
   `agenda-proof` commit which lies on top of the agenda commit. The `<hash>`
   MUST be the hash of the commit, truncated in the first 8 digits.
-5. `b-<hash>`: a valid (but not yet finalized) block propagated from other
+1. `b-<hash>`: a valid (but not yet finalized) block propagated from other
   nodes. The `<hash>` MUST be the hash of the commit, truncated in the first 8
   digits.
-6. `fp`: a very special branch that always holds the finalization proof for the
+1. `fp`: a very special branch that always holds the finalization proof for the
   last block. This is required because a block header doesn't contain the
   finalization proof of itself. Thus, to make a repository self-verifiable, it
   is essential to have the proof somewhere, in some way. This branch has only

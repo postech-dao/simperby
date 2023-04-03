@@ -96,7 +96,7 @@ pub async fn create_agenda(
     let head = raw.get_head().await?;
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
 
-    // Check if the `work` branch is rebased on top of the `finalized` branch.
+    // Check if HEAD is rebased on top of the `finalized` branch.
     if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
         return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }
@@ -150,7 +150,7 @@ pub async fn create_block(
     let head = raw.get_head().await?;
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
 
-    // Check if the `work` branch is rebased on top of the `finalized` branch.
+    // Check if HEAD branch is rebased on top of the `finalized` branch.
     if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
         return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }
@@ -216,7 +216,7 @@ pub async fn create_extra_agenda_transaction(
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
     let reserved_state = read_last_finalized_reserved_state(raw).await?;
 
-    // Check if the `work` branch is rebased on top of the `finalized` branch.
+    // Check if HEAD branch is rebased on top of the `finalized` branch.
     if raw.find_merge_base(last_header_commit, head).await? != last_header_commit {
         return Err(eyre!("HEAD should be rebased on {}", FINALIZED_BRANCH_NAME));
     }

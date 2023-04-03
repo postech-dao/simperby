@@ -99,13 +99,13 @@ pub enum Commands {
     /// Clean the repository, removing all the outdated (incompatible with `finalized`) commits.
     Clean {
         /// If enabled, it will remove
-        /// 1. all branches except `finalized`, `fp`, and `work`
+        /// 1. all branches except `finalized` and `fp`
         /// 2. all remote repositories
         /// 3. all orphan commits
         #[clap(long, action)]
         hard: bool,
     },
-    /// Create a new commit on top of the `work` branch.
+    /// Create a new commit on top of the HEAD.
     #[command(subcommand)]
     Create(CreateCommands),
     /// Vote on the agenda, broadcasting to the network.
@@ -145,7 +145,7 @@ pub enum Commands {
     /// 3. Does it have a valid `reserved/` directory and `.gitignore`?
     /// 4. Does it have all the protected branches and tags?
     /// 5. Does the reserved state at `finalized` branch match the block header?
-    /// 6. What phase is the `work` branch in?
+    /// 6. What phase is HEAD in?
     /// 7. Does the `fp` branch match the last block header?
     /// 8. Isn't your repository behind the latest consensus status? (finalized but not yet received the actual commits)
     Status {
