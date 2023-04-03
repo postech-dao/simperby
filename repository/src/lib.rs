@@ -88,7 +88,7 @@ impl DistributedRepository {
     ///
     /// It also
     /// - creates `fp` branch and its commit (for the genesis block).
-    /// - creates `work` branch at the same place with the `finalized` branch.
+    /// - creates the `finalized` branch.
     ///
     /// Note that `genesis` can be called on any commit except a merge commit.
     pub async fn genesis(mut raw: RawRepository) -> Result<(), Error> {
@@ -206,7 +206,6 @@ impl DistributedRepository {
     ///
     /// It will leave only
     /// - the `finalized` branch
-    /// - the `work` branch
     /// - the `fp` branch
     /// when `hard` is `true`,
     ///
@@ -257,7 +256,7 @@ impl DistributedRepository {
         approve(&mut *self.raw.write().await, agenda_hash, proof, timestamp).await
     }
 
-    /// Creates an agenda commit on top of the `work` branch.
+    /// Creates an agenda commit on top of the HEAD.
     pub async fn create_agenda(
         &mut self,
         author: MemberName,
@@ -265,7 +264,7 @@ impl DistributedRepository {
         create_agenda(&mut *self.raw.write().await, author).await
     }
 
-    /// Creates a block commit on top of the `work` branch.
+    /// Creates a block commit on top of the HEAD.
     pub async fn create_block(
         &mut self,
         author: PublicKey,
@@ -273,7 +272,7 @@ impl DistributedRepository {
         create_block(&mut *self.raw.write().await, author).await
     }
 
-    /// Creates an extra-agenda transaction commit on top of the `work` branch.
+    /// Creates an extra-agenda transaction commit on top of the HEAD.
     pub async fn create_extra_agenda_transaction(
         &mut self,
         transaction: &ExtraAgendaTransaction,
