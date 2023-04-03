@@ -68,9 +68,8 @@ pub enum PushVerifier {
 ///
 /// - `path` is the path to the root directory of a Simperby blockchain (not the repository path)
 /// - `port` is the port to run the server on
-/// - `verifier_path` is the path to the verifier executable, which will be executed by the hook.
-///   If `None`, this server will unconditionally accept all pushes.
-pub async fn run_server(path: &str, port: u16, verifier_path: PushVerifier) -> GitServer {
+/// - `verifier` is the verifier that accepts or rejects pushes.
+pub async fn run_server(path: &str, port: u16, verifier: PushVerifier) -> GitServer {
     // Make a pre-receive hook file and give it an execution permission.
     let hooks = [
         ("pre-receive", include_str!("pre_receive.sh")),
@@ -106,7 +105,7 @@ exit 1
     raw::run_command(format!("chmod +x {path_true}")).unwrap();
     raw::run_command(format!("chmod +x {path_false}")).unwrap();
 
-    let verifier_path = match verifier_path {
+    let verifier_path = match verifier {
         PushVerifier::AlwaysAccept => path_true,
         PushVerifier::AlwaysReject => path_false,
         PushVerifier::VerifierExecutable(x) => x,
