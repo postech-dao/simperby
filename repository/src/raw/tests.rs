@@ -809,6 +809,11 @@ async fn patch() {
     let commit_retrieve = repo.read_commit(empty_commit_hash).await.unwrap();
     assert_eq!(empty_commit.clone(), commit_retrieve);
 
+    let td2 = TempDir::new().unwrap();
+    let path1 = td.path().to_str().unwrap();
+    let path2 = td2.path().to_str().unwrap();
+    let mut repo2 = RawRepository::clone(path2, path1).await.unwrap();
+
     let path = td.path().join("patch_file");
     std::fs::File::create(&path).unwrap();
     std::fs::write(&path, "patch test").unwrap();
@@ -825,11 +830,7 @@ async fn patch() {
     };
     let patch_commit_original = repo.create_commit_all(commit.clone()).await.unwrap();
 
-    let td2 = TempDir::new().unwrap();
-    let path2 = td2.path();
-    let mut repo2 = init_repository_with_initial_commit(path2).await.unwrap();
-    repo2.create_commit(empty_commit).await.unwrap();
-
+    // Apply a patch and make a commit.
     let head = repo.get_head().await.unwrap();
     let patch = repo.get_patch(head).await.unwrap();
     let commit = RawCommit {
