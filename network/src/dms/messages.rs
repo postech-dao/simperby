@@ -1,9 +1,13 @@
+use std::fmt::Debug;
+
 use super::*;
 use serde::{de::DeserializeOwned, ser::Serialize};
 
 pub type DmsKey = String;
 
-pub trait DmsMessage: Send + Sync + 'static + ToHash256 + Serialize + DeserializeOwned {
+pub trait DmsMessage:
+    Send + Sync + 'static + ToHash256 + Serialize + DeserializeOwned + Debug
+{
     /// Checks if the message is valid.
     fn check(&self) -> Result<(), Error>;
 
