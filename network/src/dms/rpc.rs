@@ -112,6 +112,9 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
         let mut tasks_and_messages = Vec::new();
 
         let packets = this.read().await.retrieve_packets().await?;
+        if packets.is_empty() {
+            return Ok(());
+        }
         for peer in &network_config.peers {
             let key = this.read().await.config.dms_key.clone();
             let port_key = format!("dms-{key}");
