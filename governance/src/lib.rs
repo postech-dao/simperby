@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use simperby_core::utils::get_timestamp;
 use simperby_core::*;
 use simperby_network::*;
 use std::collections::HashMap;
@@ -56,12 +57,14 @@ impl DmsMessage for Vote {
 
 pub struct Governance {
     dms: Arc<RwLock<Dms<Vote>>>,
+    fi: FinalizationInfo,
 }
 
 impl Governance {
-    /// TODO: this must take the eligible governance set for this height.
-    pub async fn new(dms: Arc<RwLock<Dms<Vote>>>) -> Result<Self, Error> {
-        Ok(Self { dms })
+    pub async fn new(dms: Arc<RwLock<Dms<Vote>>>, fi: FinalizationInfo) -> Result<Self, Error> {
+        // TODO: this must set the DMS to accept messages only from
+        // the eligible governance set for this height.
+        Ok(Self { dms, fi })
     }
 
     pub async fn read(&self) -> Result<GovernanceStatus, Error> {
@@ -77,6 +80,51 @@ impl Governance {
         }
         let status = GovernanceStatus { votes: result };
         Ok(status)
+    }
+
+    pub async fn get_eligible_agendas(&self) -> Result<Vec<(Hash256, AgendaProof)>, Error> {
+        let governance_set = self
+            .fi
+            .reserved_state
+            .get_governance_set()
+            // TODO: handle integrity error
+            .unwrap()
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+        let governance_state = self.read().await?;
+        let votes: Vec<(Hash256, VotingPower)> = governance_state
+            .votes
+            .iter()
+            .map(|(agenda, votes)| {
+                (
+                    *agenda,
+                    votes
+                        .keys()
+                        .map(|voter| governance_set.get(voter).unwrap())
+                        .sum(),
+                )
+            })
+            .collect();
+        let mut result = Vec::new();
+        let total_voting_power = governance_set.values().sum::<VotingPower>();
+        for (agenda, voted_power) in votes {
+            if voted_power * 2 > total_voting_power {
+                let proof: Vec<_> = governance_state.votes[&agenda]
+                    .iter()
+                    .map(|(k, s)| TypedSignature::<Agenda>::new(s.clone(), k.clone()))
+                    .collect();
+                result.push((
+                    agenda,
+                    AgendaProof {
+                        height: self.fi.header.height + 1,
+                        agenda_hash: agenda,
+                        proof,
+                        timestamp: get_timestamp(),
+                    },
+                ));
+            }
+        }
+        Ok(result)
     }
 
     pub async fn vote(&mut self, agenda_hash: Hash256) -> Result<(), Error> {
