@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 pub type Error = eyre::Error;
 
+pub use state::ConsensusMessage;
 pub use vetomint::ConsensusParams;
 
 const STATE_FILE_NAME: &str = "state.json";
@@ -138,6 +139,10 @@ impl Consensus {
         state.veto_round(round, timestamp);
         self.commit_state(&state).await?;
         Ok(())
+    }
+
+    pub fn get_dms(&self) -> Arc<RwLock<Dms<ConsensusMessage>>> {
+        Arc::clone(&self.dms)
     }
 
     pub async fn flush(&mut self) -> Result<(), Error> {
