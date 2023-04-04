@@ -1,0 +1,25 @@
+[package]
+name = "simperby"
+version = "0.0.0"
+authors = ["PDAO Team <hello@postech-dao.xyz>"]
+edition = "2021"
+
+[dependencies]
+eyre = "0.6.8"
+async-trait = "0.1.42"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+futures = "0.3"
+log = "0.4"
+simperby-core = { version = "0.1.0", path = "../core" }
+simperby-network = { version = "0.1.0", path = "../network" }
+simperby-governance = { version = "0.1.0", path = "../governance" }
+simperby-consensus = { version = "0.1.0", path = "../consensus" }
+simperby-repository = { version = "0.1.0", path = "../repository" }
+thiserror = "1.0.32"
+semver = "1.0.0"
+
+[dev-dependencies]
+rand = "0.8.5"
+simperby-test-suite = { path = "../test-suite" }
