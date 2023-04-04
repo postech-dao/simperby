@@ -10,21 +10,27 @@ async fn basic_1() {
     setup_test();
 
     let network_id = "governance-basic-1".to_string();
-    let ((server_network_config, server_private_key), client_network_configs_and_keys, members) =
+    let ((server_network_config, server_private_key), client_network_configs_and_keys, members, fi) =
         setup_server_client_nodes(network_id.clone(), 3).await;
 
-    let mut server_node = Governance::new(Arc::new(RwLock::new(
-        create_test_dms(network_id.clone(), members.clone(), server_private_key).await,
-    )))
+    let mut server_node = Governance::new(
+        Arc::new(RwLock::new(
+            create_test_dms(network_id.clone(), members.clone(), server_private_key).await,
+        )),
+        fi.clone(),
+    )
     .await
     .unwrap();
 
     let mut client_nodes = Vec::new();
     for (network_config, private_key) in client_network_configs_and_keys.iter() {
         client_nodes.push((
-            Governance::new(Arc::new(RwLock::new(
-                create_test_dms(network_id.clone(), members.clone(), private_key.clone()).await,
-            )))
+            Governance::new(
+                Arc::new(RwLock::new(
+                    create_test_dms(network_id.clone(), members.clone(), private_key.clone()).await,
+                )),
+                fi.clone(),
+            )
             .await
             .unwrap(),
             network_config,
@@ -35,7 +41,7 @@ async fn basic_1() {
     server_node.vote(agenda_hash).await.unwrap();
 
     let serve_task = tokio::spawn(async move {
-        let task = tokio::spawn(dms::serve(server_node.get_dms(), server_network_config));
+        let task = tokio::spawn(Dms::serve(server_node.get_dms(), server_network_config));
         sleep_ms(5000).await;
         task.abort();
         let _ = task.await;
