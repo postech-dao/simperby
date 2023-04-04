@@ -1,8 +1,14 @@
 [package]
 name = "simperby-network"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
+license = "MIT"
+description = "Simperby network module"
+repository = "https://github.com/postech-dao/simperby"
+keywords = ["blockchain", "consensus", "protocol", "crypto", "network"]
+categories = ["cryptography", "finance"]
+include = ["src/**/*.rs"]
 
 [dependencies]
 eyre = "0.6.8"
@@ -14,7 +20,7 @@ chrono = { version = "0.4", features = ["serde"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 futures = "0.3"
 log = "0.4"
-simperby-core = { version = "0.0.0", path = "../core" }
+simperby-core = { version = "0.1.0", path = "../core" }
 # libp2p = { version = "0.50.0", features = ["tcp", "tokio", "yamux", "noise", "kad", "identify", "macros"], optional = true }
 thiserror = "1.0"
 serde-tc = "0.4.1"
