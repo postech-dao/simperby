@@ -7,5 +7,6 @@ members = [
     "repository",
     "consensus",
     "governance",
-    "settlement"
+    "settlement",
+    "simperby"
 ]
