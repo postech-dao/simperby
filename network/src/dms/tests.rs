@@ -110,7 +110,7 @@ async fn run_client_node(
     let dms_ = Arc::clone(&dms);
     let network_config_ = network_config.clone();
     let sync_task = tokio::spawn(async move {
-        sync(dms_, fetch_interval, broadcast_interval, network_config_)
+        Dms::sync(dms_, fetch_interval, broadcast_interval, network_config_)
             .await
             .unwrap();
     });
@@ -167,7 +167,7 @@ async fn multi_1() {
         ));
         client_dmses.push(dms);
     }
-    tokio::spawn(serve(Arc::clone(&server_dms), server_network_config));
+    tokio::spawn(Dms::serve(Arc::clone(&server_dms), server_network_config));
     join_all(tasks).await;
 
     for dms in client_dmses {
