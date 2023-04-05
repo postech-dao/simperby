@@ -301,6 +301,7 @@ impl RawRepositoryInner {
                 for path in paths {
                     index.add_path(std::path::Path::new(path))?;
                 }
+                index.write()?;
                 let id = index.write_tree()?;
                 self.repo.find_tree(id)?
             } else {
@@ -334,6 +335,7 @@ impl RawRepositoryInner {
         // Add all files to the index.
         let mut index = self.repo.index()?;
         index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+        index.write()?;
         let id = index.write_tree()?;
         let tree = self.repo.find_tree(id)?;
         let head = self.get_head()?;
