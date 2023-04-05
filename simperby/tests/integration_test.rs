@@ -49,6 +49,25 @@ async fn sync_each_other(clients: &mut [Client]) {
     sleep_ms(200).await;
 }
 
+fn build_simple_git_server() -> String {
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("build");
+    cmd.arg("--bin");
+    cmd.arg("simple_git_server");
+    cmd.arg("--release");
+    cmd.current_dir(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../repository/src/bin"
+    ));
+    let output = cmd.output().unwrap();
+    assert!(output.status.success());
+
+    format!(
+        "{}/../target/release/simple_git_server",
+        env!("CARGO_MANIFEST_DIR").replace('\\', "/")
+    )
+}
+
 #[tokio::test]
 async fn normal_1() {
     setup_test();
@@ -104,7 +123,9 @@ async fn normal_1() {
         let task = client
             .serve(
                 server_config,
-                simperby_repository::server::PushVerifier::AlwaysAccept,
+                simperby_repository::server::PushVerifier::VerifierExecutable(
+                    build_simple_git_server(),
+                ),
             )
             .await
             .unwrap();
