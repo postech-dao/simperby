@@ -198,11 +198,13 @@ pub async fn create_block(
     let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
 
     raw.checkout_clean().await?;
+    raw.checkout_detach(head).await?;
     let result = raw.create_semantic_commit(semantic_commit).await?;
     let mut block_branch_name = block_commit.to_hash256().to_string();
     block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
     let block_branch_name = format!("b-{block_branch_name}");
-    raw.create_branch(block_branch_name, result).await?;
+    raw.create_branch(block_branch_name.clone(), result).await?;
+    raw.checkout(block_branch_name).await?;
     Ok((block_header, result))
 }
 
