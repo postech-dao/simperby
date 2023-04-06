@@ -7,6 +7,22 @@ pub async fn approve(
     proof: Vec<TypedSignature<Agenda>>,
     timestamp: Timestamp,
 ) -> Result<CommitHash, Error> {
+    let approved_agendas = read::read_governance_approved_agendas(raw).await?;
+
+    for (commit_hash, _) in approved_agendas {
+        if let Commit::AgendaProof(agenda_proof) = read::read_commit(raw, commit_hash).await? {
+            if agenda_proof.agenda_hash == *agenda_hash {
+                // already approved
+                return Ok(commit_hash);
+            }
+        } else {
+            return Err(eyre!(IntegrityError::new(format!(
+                "commit {} is not an agenda proof",
+                commit_hash
+            ))));
+        }
+    }
+
     // Check if the agenda branch is rebased on top of the `finalized` branch.
     let last_header_commit = raw.locate_branch(FINALIZED_BRANCH_NAME.into()).await?;
     let agenda_branch_name = format!("a-{}", &agenda_hash.to_string()[0..BRANCH_NAME_HASH_DIGITS]);
