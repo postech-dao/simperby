@@ -72,7 +72,7 @@ fn build_simple_git_server() -> String {
 async fn normal_1() {
     setup_test();
     let (fi, keys) = test_utils::generate_fi(4);
-    let (peers, server_config) = setup_network(&fi, keys[0].0.clone());
+    let (peers, server_config) = setup_network(&fi, keys[3].0.clone());
 
     // Setup repository and server
     let server_dir = create_temp_dir();
