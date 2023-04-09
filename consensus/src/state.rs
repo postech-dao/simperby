@@ -1,4 +1,4 @@
-use super::ProgressResult;
+use super::*;
 use eyre::eyre;
 use serde::{Deserialize, Serialize};
 use simperby_core::*;
@@ -108,7 +108,7 @@ pub struct State {
     precommits: BTreeMap<(Hash256, ConsensusRound), Vec<TypedSignature<FinalizationSignTarget>>>,
     /// If `Some`, any operation on the consensus module will fail;
     /// the user must run `new()` with the next height info.
-    finalized: Option<FinalizationProof>,
+    finalized: Option<Finalization>,
 }
 
 impl State {
@@ -139,7 +139,7 @@ impl State {
         Ok(state)
     }
 
-    pub fn check_finalized(&self) -> Option<FinalizationProof> {
+    pub fn check_finalized(&self) -> Option<Finalization> {
         self.finalized.clone()
     }
 
@@ -279,7 +279,7 @@ impl State {
     }
 
     fn process_consensus_response_to_progress_result(
-        &self,
+        &mut self,
         response: ConsensusResponse,
         timestamp: Timestamp,
     ) -> (ProgressResult, Option<ConsensusMessage>) {
@@ -345,14 +345,13 @@ impl State {
                     .get(&(block_hash, round))
                     .cloned()
                     .expect("there must be valid precommits for the finalized block");
-                (
-                    ProgressResult::Finalized(
-                        block_hash,
-                        timestamp,
-                        FinalizationProof { round, signatures },
-                    ),
-                    None,
-                )
+                let finalization = Finalization {
+                    block_hash,
+                    timestamp,
+                    proof: FinalizationProof { round, signatures },
+                };
+                self.finalized = Some(finalization.clone());
+                (ProgressResult::Finalized(finalization), None)
             }
             ConsensusResponse::ViolationReport {
                 violator,

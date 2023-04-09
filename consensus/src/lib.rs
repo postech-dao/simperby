@@ -24,8 +24,15 @@ pub enum ProgressResult {
     NonNilPreCommitted(ConsensusRound, Hash256, Timestamp),
     NilPreVoted(ConsensusRound, Timestamp),
     NilPreCommitted(ConsensusRound, Timestamp),
-    Finalized(Hash256, Timestamp, FinalizationProof),
+    Finalized(Finalization),
     ViolationReported(PublicKey, String, Timestamp),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Finalization {
+    pub block_hash: Hash256,
+    pub timestamp: Timestamp,
+    pub proof: FinalizationProof,
 }
 
 /// The consensus module
@@ -92,7 +99,7 @@ impl Consensus {
     }
 
     /// Checks whether the consensus is finalized.
-    pub async fn check_finalized(&self) -> Result<Option<FinalizationProof>, Error> {
+    pub async fn check_finalized(&self) -> Result<Option<Finalization>, Error> {
         let state = self.read_state().await?;
         Ok(state.check_finalized())
     }
