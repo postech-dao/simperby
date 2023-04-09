@@ -178,13 +178,15 @@ impl Consensus {
 impl Consensus {
     async fn read_state(&self) -> Result<State, Error> {
         let raw_state = self.state_storage.read_file(STATE_FILE_NAME).await?;
-        let state: State = serde_spb::from_str(&raw_state)?;
+        let state: State = serde_spb::from_slice(&hex::decode(raw_state)?)?;
         Ok(state)
     }
 
     async fn commit_state(&mut self, state: &State) -> Result<(), Error> {
+        // We can't use json because of a non-string map
+        let data = hex::encode(serde_spb::to_vec(state).unwrap());
         self.state_storage
-            .add_or_overwrite_file(STATE_FILE_NAME, serde_spb::to_string(state).unwrap())
+            .add_or_overwrite_file(STATE_FILE_NAME, data)
             .await
             .map_err(|_| eyre!("failed to commit consensus state to the storage"))
     }
