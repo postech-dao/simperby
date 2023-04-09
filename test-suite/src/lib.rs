@@ -104,7 +104,7 @@ pub async fn setup_server_client_nodes(
     FinalizationInfo,
 ) {
     let (fi, keys) = simperby_core::test_utils::generate_fi(client_n);
-    let (_, server_private_key) = generate_keypair_random();
+    let (_, server_private_key) = keys.last().unwrap().clone();
     let server = ServerNetworkConfig {
         port: dispense_port(),
     };
