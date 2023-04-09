@@ -90,13 +90,16 @@ impl Client {
         let result = self.consensus.progress(get_timestamp()).await?;
         let report = format!("{result:?}");
         for result in result {
-            if let ProgressResult::Finalized(hash, _, proof) = result {
+            if let ProgressResult::Finalized(Finalization {
+                block_hash, proof, ..
+            }) = result
+            {
                 let commit_hash = self
                     .repository
                     .read_blocks()
                     .await?
                     .iter()
-                    .find(|(_, h)| *h == hash)
+                    .find(|(_, h)| *h == block_hash)
                     .ok_or_else(|| eyre::eyre!("finalized block can't be found in repository"))?
                     .0;
                 self.repository.finalize(commit_hash, proof).await?;
