@@ -128,7 +128,7 @@ impl State {
             vetomint: Vetomint::new(height_info),
             block_header: block_header.clone(),
             block_identifier_count: 0,
-            to_be_processed_events: Vec::new(),
+            to_be_processed_events: vec![(ConsensusEvent::Start, round_zero_timestamp)],
             updated_events: BTreeSet::new(),
             verified_block_hashes: BTreeMap::new(),
             vetoed_block_hashes: BTreeSet::new(),
