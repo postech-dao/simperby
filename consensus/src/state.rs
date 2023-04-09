@@ -208,7 +208,8 @@ impl State {
             if let ConsensusMessage::NonNilPreCommitted(round, block_hash) = message {
                 self.precommits
                     .entry((block_hash, round))
-                    .and_modify(|v| v.push(TypedSignature::new(signature, author)));
+                    .and_modify(|v| v.push(TypedSignature::new(signature.clone(), author.clone())))
+                    .or_insert(vec![TypedSignature::new(signature, author)]);
             }
         }
     }
