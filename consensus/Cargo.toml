@@ -22,6 +22,7 @@ simperby-core = { version = "0.1.0", path = "../core" }
 simperby-network = { version = "0.1.0", path = "../network" }
 vetomint = { version = "0.1.0", path = "../vetomint" }
 parking_lot = "0.12.1"
+hex = "0.4.3"
 
 [dev-dependencies]
 simperby-test-suite = { version = "0.1.0", path = "../test-suite" }
