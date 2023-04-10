@@ -15,14 +15,19 @@ use tokio::sync::RwLock;
 
 pub use crate::types::*;
 
-/// An instance of Simperby client (a.k.a. a 'node').
-pub struct Client {
+/// A client for a single height.
+struct ClientInner {
     config: types::Config,
     auth: Auth,
     path: String,
     repository: DistributedRepository,
     governance: Governance,
     consensus: Consensus,
+}
+
+/// An instance of Simperby client (a.k.a. a 'node').
+pub struct Client {
+    inner: Option<ClientInner>,
 }
 
 impl Client {
@@ -43,32 +48,35 @@ impl Client {
         let lfi = repository.read_last_finalization_info().await?;
 
         Ok(Self {
-            config,
-            auth: auth.clone(),
-            path: path.to_string(),
-            repository,
-            governance: Governance::new(Arc::new(RwLock::new(governance_dms)), lfi.clone()).await?,
-            consensus: Consensus::new(
-                Arc::new(RwLock::new(consensus_dms)),
-                consensus_state,
-                lfi.header,
-                ConsensusParams {
-                    timeout_ms: 10000000,
-                    repeat_round_for_first_leader: 100,
-                },
-                get_timestamp(),
-                Some(auth.private_key),
-            )
-            .await?,
+            inner: Some(ClientInner {
+                config,
+                auth: auth.clone(),
+                path: path.to_string(),
+                repository,
+                governance: Governance::new(Arc::new(RwLock::new(governance_dms)), lfi.clone())
+                    .await?,
+                consensus: Consensus::new(
+                    Arc::new(RwLock::new(consensus_dms)),
+                    consensus_state,
+                    lfi.header,
+                    ConsensusParams {
+                        timeout_ms: 10000000,
+                        repeat_round_for_first_leader: 100,
+                    },
+                    get_timestamp(),
+                    Some(auth.private_key),
+                )
+                .await?,
+            }),
         })
     }
 
     pub fn config(&self) -> &types::Config {
-        &self.config
+        &self.inner.as_ref().unwrap().config
     }
 
     pub fn auth(&self) -> &Auth {
-        &self.auth
+        &self.inner.as_ref().unwrap().auth
     }
 
     pub async fn clean(&mut self, _hard: bool) -> Result<()> {
@@ -76,25 +84,26 @@ impl Client {
     }
 
     pub fn repository(&self) -> &DistributedRepository {
-        &self.repository
+        &self.inner.as_ref().unwrap().repository
     }
 
     pub fn repository_mut(&mut self) -> &mut DistributedRepository {
-        &mut self.repository
+        &mut self.inner.as_mut().unwrap().repository
     }
 
     /// Makes a progress for the consensus, returning the result.
     ///
     /// TODO: it has to consume the object if finalized.
     pub async fn progress_for_consensus(&mut self) -> Result<String> {
-        let result = self.consensus.progress(get_timestamp()).await?;
+        let mut this = self.inner.take().unwrap();
+        let result = this.consensus.progress(get_timestamp()).await?;
         let report = format!("{result:?}");
         for result in result {
             if let ProgressResult::Finalized(Finalization {
                 block_hash, proof, ..
             }) = result
             {
-                let commit_hash = self
+                let commit_hash = this
                     .repository
                     .read_blocks()
                     .await?
@@ -102,14 +111,22 @@ impl Client {
                     .find(|(_, h)| *h == block_hash)
                     .ok_or_else(|| eyre::eyre!("finalized block can't be found in repository"))?
                     .0;
-                self.repository.finalize(commit_hash, proof).await?;
+                this.repository.finalize(commit_hash, proof).await?;
+                let path = this.path.clone();
+                let config = this.config.clone();
+                let auth = this.auth.clone();
+                drop(this);
+                self.inner = Some(Self::open(&path, config, auth).await?.inner.unwrap());
+                return Ok(report);
             }
         }
+        self.inner = Some(this);
         Ok(report)
     }
 
     pub async fn vote(&mut self, agenda_commit: CommitHash) -> Result<()> {
-        let agendas = self.repository.read_agendas().await?;
+        let this = self.inner.as_mut().unwrap();
+        let agendas = this.repository.read_agendas().await?;
         let agenda_hash = if let Some(x) = agendas.iter().find(|(x, _)| *x == agenda_commit) {
             x.1
         } else {
@@ -118,8 +135,8 @@ impl Client {
                 agenda_commit
             ));
         };
-        self.repository.vote(agenda_commit).await?;
-        self.governance.vote(agenda_hash).await?;
+        this.repository.vote(agenda_commit).await?;
+        this.governance.vote(agenda_hash).await?;
         Ok(())
     }
 
@@ -140,14 +157,15 @@ impl Client {
 
     /// Add remote repositories according to current peer information
     pub async fn add_remote_repositories(&mut self) -> Result<()> {
-        for peer in &self.config.peers {
+        let this = self.inner.as_mut().unwrap();
+        for peer in &this.config.peers {
             let port = if let Some(p) = peer.ports.get("repository") {
                 p
             } else {
                 continue;
             };
             let url = format!("git://{}:{port}/", peer.address.ip());
-            self.repository
+            this.repository
                 .get_raw()
                 .write()
                 .await
@@ -162,26 +180,21 @@ impl Client {
         config: ServerConfig,
         git_hook_verifier: simperby_repository::server::PushVerifier,
     ) -> Result<tokio::task::JoinHandle<Result<()>>> {
+        let this = self.inner.unwrap();
         let network_config = ServerNetworkConfig {
             port: config.governance_port,
         };
-        let t1 = async move {
-            Dms::serve(self.governance.get_dms(), network_config)
-                .await
-                .unwrap()
-        };
+        let dms = this.governance.get_dms();
+        let t1 = async move { Dms::serve(dms, network_config).await.unwrap() };
 
         let network_config = ServerNetworkConfig {
             port: config.consensus_port,
         };
-        let t2 = async move {
-            Dms::serve(self.consensus.get_dms(), network_config)
-                .await
-                .unwrap()
-        };
+        let dms = this.consensus.get_dms();
+        let t2 = async move { Dms::serve(dms, network_config).await.unwrap() };
         let t3 = async move {
             let _server = simperby_repository::server::run_server(
-                &self.path,
+                &this.path,
                 config.repository_port,
                 git_hook_verifier,
             )
@@ -196,26 +209,27 @@ impl Client {
     }
 
     pub async fn update(&mut self) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
         let network_config = ClientNetworkConfig {
-            peers: self.config.peers.clone(),
+            peers: this.config.peers.clone(),
         };
-        Dms::fetch(self.governance.get_dms(), &network_config).await?;
-        Dms::fetch(self.consensus.get_dms(), &network_config).await?;
-        self.repository.get_raw().write().await.fetch_all().await?;
-        self.repository.sync_all().await?;
+        Dms::fetch(this.governance.get_dms(), &network_config).await?;
+        Dms::fetch(this.consensus.get_dms(), &network_config).await?;
+        this.repository.get_raw().write().await.fetch_all().await?;
+        this.repository.sync_all().await?;
 
         // Update governance
-        self.governance.update().await?;
-        for (agenda_hash, agenda_proof) in self.governance.get_eligible_agendas().await? {
-            self.repository
+        this.governance.update().await?;
+        for (agenda_hash, agenda_proof) in this.governance.get_eligible_agendas().await? {
+            this.repository
                 .approve(&agenda_hash, agenda_proof.proof, get_timestamp())
                 .await?;
         }
 
         // Update consensus
-        self.consensus.update().await?;
-        for (_, block_hash) in self.repository.read_blocks().await? {
-            self.consensus
+        this.consensus.update().await?;
+        for (_, block_hash) in this.repository.read_blocks().await? {
+            this.consensus
                 .register_verified_block_hash(block_hash)
                 .await?;
         }
@@ -223,14 +237,15 @@ impl Client {
     }
 
     pub async fn broadcast(&mut self) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
         let network_config = ClientNetworkConfig {
-            peers: self.config.peers.clone(),
+            peers: this.config.peers.clone(),
         };
-        self.governance.flush().await?;
-        Dms::broadcast(self.governance.get_dms(), &network_config).await?;
-        self.consensus.flush().await?;
-        Dms::broadcast(self.consensus.get_dms(), &network_config).await?;
-        self.repository.broadcast().await?;
+        this.governance.flush().await?;
+        Dms::broadcast(this.governance.get_dms(), &network_config).await?;
+        this.consensus.flush().await?;
+        Dms::broadcast(this.consensus.get_dms(), &network_config).await?;
+        this.repository.broadcast().await?;
         Ok(())
     }
 }
