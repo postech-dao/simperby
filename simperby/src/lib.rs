@@ -116,6 +116,8 @@ impl Client {
                 let config = this.config.clone();
                 let auth = this.auth.clone();
                 drop(this);
+                storage::clear(&path).await?;
+                storage::init(&path, config.clone()).await?;
                 self.inner = Some(Self::open(&path, config, auth).await?.inner.unwrap());
                 return Ok(report);
             }
