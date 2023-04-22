@@ -84,3 +84,10 @@ pub(crate) async fn open(
     let consensus_state = StorageImpl::open(&consensus_state_path(path)).await?;
     Ok((governance_dms, consensus_dms, consensus_state, repository))
 }
+
+pub(crate) async fn clear(path: &str) -> Result<()> {
+    let _ = tokio::fs::remove_dir_all(&governance_dms_path(path)).await;
+    let _ = tokio::fs::remove_dir_all(&consensus_dms_path(path)).await;
+    let _ = tokio::fs::remove_dir_all(&consensus_state_path(path)).await;
+    Ok(())
+}
