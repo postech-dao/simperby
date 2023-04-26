@@ -409,9 +409,8 @@ of non-nil-votes no matter the individual arrival order of the votes, even with
 the possible 1/6 nil-votes. Note that the 'arrival order' matters, unlike
 Tendermint, because we have a new 'early termination' condition.
 
-Details are explained in issue
-[#4](https://github.com/postech-dao/simperby/issues/4) and the pseudo-code is
-[here](./vetomint-spec.pdf)
+Details are explained in the [official reference](./vetomint.md) and the
+pseudo-code is [here](./vetomint-spec.pdf)
 
 One can easily prove that it is formally safe and live, after some trivial
 reduction to the original Tendermint.
