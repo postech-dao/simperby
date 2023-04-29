@@ -8,7 +8,6 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
     ) -> Result<(), Error> {
         let rpc_task = async move {
             let wrapped_dms = Arc::new(parking_lot::RwLock::new(Some(dms)));
-            let wrapped_dms_ = Arc::clone(&wrapped_dms);
             struct DropHelper<T> {
                 wrapped_dms: Arc<parking_lot::RwLock<Option<Arc<RwLock<T>>>>>,
             }
@@ -17,12 +16,14 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
                     self.wrapped_dms.write().take().unwrap();
                 }
             }
-            let _drop_helper = DropHelper { wrapped_dms };
+            let _drop_helper = DropHelper {
+                wrapped_dms: Arc::clone(&wrapped_dms),
+            };
             run_server(
                 network_config.port,
                 [(
                     "dms".to_owned(),
-                    create_http_object(Arc::new(DmsWrapper { dms: wrapped_dms_ })
+                    create_http_object(Arc::new(DmsWrapper { dms: wrapped_dms })
                         as Arc<dyn DistributedMessageSetRpcInterface>),
                 )]
                 .iter()
