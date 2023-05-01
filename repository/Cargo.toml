@@ -1,6 +1,6 @@
 [package]
 name = "simperby-repository"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
 license = "MIT"
@@ -8,7 +8,7 @@ description = "Simperby repository module"
 repository = "https://github.com/postech-dao/simperby"
 keywords = ["blockchain", "consensus", "protocol", "crypto", "network"]
 categories = ["cryptography", "finance"]
-include = ["src/**/*.rs"]
+include = ["src/**/*.rs", "**/*.sh"]
 
 [dependencies]
 eyre = "0.6.8"

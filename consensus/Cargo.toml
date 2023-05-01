@@ -1,6 +1,6 @@
 [package]
 name = "simperby-consensus"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
 license = "MIT"
@@ -25,5 +25,5 @@ parking_lot = "0.12.1"
 hex = "0.4.3"
 
 [dev-dependencies]
-simperby-test-suite = { version = "0.1.0", path = "../test-suite" }
+simperby-test-suite = { path = "../test-suite" }
 itertools = "0.10.5"
