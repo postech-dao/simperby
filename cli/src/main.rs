@@ -1,10 +1,11 @@
 use clap::Parser;
-use eyre::{eyre, Result};
-use simperby_cli::cli::{self, *};
-use simperby_core::utils::get_timestamp;
-use simperby_node::{clone, genesis, initialize, serve, simperby_core::*, CommitInfo, Config};
+use simperby::types::*;
+use simperby_cli::cli::{self};
+use simperby_core::*;
 
-async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
+async fn run(_args: cli::Cli, _path: String, _config: Config) -> eyre::Result<()> {
+    todo!();
+    #[cfg(never)]
     match args.command {
         Commands::Genesis => {
             genesis(config, &path).await?;
@@ -199,7 +200,6 @@ async fn run(args: cli::Cli, path: String, config: Config) -> eyre::Result<()> {
             }
         }
     }
-    Ok(())
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -216,7 +216,7 @@ async fn main() -> eyre::Result<()> {
         serde_spb::from_str(&tokio::fs::read_to_string(&format!("{path}/config.json")).await?)?;
 
     if let Err(e) = run(args, path, config).await {
-        if let Ok(_err) = e.downcast::<simperby_node::simperby_repository::IntegrityError>() {
+        if let Ok(_err) = e.downcast::<simperby::simperby_repository::IntegrityError>() {
             // TODO: perform some special handling?
         }
     }
@@ -231,6 +231,7 @@ async fn main() -> eyre::Result<()> {
 /// For an agenda, show the governance status.
 /// For a block, show the consensus status projected on this block.
 /// For an extra-agenda transaction and a chat log, TODO.
+#[cfg(never)]
 async fn show(config: Config, path: &str, revision_selection: String) -> Result<()> {
     let node = simperby_node::initialize(config, path).await?;
     let commit_hash = node
