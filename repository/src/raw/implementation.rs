@@ -909,7 +909,7 @@ impl RawRepositoryInner {
         self.repo.remote_delete(&remote_name).map_err(Error::from)
     }
 
-    pub(crate) fn fetch_all(&mut self) -> Result<(), Error> {
+    pub(crate) fn fetch_all(&mut self, prune: bool) -> Result<(), Error> {
         let remotes = self.repo.remotes()?;
         let remotes = remotes
             .iter()
@@ -921,9 +921,15 @@ impl RawRepositoryInner {
             })
             .collect::<Result<Vec<&str>, Error>>()?;
 
+        let mut fetch_options = git2::FetchOptions::new();
+        fetch_options.prune(git2::FetchPrune::On);
         for name in remotes {
             let mut remote = self.repo.find_remote(name)?;
-            remote.fetch(&[] as &[&str], None, None)?;
+            if prune {
+                remote.fetch(&[] as &[&str], Some(&mut fetch_options), None)?;
+            } else {
+                remote.fetch(&[] as &[&str], None, None)?;
+            }
         }
         Ok(())
     }

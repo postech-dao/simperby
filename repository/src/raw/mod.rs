@@ -423,8 +423,8 @@ impl RawRepository {
     }
 
     /// Fetches the remote repository. Same as `git fetch --all -j <LARGE NUMBER>`.
-    pub async fn fetch_all(&mut self) -> Result<(), Error> {
-        helper_0_mut(self, RawRepositoryInner::fetch_all).await
+    pub async fn fetch_all(&mut self, prune: bool) -> Result<(), Error> {
+        helper_1_mut(self, RawRepositoryInner::fetch_all, prune).await
     }
 
     /// Pushes to the remote repository with the push option.
