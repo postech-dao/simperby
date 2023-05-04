@@ -132,12 +132,46 @@ pub async fn sync(
             .0
         {
             Commit::Agenda(agenda) => {
+                let approved_agendas = read::read_governance_approved_agendas(raw).await?;
+
+                for (commit_hash, _) in approved_agendas {
+                    if let Commit::AgendaProof(agenda_proof) =
+                        read::read_commit(raw, commit_hash).await?
+                    {
+                        if agenda_proof.agenda_hash == agenda.to_hash256() {
+                            return Ok(Err("agenda proof already exists.".to_owned()));
+                        }
+                    } else {
+                        return Err(eyre!(IntegrityError::new(format!(
+                            "commit {} is not an agenda proof",
+                            commit_hash
+                        ))));
+                    }
+                }
+
                 format!(
                     "a-{}",
                     &agenda.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
                 )
             }
             Commit::AgendaProof(agenda_proof) => {
+                let agenda_name = match &commits[commits.len() - 2].0 {
+                    Commit::Agenda(agenda) => {
+                        format!(
+                            "a-{}",
+                            &agenda.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+                        )
+                    }
+                    _ => {
+                        return Err(eyre!(IntegrityError::new(
+                            "agenda proof's parent is not an agenda".to_string()
+                        )))
+                    }
+                };
+                if raw.locate_branch(agenda_name.clone()).await.is_ok() {
+                    raw.delete_branch(agenda_name).await?;
+                }
+
                 format!(
                     "a-{}",
                     &agenda_proof.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
