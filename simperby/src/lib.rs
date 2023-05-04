@@ -223,7 +223,12 @@ impl Client {
         };
         Dms::fetch(this.governance.get_dms(), &network_config).await?;
         Dms::fetch(this.consensus.get_dms(), &network_config).await?;
-        this.repository.get_raw().write().await.fetch_all().await?;
+        this.repository
+            .get_raw()
+            .write()
+            .await
+            .fetch_all(true)
+            .await?;
         this.repository.sync_all().await?;
 
         // Update governance
