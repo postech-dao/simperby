@@ -64,6 +64,21 @@ pub enum PushVerifier {
     VerifierExecutable(String),
 }
 
+/// Builds `simple_git_server.rs` and returns the path of the executable.
+pub fn build_simple_git_server() -> String {
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("build");
+    cmd.arg("--bin");
+    cmd.arg("simple_git_server");
+    cmd.arg("--release");
+    let output = cmd.output().unwrap();
+    assert!(output.status.success());
+    format!(
+        "{}/../target/release/simple_git_server",
+        env!("CARGO_MANIFEST_DIR").replace('\\', "/")
+    )
+}
+
 /// Runs a Simperby Git server with a push hook enabled.
 ///
 /// - `path` is the path to the root directory of a Simperby blockchain (not the repository path)

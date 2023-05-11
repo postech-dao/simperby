@@ -233,7 +233,7 @@ impl DistributedRepository {
         todo!()
     }
 
-    pub async fn update(&mut self) -> Result<(), Error> {
+    pub async fn update(&mut self, _no_network: bool) -> Result<(), Error> {
         todo!()
     }
 
