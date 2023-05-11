@@ -159,6 +159,14 @@ impl Client {
     }
 
     /// Shows information about the given commit.
+    ///
+    /// For every type of commit,
+    /// 1. Show the content.
+    /// 2. Show the hash of it.
+    ///
+    /// For an agenda, show the governance status.
+    /// For a block, show the consensus status projected on this block.
+    /// For an extra-agenda transaction and a chat log, TODO.
     pub async fn show(&self, _commit_hash: CommitHash) -> Result<CommitInfo> {
         todo!()
     }

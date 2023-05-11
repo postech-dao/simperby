@@ -59,7 +59,7 @@ pub struct ServerConfig {
     pub fetch_interval_ms: Option<u64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Auth {
     pub private_key: PrivateKey,
 }
