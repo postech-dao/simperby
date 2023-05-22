@@ -21,7 +21,8 @@ trustless interoperability.
 
 ### Summary
 
-- **READ THIS FIRST:** [Simperby Super Simple Summary](docs/ssss.md)
+- **READ THIS FIRST (developers):** [Simperby Super Simple Summary](docs/ssss.md)
+- **READ THIS FIRST (business):** [Simperby Business Deck](https://docs.google.com/presentation/d/1ahlUIhArbAoeqPamxgFvmQUEBFOIWzwIWIsY95AGn6Y/edit?usp=sharing)
 
 ### Introduction
 
