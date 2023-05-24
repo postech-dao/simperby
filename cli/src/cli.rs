@@ -174,7 +174,7 @@ pub enum Commands {
         ///
         /// "Local updates" means changes (new commits) that have been manually created or git-fetched by the user.
         #[clap(long, action)]
-        no_network: bool,
+        _no_network: bool,
     },
     /// Broadcast relevant data to the p2p network.
     ///

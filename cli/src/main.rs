@@ -244,8 +244,8 @@ async fn run(
                         Err(eyre!("server config is not provided"))
                     }
                 }
-                Commands::Update { no_network } => client.repository_mut().update(no_network).await,
-                Commands::Broadcast => client.repository_mut().broadcast().await,
+                Commands::Update { _no_network } => client.update().await,
+                Commands::Broadcast => client.broadcast().await,
                 _ => unimplemented!("not implemented yet"),
             }
         }
