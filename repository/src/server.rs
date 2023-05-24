@@ -71,6 +71,7 @@ pub fn build_simple_git_server() -> String {
     cmd.arg("--bin");
     cmd.arg("simple_git_server");
     cmd.arg("--release");
+    cmd.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bin"));
     let output = cmd.output().unwrap();
     assert!(output.status.success());
     format!(
