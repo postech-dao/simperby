@@ -168,7 +168,8 @@ async fn run(
                     let reserved_state = client
                         .repository()
                         .get_raw()
-                        .blocking_read()
+                        .read()
+                        .await
                         .read_reserved_state()
                         .await?;
                     let name = reserved_state
@@ -187,7 +188,8 @@ async fn run(
                     let commit_hash = client
                         .repository()
                         .get_raw()
-                        .blocking_read()
+                        .read()
+                        .await
                         .retrieve_commit_hash(revision)
                         .await?;
                     client
@@ -202,7 +204,8 @@ async fn run(
                         let commit_hash = client
                             .repository()
                             .get_raw()
-                            .blocking_read()
+                            .read()
+                            .await
                             .retrieve_commit_hash(revision.expect("revision is not none"))
                             .await?;
                         client.veto_block(commit_hash).await
@@ -225,7 +228,8 @@ async fn run(
                     let commit_hash = client
                         .repository()
                         .get_raw()
-                        .blocking_read()
+                        .read()
+                        .await
                         .retrieve_commit_hash(revision)
                         .await?;
                     println!("{:?}", client.show(commit_hash).await?);
