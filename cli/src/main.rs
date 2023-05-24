@@ -17,11 +17,11 @@ async fn run(
 ) -> eyre::Result<()> {
     match args.command {
         Commands::Genesis => Client::genesis(&path).await,
-        Commands::Init => Client::init(&path, config).await,
+        Commands::Init => Client::init(&path).await,
         Commands::Clone { url } => {
             RawRepository::clone(&path, &url).await?;
             std::env::set_current_dir(path.clone())?;
-            Client::init(&path, config).await
+            Client::init(&path).await
         }
         Commands::Network => todo!("network is not implemented yet"),
         Commands::Chat { .. } => todo!("chat is not implemented yet"),
