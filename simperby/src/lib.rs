@@ -43,8 +43,8 @@ impl Client {
         Ok(())
     }
 
-    pub async fn init(path: &str, config: types::Config) -> Result<()> {
-        storage::init(path, config).await?;
+    pub async fn init(path: &str) -> Result<()> {
+        storage::init(path).await?;
         Ok(())
     }
 
@@ -123,7 +123,7 @@ impl Client {
                 let auth = this.auth.clone();
                 drop(this);
                 storage::clear(&path).await?;
-                storage::init(&path, config.clone()).await?;
+                storage::init(&path).await?;
                 self.inner = Some(Self::open(&path, config, auth).await?.inner.unwrap());
                 return Ok(report);
             }

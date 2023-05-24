@@ -78,9 +78,7 @@ async fn normal_1() {
     let server_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_dir, fi.reserved_state.clone()).await;
     Client::genesis(&server_dir).await.unwrap();
-    Client::init(&server_dir, Config { peers: Vec::new() })
-        .await
-        .unwrap();
+    Client::init(&server_dir).await.unwrap();
     // Add push configs to server repository.
     run_command(format!(
         "cd {server_dir} && git config receive.advertisePushOptions true"

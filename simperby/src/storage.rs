@@ -12,7 +12,7 @@ fn consensus_state_path(path: &str) -> String {
     format!("{path}/.simperby/consensus/state")
 }
 
-pub(crate) async fn init(path: &str, _config: types::Config) -> Result<()> {
+pub(crate) async fn init(path: &str) -> Result<()> {
     let mut repository = DistributedRepository::new(
         Arc::new(RwLock::new(RawRepository::open(path).await?)),
         simperby_repository::Config {
