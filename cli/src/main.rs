@@ -8,6 +8,11 @@ use simperby_repository::{
     server::{build_simple_git_server, PushVerifier},
 };
 
+async fn read_config<T: serde::de::DeserializeOwned>(path: &str) -> Option<T> {
+    let content = tokio::fs::read_to_string(path).await.ok()?;
+    serde_spb::from_str(&content).ok()
+}
+
 async fn run(
     args: cli::Cli,
     path: String,
@@ -285,26 +290,10 @@ async fn main() -> eyre::Result<()> {
 
     let args = cli::Cli::parse();
     let path = args.path.display().to_string();
-
-    let config = tokio::fs::read_to_string(&format!("{path}/.simperby/config.json")).await;
-    let config: Option<Config> = if config.is_ok() {
-        serde_spb::from_str(&config?).ok()
-    } else {
-        None
-    };
-    let auth = tokio::fs::read_to_string(&format!("{path}/.simperby/auth.json")).await;
-    let auth: Option<Auth> = if auth.is_ok() {
-        serde_spb::from_str(&auth?).ok()
-    } else {
-        None
-    };
-    let server_config =
-        tokio::fs::read_to_string(&format!("{path}/.simperby/server_config.json")).await;
-    let server_config: Option<ServerConfig> = if server_config.is_ok() {
-        serde_spb::from_str(&server_config?).ok()
-    } else {
-        None
-    };
+    let config: Option<Config> = read_config(&format!("{path}/.simperby/config.json")).await;
+    let auth: Option<Auth> = read_config(&format!("{path}/.simperby/auth.json")).await;
+    let server_config: Option<ServerConfig> =
+        read_config(&format!("{path}/.simperby/server_config.json")).await;
 
     if let Err(e) = run(args, path, config, auth, server_config).await {
         if let Ok(_err) = e.downcast::<simperby::simperby_repository::IntegrityError>() {
