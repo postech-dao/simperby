@@ -73,7 +73,7 @@ async fn cli() {
     let (peers, server_config) = setup_network(&fi, keys[3].0.clone());
     let port = server_config.repository_port;
 
-    // Setup repository and server.
+    // Setup a server.
     let server_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_dir, fi.reserved_state.clone()).await;
     // Add push configs to server repository.
@@ -105,12 +105,9 @@ async fn cli() {
             private_key: key.clone(),
         };
         let auth = serde_spb::to_string(&auth).unwrap();
-        tokio::fs::write(
-            format!("{}/{}", dir, ".simperby/config.json"),
-            config.clone(),
-        )
-        .await
-        .unwrap();
+        tokio::fs::write(format!("{dir}/{}", ".simperby/config.json"), config.clone())
+            .await
+            .unwrap();
         tokio::fs::write(format!("{dir}/.simperby/auth.json"), auth.clone())
             .await
             .unwrap();
@@ -176,7 +173,6 @@ async fn cli() {
 
     // Step 2: create block and run consensus
     log::info!("STEP 2");
-
     run_command(format!("{cli_path} {} create block", clients_path[0])).await;
     sync_each_other(cli_path.clone(), clients_path.clone()).await;
     for path in clients_path.clone() {
@@ -198,7 +194,6 @@ async fn cli() {
 
     // Step 3: check the result
     log::info!("STEP 3");
-
     for path in clients_path {
         let raw_repo = RawRepository::open(&path).await.unwrap();
         let finalized = raw_repo
