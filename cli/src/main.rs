@@ -305,6 +305,7 @@ async fn main() -> eyre::Result<()> {
         read_config(&format!("{path}/.simperby/server_config.json")).await;
 
     if let Err(e) = run(args, path, config, auth, server_config).await {
+        eprintln!("Error: {e}");
         if let Ok(_err) = e.downcast::<simperby::simperby_repository::IntegrityError>() {
             // TODO: perform some special handling?
         }
