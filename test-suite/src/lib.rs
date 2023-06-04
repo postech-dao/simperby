@@ -52,7 +52,6 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
     ))
     .await;
     run_command(format!("cd {path} && git commit -m 'genesis'")).await;
-    run_command(format!("cd {path} && git checkout -b main")).await;
 }
 
 pub fn create_temp_dir() -> String {

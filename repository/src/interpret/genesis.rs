@@ -38,26 +38,7 @@ pub async fn genesis(raw: &mut RawRepository) -> Result<(), Error> {
         proof: reserved_state.genesis_info.genesis_proof.clone(),
     }))
     .await?;
-
-    match raw.locate_branch("main".to_owned()).await {
-        Ok(_) => {
-            raw.checkout_detach(raw.get_head().await?).await?;
-            raw.move_branch(
-                "main".to_owned(),
-                raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?,
-            )
-            .await?;
-            raw.checkout("main".to_owned()).await?;
-        }
-        Err(raw::Error::NotFound(_)) => {
-            raw.create_branch(
-                "main".to_owned(),
-                raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?,
-            )
-            .await?;
-            raw.checkout("main".to_owned()).await?;
-        }
-        Err(e) => return Err(e.into()),
-    }
+    let finalized_commit_hash = raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?;
+    raw.checkout_detach(finalized_commit_hash).await?;
     Ok(())
 }
