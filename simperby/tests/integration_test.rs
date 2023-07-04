@@ -1,41 +1,17 @@
 use simperby::types::{Auth, Config};
 use simperby::*;
 use simperby_core::*;
-use simperby_network::Peer;
 use simperby_test_suite::*;
 
-fn setup_network(
-    start_fi: &FinalizationInfo,
-    server_public_key: PublicKey,
-) -> (Vec<Peer>, ServerConfig) {
-    let server_config = ServerConfig {
+fn generate_server_config() -> ServerConfig {
+    ServerConfig {
+        peers_port: dispense_port(),
         governance_port: dispense_port(),
         consensus_port: dispense_port(),
         repository_port: dispense_port(),
         broadcast_interval_ms: Some(500),
         fetch_interval_ms: Some(500),
-    };
-    let peer = vec![Peer {
-        public_key: server_public_key,
-        name: "server".to_owned(),
-        address: "127.0.0.1:1".parse().unwrap(),
-        ports: vec![
-            (
-                format!("dms-governance-{}", start_fi.header.to_hash256()),
-                server_config.governance_port,
-            ),
-            (
-                format!("dms-consensus-{}", start_fi.header.to_hash256()),
-                server_config.consensus_port,
-            ),
-            ("repository".to_owned(), server_config.repository_port),
-        ]
-        .into_iter()
-        .collect(),
-        message: "".to_owned(),
-        recently_seen_timestamp: 0,
-    }];
-    (peer, server_config)
+    }
 }
 
 async fn sync_each_other(clients: &mut [Client]) {
@@ -72,7 +48,7 @@ fn build_simple_git_server() -> String {
 async fn normal_1() {
     setup_test();
     let (fi, keys) = test_utils::generate_fi(4);
-    let (peers, server_config) = setup_network(&fi, keys[3].0.clone());
+    let server_config = generate_server_config();
 
     // Setup repository and server
     let server_dir = create_temp_dir();
@@ -97,16 +73,15 @@ async fn normal_1() {
         let auth = Auth {
             private_key: key.clone(),
         };
-        let mut client = Client::open(
-            &dir,
-            Config {
-                peers: peers.clone(),
-            },
-            auth,
-        )
-        .await
-        .unwrap();
-        client.add_remote_repositories().await.unwrap();
+        let port = server_config.peers_port;
+        let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+        client
+            .add_peer(
+                fi.reserved_state.members[3].name.clone(),
+                format!("127.0.0.1:{port}").parse().unwrap(),
+            )
+            .await
+            .unwrap();
         clients.push(client);
     }
 
@@ -114,13 +89,13 @@ async fn normal_1() {
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
+    let server_config_ = server_config.clone();
+    let server_dir_ = server_dir.clone();
     tokio::spawn(async move {
-        let client = Client::open(&server_dir, Config { peers: Vec::new() }, auth)
-            .await
-            .unwrap();
+        let client = Client::open(&server_dir_, Config {}, auth).await.unwrap();
         let task = client
             .serve(
-                server_config,
+                server_config_,
                 simperby_repository::server::PushVerifier::VerifierExecutable(
                     build_simple_git_server(),
                 ),
@@ -129,6 +104,12 @@ async fn normal_1() {
             .unwrap();
         task.await.unwrap().unwrap();
     });
+
+    // Setup peer network
+    sleep_ms(200).await;
+    for client in clients.iter_mut() {
+        client.update_peer().await.unwrap();
+    }
 
     // Step 1: create an agenda and propagate it
     log::info!("STEP 1");
