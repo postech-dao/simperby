@@ -1,4 +1,23 @@
 use super::*;
+use crate::keys;
+use simperby_core::utils::get_timestamp;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct PingResponse {
+    pub public_key: PublicKey,
+    pub timestamp: Timestamp,
+    pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct PeerStatus {
+    pub public_key: PublicKey,
+    pub address: std::net::SocketAddr,
+    pub last_ping: String,
+    pub last_observed_timestamp: Timestamp,
+    pub last_claimed_local_timestamp: Timestamp,
+    pub last_msg: String,
+}
 
 /// The interface that will be wrapped into an HTTP RPC server for the peers.
 #[serde_tc_full]
@@ -8,6 +27,8 @@ pub(super) trait DistributedMessageSetRpcInterface: Send + Sync + 'static {
 
     /// Sends packets to the peer.
     async fn send_packets(&self, packets: Vec<Packet>) -> Result<(), String>;
+
+    async fn ping(&self) -> Result<PingResponse, String>;
 }
 
 pub(super) struct DmsWrapper<S: Storage, M: DmsMessage> {
@@ -51,6 +72,21 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSetRpcInterface for DmsWrapper
                 .map_err(|e| e.to_string())?;
         }
         Ok(())
+    }
+
+    async fn ping(&self) -> Result<PingResponse, String> {
+        let dms = Arc::clone(
+            self.dms
+                .read()
+                .as_ref()
+                .ok_or_else(|| "server terminated".to_owned())?,
+        );
+        let public_key = dms.read().await.private_key.public_key();
+        Ok(PingResponse {
+            public_key,
+            timestamp: get_timestamp(),
+            msg: "hello?".to_string(),
+        })
     }
 }
 
@@ -148,5 +184,75 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
             }
         }
         Ok(())
+    }
+
+    pub async fn get_peer_status(
+        this: Arc<RwLock<Self>>,
+        network_config: &ClientNetworkConfig,
+    ) -> Result<Vec<PeerStatus>, Error> {
+        let mut tasks = Vec::new();
+        for peer in &network_config.peers {
+            let this_ = Arc::clone(&this);
+            let task = async move {
+                let this_read = this_.read().await;
+                let port_key = keys::port_key_dms::<M>();
+                let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
+                    format!(
+                        "{}:{}/dms",
+                        peer.address.ip(),
+                        peer.ports
+                            .get(&port_key)
+                            .ok_or_else(|| eyre!("can't find port key: {}", port_key))?
+                    ),
+                    reqwest::Client::new(),
+                )));
+                let ping_response = stub
+                    .ping()
+                    .await
+                    .map_err(|e| eyre!("{}", e))?
+                    .map_err(|e| eyre!(e))?;
+                // Important: drop the lock before `write()`
+                drop(this_read);
+
+                if peer.public_key != ping_response.public_key {
+                    return Err(eyre!(
+                        "peer public key mismatch: expected {}, got {}",
+                        peer.public_key,
+                        ping_response.public_key
+                    ));
+                }
+                Result::<(), Error>::Ok(())
+            };
+            tasks.push(task);
+        }
+        let results = future::join_all(tasks).await;
+        let mut final_results = Vec::new();
+        let port_key = keys::port_key_dms::<M>();
+
+        for (result, peer) in results.into_iter().zip(network_config.peers.iter()) {
+            let ping = if let Err(e) = result {
+                log::warn!("failed to ping from client {:?}: {}", peer, e);
+                format!("failed: {}", e)
+            } else {
+                "success".to_owned()
+            };
+
+            let port = peer
+                .ports
+                .get(&port_key)
+                .ok_or_else(|| eyre!("can't find port key: {}", port_key))?;
+
+            final_results.push(PeerStatus {
+                public_key: peer.public_key.clone(),
+                address: format!("{}:{}", peer.address, port)
+                    .parse()
+                    .expect("valid address"),
+                last_ping: ping,
+                last_observed_timestamp: 0,      // TODO
+                last_claimed_local_timestamp: 0, // TODO
+                last_msg: "todo".to_owned(),
+            });
+        }
+        Ok(final_results)
     }
 }
