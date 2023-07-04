@@ -65,7 +65,7 @@ pub(crate) async fn open(
     let governance_dms = Dms::<simperby_governance::Vote>::new(
         storage,
         dms::Config {
-            dms_key: format!("governance-{}", lfi.header.to_hash256()),
+            dms_key: keys::dms_key::<simperby_governance::Vote>(&lfi.header),
             members: dms_members.clone(),
         },
         auth.private_key.clone(),
