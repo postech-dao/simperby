@@ -66,7 +66,7 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
             let this_ = Arc::clone(&this);
             let task = async move {
                 let this_read = this_.read().await;
-                let port_key = format!("dms-{}", this_read.config.dms_key);
+                let port_key = keys::port_key_dms::<M>();
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(
                     format!(
                         "{}:{}/dms",
@@ -116,8 +116,7 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
             return Ok(());
         }
         for peer in &network_config.peers {
-            let key = this.read().await.config.dms_key.clone();
-            let port_key = format!("dms-{key}");
+            let port_key = keys::port_key_dms::<M>();
             let packets_ = packets.clone();
             let task = async move {
                 let stub = DistributedMessageSetRpcInterfaceStub::new(Box::new(HttpClient::new(

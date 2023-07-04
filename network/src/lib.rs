@@ -6,7 +6,7 @@ pub mod storage;
 
 use serde::{Deserialize, Serialize};
 use simperby_core::{crypto::*, MemberName, Timestamp};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::SocketAddrV4;
 
 pub type Error = eyre::Error;
@@ -24,7 +24,7 @@ pub struct Peer {
     pub address: SocketAddrV4,
     /// For the other network services like gossip or RPC,
     /// it provides a map of `identifier->port`.
-    pub ports: HashMap<String, u16>,
+    pub ports: BTreeMap<String, u16>,
     pub message: String,
     pub recently_seen_timestamp: Timestamp,
 }
@@ -38,4 +38,18 @@ pub struct ClientNetworkConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerNetworkConfig {
     pub port: u16, // TODO: add various configurations for NAT traversal
+}
+
+pub mod keys {
+    use simperby_core::*;
+
+    use crate::DmsMessage;
+
+    pub fn dms_key<D: DmsMessage>(lfh: &BlockHeader) -> String {
+        format!("{}-{}", D::DMS_TAG, lfh.to_hash256())
+    }
+
+    pub fn port_key_dms<D: DmsMessage>() -> String {
+        format!("dms-{}", D::DMS_TAG)
+    }
 }
