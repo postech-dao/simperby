@@ -27,6 +27,8 @@ impl ToHash256 for Vote {
 }
 
 impl DmsMessage for Vote {
+    const DMS_TAG: &'static str = "governance";
+
     fn check(&self) -> Result<(), Error> {
         Ok(())
     }

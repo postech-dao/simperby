@@ -7,6 +7,8 @@ use simperby_test_suite::*;
 type Dms = super::dms::Dms<String>;
 
 impl DmsMessage for String {
+    const DMS_TAG: &'static str = "test";
+
     fn check(&self) -> Result<(), Error> {
         Ok(())
     }
