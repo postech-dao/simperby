@@ -7,9 +7,12 @@ use simperby_consensus::*;
 use simperby_core::utils::get_timestamp;
 use simperby_core::*;
 use simperby_governance::*;
+use simperby_network::dms::PeerStatus;
+use simperby_network::peers::Peers;
 use simperby_network::*;
 use simperby_repository::raw::RawRepository;
 use simperby_repository::*;
+use std::net::SocketAddrV4;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -29,6 +32,7 @@ struct ClientInner {
     repository: DistributedRepository,
     governance: Governance,
     consensus: Consensus,
+    peers: Peers,
 }
 
 /// An instance of Simperby client (a.k.a. a 'node').
@@ -49,7 +53,7 @@ impl Client {
     }
 
     pub async fn open(path: &str, config: types::Config, auth: Auth) -> Result<Self> {
-        let (governance_dms, consensus_dms, consensus_state, repository) =
+        let (governance_dms, consensus_dms, consensus_state, repository, peers) =
             storage::open(path, config.clone(), auth.clone()).await?;
         let lfi = repository.read_last_finalization_info().await?;
 
@@ -73,6 +77,7 @@ impl Client {
                     Some(auth.private_key),
                 )
                 .await?,
+                peers,
             }),
         })
     }
@@ -171,43 +176,48 @@ impl Client {
         todo!()
     }
 
-    /// Adds remote repositories according to current peer information.
-    pub async fn add_remote_repositories(&mut self) -> Result<()> {
-        let this = self.inner.as_mut().unwrap();
-        for peer in &this.config.peers {
-            let port = if let Some(p) = peer.ports.get("repository") {
-                p
-            } else {
-                continue;
-            };
-            let url = format!("git://{}:{port}/", peer.address.ip());
-            this.repository
-                .get_raw()
-                .write()
-                .await
-                .add_remote(peer.name.clone(), url)
-                .await?;
-        }
-        Ok(())
-    }
-
     pub async fn serve(
         self,
         config: ServerConfig,
         git_hook_verifier: simperby_repository::server::PushVerifier,
     ) -> Result<tokio::task::JoinHandle<Result<()>>> {
         let this = self.inner.unwrap();
+
+        // Serve peers
+        let peers = Arc::new(RwLock::new(this.peers));
+        let port_map = vec![
+            (
+                simperby_network::keys::port_key_dms::<simperby_governance::Vote>(),
+                config.governance_port,
+            ),
+            (
+                simperby_network::keys::port_key_dms::<simperby_consensus::ConsensusMessage>(),
+                config.consensus_port,
+            ),
+            ("repository".to_owned(), config.repository_port),
+        ]
+        .into_iter()
+        .collect();
+        let network_config = ServerNetworkConfig {
+            port: config.peers_port,
+        };
+        let t0 = async move { Peers::serve(peers, port_map, network_config).await.unwrap() };
+
+        // Serve governance
         let network_config = ServerNetworkConfig {
             port: config.governance_port,
         };
         let dms = this.governance.get_dms();
         let t1 = async move { Dms::serve(dms, network_config).await.unwrap() };
 
+        // Serve consensus
         let network_config = ServerNetworkConfig {
             port: config.consensus_port,
         };
         let dms = this.consensus.get_dms();
         let t2 = async move { Dms::serve(dms, network_config).await.unwrap() };
+
+        // Serve repository
         let t3 = async move {
             let _server = simperby_repository::server::run_server(
                 &this.path,
@@ -219,7 +229,7 @@ impl Client {
         };
 
         Ok(tokio::spawn(async move {
-            futures::future::join3(t1, t2, t3).await;
+            futures::future::join4(t0, t1, t2, t3).await;
             Ok(())
         }))
     }
@@ -227,7 +237,7 @@ impl Client {
     pub async fn update(&mut self) -> Result<()> {
         let this = self.inner.as_mut().unwrap();
         let network_config = ClientNetworkConfig {
-            peers: this.config.peers.clone(),
+            peers: this.peers.list_peers().await?,
         };
         Dms::fetch(this.governance.get_dms(), &network_config).await?;
         Dms::fetch(this.consensus.get_dms(), &network_config).await?;
@@ -260,7 +270,7 @@ impl Client {
     pub async fn broadcast(&mut self) -> Result<()> {
         let this = self.inner.as_mut().unwrap();
         let network_config = ClientNetworkConfig {
-            peers: this.config.peers.clone(),
+            peers: this.peers.list_peers().await?,
         };
         this.governance.flush().await?;
         Dms::broadcast(this.governance.get_dms(), &network_config).await?;
@@ -268,5 +278,52 @@ impl Client {
         Dms::broadcast(this.consensus.get_dms(), &network_config).await?;
         this.repository.broadcast().await?;
         Ok(())
+    }
+
+    pub async fn add_peer(&mut self, name: MemberName, address: SocketAddrV4) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
+        this.peers.add_peer(name, address).await?;
+        Ok(())
+    }
+
+    pub async fn get_peer_list(&self) -> Result<Vec<Peer>> {
+        let this = self.inner.as_ref().unwrap();
+        this.peers.list_peers().await
+    }
+
+    pub async fn update_peer(&mut self) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
+        this.peers.update().await?;
+        self.add_remote_repositories().await?;
+        Ok(())
+    }
+
+    /// Adds remote repositories according to current peer information.
+    async fn add_remote_repositories(&mut self) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
+        for peer in this.peers.list_peers().await? {
+            let port = if let Some(p) = peer.ports.get("repository") {
+                p
+            } else {
+                continue;
+            };
+            let url = format!("git://{}:{port}/", peer.address.ip());
+            this.repository
+                .get_raw()
+                .write()
+                .await
+                .add_remote(peer.name.clone(), url)
+                .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn get_peer_status(&self) -> Result<Vec<PeerStatus>> {
+        let this = self.inner.as_ref().unwrap();
+        let network_config = ClientNetworkConfig {
+            peers: this.peers.list_peers().await?,
+        };
+        let result = Dms::get_peer_status(this.governance.get_dms(), &network_config).await?;
+        Ok(result)
     }
 }
