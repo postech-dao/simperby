@@ -207,8 +207,8 @@ pub async fn create_block(
         version: SIMPERBY_CORE_PROTOCOL_VERSION.to_string(),
     };
     let block_commit = Commit::Block(block_header.clone());
-    verifier.apply_commit(&block_commit).map_err(|_| {
-        eyre!("block commit cannot be created on top of the current commit sequence")
+    verifier.apply_commit(&block_commit).map_err(|e| {
+        eyre!("block commit cannot be created on top of the current commit sequence: {e}")
     })?;
 
     let semantic_commit = to_semantic_commit(&block_commit, reserved_state)?;
