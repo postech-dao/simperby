@@ -38,6 +38,8 @@ impl ToHash256 for Message {
 }
 
 impl DmsMessage for Message {
+    const DMS_TAG: &'static str = "repository";
+
     fn check(&self) -> Result<(), Error> {
         Ok(())
     }

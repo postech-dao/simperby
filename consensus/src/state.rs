@@ -33,6 +33,8 @@ impl ToHash256 for ConsensusMessage {
 }
 
 impl DmsMessage for ConsensusMessage {
+    const DMS_TAG: &'static str = "consensus";
+
     fn check(&self) -> Result<(), dms::Error> {
         Ok(())
     }

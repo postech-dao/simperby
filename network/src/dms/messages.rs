@@ -8,6 +8,11 @@ pub type DmsKey = String;
 pub trait DmsMessage:
     Send + Sync + 'static + ToHash256 + Serialize + DeserializeOwned + Debug
 {
+    /// The tag for the DMS instance that handles this message.
+    ///
+    /// The DMS key will be deduced using this data and the hash of the last finalized header.
+    const DMS_TAG: &'static str;
+
     /// Checks if the message is valid.
     fn check(&self) -> Result<(), Error>;
 
