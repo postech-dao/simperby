@@ -1,4 +1,5 @@
 pub mod dms;
+pub mod peers;
 
 #[cfg(never)]
 mod peer_discovery;

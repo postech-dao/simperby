@@ -24,6 +24,7 @@ const STATE_FILE_PATH: &str = "state.json";
 pub type Error = eyre::Error;
 
 pub use messages::{DmsKey, DmsMessage, Message, MessageCommitmentProof};
+pub use rpc::PeerStatus;
 pub use server::*;
 
 #[derive(thiserror::Error, Debug)]
