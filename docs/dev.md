@@ -86,18 +86,12 @@ use c;
 
 ### `Rc` & `Arc`
 
-Use `Rc::clone(&object)`:
+Prefer using `Rc::clone(&object)` over `object.clone()`:
 
 ```rust
 let object = std::sync::Rc::new(inner_object);
 // Explicit cloning of `Rc`.
-let another_object = std::sync::Rc::clone(&object);
-```
-
-Do not use confusing `object.clone()`:
-
-```rust
-let object = std::sync::Rc::new(inner_object);
-// This can be seen as cloning the inner object, not cloning the `Rc`, to other reviewers.
-let another_object = object.clone();
+let another_object1 = std::sync::Rc::clone(&object);
+// This can be seen as cloning the inner object, not cloning the `Rc`, by other reviewers.
+let another_object2 = object.clone();
 ```
