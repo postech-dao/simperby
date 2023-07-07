@@ -445,6 +445,11 @@ impl RawRepository {
         .await
     }
 
+    /// Checks if the server of remote repository is open.
+    pub async fn ping_remote(&self, remote_name: String) -> Result<bool, Error> {
+        helper_1(self, RawRepositoryInner::ping_remote, remote_name).await
+    }
+
     /// Lists all the remote repositories.
     ///
     /// Returns `(remote_name, remote_url)`.
