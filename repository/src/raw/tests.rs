@@ -566,7 +566,18 @@ async fn remote() {
     )
     .await
     .unwrap();
+    repo.add_remote("test".to_owned(), "https://not-exist.git".to_owned())
+        .await
+        .unwrap();
 
+    // Check the status of the server.
+    let is_simperby_server_open = repo.ping_remote("simperby".to_string()).await.unwrap();
+    assert!(is_simperby_server_open);
+    let is_test_server_open = repo.ping_remote("test".to_string()).await.unwrap();
+    assert!(!is_test_server_open);
+
+    // Remove "test" remote repository and check the list.
+    repo.remove_remote("test".to_owned()).await.unwrap();
     let remote_list = repo.list_remotes().await.unwrap();
     assert_eq!(
         remote_list,
@@ -609,17 +620,6 @@ async fn remote() {
         .await
         .unwrap();
     let reserved_state = remote_repo.read_reserved_state().await.unwrap(); */
-
-    // Remove "simperby" remote repository
-    repo.remove_remote("simperby".to_owned()).await.unwrap();
-    let remote_list = repo.list_remotes().await.unwrap();
-    assert_eq!(
-        remote_list,
-        vec![(
-            "cosmos".to_owned(),
-            "https://github.com/JeongHunP/cosmos.git".to_owned()
-        )]
-    );
 }
 
 #[tokio::test]

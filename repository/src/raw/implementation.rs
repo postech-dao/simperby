@@ -956,7 +956,7 @@ impl RawRepositoryInner {
     pub(crate) fn ping_remote(&self, remote_name: String) -> Result<bool, Error> {
         let mut remote = self.repo.find_remote(remote_name.as_str())?;
         let is_open = remote.connect(git2::Direction::Fetch).ok();
-        let is_open = if let Some(_) = is_open {
+        let is_open = if is_open.is_some() {
             remote.disconnect()?;
             true
         } else {
