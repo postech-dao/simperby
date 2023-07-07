@@ -953,6 +953,18 @@ impl RawRepositoryInner {
         Ok(())
     }
 
+    pub(crate) fn ping_remote(&self, remote_name: String) -> Result<bool, Error> {
+        let mut remote = self.repo.find_remote(remote_name.as_str())?;
+        let is_open = remote.connect(git2::Direction::Fetch).ok();
+        let is_open = if let Some(_) = is_open {
+            remote.disconnect()?;
+            true
+        } else {
+            false
+        };
+        Ok(is_open)
+    }
+
     pub(crate) fn list_remotes(&self) -> Result<Vec<(String, String)>, Error> {
         let remotes = self.repo.remotes()?;
         let remotes = remotes
