@@ -1818,6 +1818,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "simperby-cli"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "clap",
+ "color-eyre",
+ "env_logger",
+ "eyre",
+ "futures",
+ "hex",
+ "log",
+ "rand 0.8.5",
+ "semver",
+ "serde",
+ "serde_json",
+ "simperby",
+ "simperby-core",
+ "simperby-repository",
+ "simperby-test-suite",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "simperby-consensus"
 version = "0.1.1"
 dependencies = [
