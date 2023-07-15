@@ -244,7 +244,7 @@ impl<S: Storage, M: DmsMessage> DistributedMessageSet<S, M> {
 
             final_results.push(PeerStatus {
                 public_key: peer.public_key.clone(),
-                address: format!("{}:{}", peer.address, port)
+                address: format!("{}:{}", peer.address.ip(), port)
                     .parse()
                     .expect("valid address"),
                 last_ping: ping,
