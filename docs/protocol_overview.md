@@ -410,7 +410,7 @@ the possible 1/6 nil-votes. Note that the 'arrival order' matters, unlike
 Tendermint, because we have a new 'early termination' condition.
 
 Details are explained in the [official reference](./vetomint.md) and the
-pseudo-code is [here](./vetomint-spec.pdf)
+pseudo-code is [here](./vetomint_spec/vetomint-spec.pdf)
 
 One can easily prove that it is formally safe and live, after some trivial
 reduction to the original Tendermint.
