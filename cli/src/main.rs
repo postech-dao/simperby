@@ -1,7 +1,7 @@
 use clap::Parser;
 use eyre::eyre;
 use simperby::{types::*, Client};
-use simperby_cli::cli::{self, Commands, CreateCommands, SignCommands};
+use simperby_cli::cli::{self, Commands, CreateCommands, PeerCommands, SignCommands};
 use simperby_core::{utils::get_timestamp, *};
 use simperby_repository::{
     raw::RawRepository,
@@ -264,6 +264,21 @@ async fn run(
                 .retrieve_commit_hash(revision)
                 .await?;
             println!("{:?}", client.show(commit_hash).await?);
+            Ok(())
+        }
+        (Commands::Peer(PeerCommands::Add { name, address }), Some(config), Some(auth), _) => {
+            let mut client = Client::open(&path, config, auth.clone()).await?;
+            client.add_peer(name, address.parse().unwrap()).await?;
+            Ok(())
+        }
+        (Commands::Peer(PeerCommands::Update), Some(config), Some(auth), _) => {
+            let mut client = Client::open(&path, config, auth.clone()).await?;
+            client.update_peer().await?;
+            Ok(())
+        }
+        (Commands::Peer(PeerCommands::Status), Some(config), Some(auth), _) => {
+            let client = Client::open(&path, config, auth.clone()).await?;
+            println!("{:?}", client.get_peer_status().await?);
             Ok(())
         }
         (Commands::Serve, Some(config), Some(auth), Some(server_config)) => {
