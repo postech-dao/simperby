@@ -42,9 +42,9 @@ pub enum CreateCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum PeerCommand {
+pub enum PeerCommands {
     /// Add a peer with the given name and address.
-    Add { address: String, name: String },
+    Add { name: String, address: String },
     /// Remove the peer with the given name.
     Remove { name: String },
     /// Updates the peer list using the peer discovery protocol.
@@ -160,7 +160,7 @@ pub enum Commands {
     /// Manages the peer list for the p2p network.
     /// Note that this is independent from the Git remotes.
     #[command(subcommand)]
-    Peer(PeerCommand),
+    Peer(PeerCommands),
     /// Become a server node indefinitely, serving all message propagations and Git requests.
     /// This is same as regularly running the `update` and `broadcast` commands.
     ///
