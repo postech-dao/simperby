@@ -126,3 +126,18 @@ fn normal_1() {
         );
     }
 }
+
+/// Tendermint lock happens and it helps to keep the safety by reaching the consensus in the second round.
+#[ignore]
+#[test]
+fn lock_1() {}
+
+/// A byzantine node broadcasts both nil and non-nil prevotes but fails to break the safety.
+#[ignore]
+#[test]
+fn double_votes_1() {}
+
+/// Timeout occurs in the prevote stage, skipping the first round but eventually reaching consensus.
+#[ignore]
+#[test]
+fn timeout_prevote_1() {}
