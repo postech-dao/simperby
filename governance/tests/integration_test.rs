@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 async fn basic_1() {
     setup_test();
 
-    let network_id = "governance-basic-1".to_string();
+    let network_id = "governance".to_string();
     let ((server_network_config, server_private_key), client_network_configs_and_keys, members, fi) =
         setup_server_client_nodes(network_id.clone(), 4).await;
 
