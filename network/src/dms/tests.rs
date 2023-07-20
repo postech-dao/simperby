@@ -7,7 +7,7 @@ use simperby_test_suite::*;
 type Dms = super::dms::Dms<String>;
 
 impl DmsMessage for String {
-    const DMS_TAG: &'static str = "test";
+    const DMS_TAG: &'static str = "test_dms_message";
 
     fn check(&self) -> Result<(), Error> {
         Ok(())
@@ -31,7 +31,7 @@ async fn create_dms(config: Config, private_key: PrivateKey) -> Dms {
 #[tokio::test]
 async fn single_1() {
     let key = generate_random_string();
-    let ((_, private_key), _, _) = setup_server_client_nodes("doesn't matter".to_owned(), 1).await;
+    let ((_, private_key), _, _) = setup_server_client_nodes(1).await;
     let mut dms = create_dms(
         Config {
             dms_key: key,
@@ -64,7 +64,6 @@ async fn single_1() {
 }
 
 pub async fn setup_server_client_nodes(
-    dms_key: String,
     client_n: usize,
 ) -> (
     (ServerNetworkConfig, PrivateKey),
@@ -83,7 +82,7 @@ pub async fn setup_server_client_nodes(
                 public_key: server_private_key.public_key(),
                 name: "server".to_owned(),
                 address: "127.0.0.1:1".parse().unwrap(),
-                ports: vec![(format!("dms-{dms_key}"), server.port)]
+                ports: vec![("dms-test_dms_message".to_owned(), server.port)]
                     .into_iter()
                     .collect(),
                 message: "".to_owned(),
@@ -129,7 +128,7 @@ async fn run_client_node(
 async fn multi_1() {
     let key = "multi_1".to_owned();
     let ((server_network_config, server_private_key), client_network_config_and_keys, members) =
-        setup_server_client_nodes(key.clone(), 5).await;
+        setup_server_client_nodes(5).await;
 
     let server_dms = Arc::new(RwLock::new(
         create_dms(
