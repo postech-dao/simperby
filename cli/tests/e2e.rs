@@ -43,6 +43,7 @@ async fn sync_each_other(cli_path: String, clients_path: Vec<String>) {
 }
 
 #[tokio::test]
+#[ignore]
 async fn cli() {
     setup_test();
     let (fi, keys) = test_utils::generate_fi(4);

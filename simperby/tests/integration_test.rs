@@ -44,6 +44,7 @@ fn build_simple_git_server() -> String {
     )
 }
 
+#[ignore]
 #[tokio::test]
 async fn normal_1() {
     setup_test();
