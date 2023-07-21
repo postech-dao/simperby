@@ -9,11 +9,17 @@ pub async fn test_push_eligibility(
     _timestamp_to_test: Timestamp,
 ) -> Result<bool, Error> {
     let reserved_state = raw.read_reserved_state().await?;
-    // TODO: elaborate this to consider `Member::expelled`.
-    let is_eligible = reserved_state
+    let signer = signature.signer();
+    let is_member = reserved_state
         .members
         .iter()
-        .any(|member| member.public_key == *signature.signer());
+        .find(|member| member.public_key == *signer)
+        .map(|member| !member.expelled)
+        .unwrap_or(false);
+    let is_valid_signature = signature
+        .verify(&(commit_hash, branch_name.clone(), timestamp))
+        .is_ok();
+    let is_eligible = is_member && is_valid_signature;
     let is_eligible = is_eligible
         && signature
             .verify(&(commit_hash, branch_name, timestamp))
