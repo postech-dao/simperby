@@ -24,6 +24,10 @@ pub struct Member {
     /// If this member delegated its governance consensus power to another member,
     /// the delegatee.
     pub consensus_delegatee: Option<MemberName>,
+    /// If true, all voting powers are ignored.
+    /// Note that once granted, Simperby keeps all members forever in the reserved state.
+    /// If you want to remove a member, you must set this to true instead of removing the member.
+    pub expelled: bool,
     // TODO: add various conditions for each delegation.
     // - Unlock-Automatically-After-N-Blocks
     // - Unlock-Automatically-After-T-Seconds
