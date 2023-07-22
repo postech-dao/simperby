@@ -76,9 +76,6 @@ pub(crate) fn progress(
             });
             let mut response = Vec::new();
             if let Some(proposal) = proposal {
-                response.extend(on_4f_non_nil_prevote_in_propose_step(
-                    state, round, proposal,
-                ));
                 response.extend(on_4f_non_nil_prevote_in_prevote_step(
                     state, round, proposal,
                 ));

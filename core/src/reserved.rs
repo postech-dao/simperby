@@ -25,6 +25,7 @@ impl ReservedState {
         let validator_set = self
             .members
             .iter()
+            .filter(|member| member.expelled == false)
             .map(|member| {
                 let name = member
                     .consensus_delegatee
@@ -55,6 +56,7 @@ impl ReservedState {
         let governance_set = self
             .members
             .iter()
+            .filter(|member| member.expelled == false)
             .map(|member| {
                 let name = member
                     .governance_delegatee
@@ -92,7 +94,7 @@ impl ReservedState {
             return Err("delegation proof verification failed".to_string());
         }
         for delegator in &mut self.members {
-            if delegator.name == tx.data.delegator {
+            if delegator.name == tx.data.delegator && delegator.expelled == false {
                 if tx.data.governance {
                     delegator.governance_delegatee = Some(tx.data.delegatee.clone());
                     delegator.consensus_delegatee = Some(tx.data.delegatee.clone());
@@ -110,7 +112,7 @@ impl ReservedState {
             return Err("delegation proof verification failed".to_string());
         }
         for delegator in &mut self.members {
-            if delegator.name == tx.data.delegator {
+            if delegator.name == tx.data.delegator && delegator.expelled == false {
                 if delegator.consensus_delegatee.is_some() {
                     delegator.consensus_delegatee = None;
                     delegator.governance_delegatee = None;
@@ -157,6 +159,7 @@ mod tests {
             consensus_voting_power: 1,
             governance_delegatee: None,
             consensus_delegatee: None,
+            expelled: false,
         }
     }
 
@@ -172,6 +175,7 @@ mod tests {
             consensus_voting_power: 1,
             governance_delegatee: None,
             consensus_delegatee: Some(format!("member-{delegatee_member_num:04}")),
+            expelled: false,
         }
     }
 
@@ -187,6 +191,7 @@ mod tests {
             consensus_voting_power: 1,
             governance_delegatee: Some(format!("member-{delegatee_member_num:04}")),
             consensus_delegatee: None,
+            expelled: false,
         }
     }
 

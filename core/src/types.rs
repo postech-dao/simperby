@@ -29,6 +29,10 @@ pub struct Member {
     // - Unlock-Automatically-After-T-Seconds
     // - Unlock-If-The-Delegatee-Is-Not-Active
     // - Unlock-If-The-Validator-Set-Changes
+    /// If true, all voting powers are ignored.
+    /// Note that once granted, Simperby keeps all members forever in the reserved state.
+    /// If you want to remove a member, you must set this to true instead of removing the member.
+    pub expelled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
