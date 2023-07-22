@@ -545,7 +545,6 @@ async fn merge_base() {
     assert_eq!(merge_base, commit_hash_main);
 }
 
-/// TODO: Change remote repository examples.
 /// Add remote repository and remove it.
 #[tokio::test]
 async fn remote() {
@@ -556,13 +555,13 @@ async fn remote() {
     // Add remote repositories
     repo.add_remote(
         "simperby".to_owned(),
-        "https://github.com/JeongHunP/simperby.git".to_owned(),
+        "https://github.com/postech-dao/simperby.git".to_owned(),
     )
     .await
     .unwrap();
     repo.add_remote(
         "cosmos".to_owned(),
-        "https://github.com/JeongHunP/cosmos.git".to_owned(),
+        "https://github.com/postech-dao/cosmos.git".to_owned(),
     )
     .await
     .unwrap();
@@ -584,11 +583,11 @@ async fn remote() {
         vec![
             (
                 "cosmos".to_owned(),
-                "https://github.com/JeongHunP/cosmos.git".to_owned()
+                "https://github.com/postech-dao/cosmos.git".to_owned()
             ),
             (
                 "simperby".to_owned(),
-                "https://github.com/JeongHunP/simperby.git".to_owned()
+                "https://github.com/postech-dao/simperby.git".to_owned()
             )
         ]
     );
@@ -681,7 +680,7 @@ async fn clone() {
 
     let repo = RawRepository::clone(
         path.to_str().unwrap(),
-        "https://github.com/JeongHunP/cosmos.git",
+        "https://github.com/postech-dao/cosmos.git",
     )
     .await
     .unwrap();
