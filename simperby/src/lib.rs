@@ -286,6 +286,12 @@ impl Client {
         Ok(())
     }
 
+    pub async fn remove_peer(&mut self, name: MemberName) -> Result<()> {
+        let this = self.inner.as_mut().unwrap();
+        this.peers.remove_peer(name).await?;
+        Ok(())
+    }
+
     pub async fn get_peer_list(&self) -> Result<Vec<Peer>> {
         let this = self.inner.as_ref().unwrap();
         this.peers.list_peers().await
