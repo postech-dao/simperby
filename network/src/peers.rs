@@ -134,6 +134,18 @@ impl Peers {
         Ok(())
     }
 
+    /// Removes a peer in the list of known peers.
+    pub async fn remove_peer(&mut self, name: MemberName) -> Result<()> {
+        let mut peers = self.storage.read().await?;
+        let index = peers
+            .iter()
+            .position(|peer| peer.name == name)
+            .ok_or_else(|| eyre!("peer does not exist: {}", name))?;
+        peers.remove(index);
+        self.storage.write(peers).await?;
+        Ok(())
+    }
+
     /// Performs the actual peer update (including discovery) and applies to the storage.
     pub async fn update(&mut self) -> Result<()> {
         let peers = self.storage.read().await?;
