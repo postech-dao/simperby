@@ -165,11 +165,12 @@ mod tests {
     use super::*;
     use crate::serde_spb;
     use std::mem::size_of;
+    use std::ptr::read_unaligned;
 
     unsafe fn read<T: Clone>(offset: &mut usize, data: &[u8]) -> T {
         let size = size_of::<T>();
         let p = data[*offset..*offset + size].as_ptr() as *const T;
-        let x = (*p).clone();
+        let x = read_unaligned(p);
         *offset += size;
         x
     }
