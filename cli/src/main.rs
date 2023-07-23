@@ -271,6 +271,11 @@ async fn run(
             client.add_peer(name, address.parse().unwrap()).await?;
             Ok(())
         }
+        (Commands::Peer(PeerCommands::Remove { name }), Some(config), Some(auth), _) => {
+            let mut client = Client::open(&path, config, auth.clone()).await?;
+            client.remove_peer(name).await?;
+            Ok(())
+        }
         (Commands::Peer(PeerCommands::Update), Some(config), Some(auth), _) => {
             let mut client = Client::open(&path, config, auth.clone()).await?;
             client.update_peer().await?;
