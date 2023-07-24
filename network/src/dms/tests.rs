@@ -191,3 +191,18 @@ async fn multi_1() {
         );
     }
 }
+
+#[tokio::test]
+#[ignore]
+async fn multi_2() {
+    // TODO: test with multiple servers while clients are connected to a part of them.
+    // In other words, you must test whether the clients are capable of propagating messages
+    // from server to server.
+}
+
+#[tokio::test]
+#[ignore]
+async fn multi_3() {
+    // TODO: test with the server turing off and on repeatedly.
+    // clients must be able to sync with each other even if the server is not available 100% of the time.
+}
