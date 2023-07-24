@@ -1,4 +1,5 @@
 pub mod dms;
+pub mod nat_traversal;
 pub mod peers;
 
 #[cfg(never)]
