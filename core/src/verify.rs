@@ -645,6 +645,16 @@ mod test {
         })
     }
 
+    fn generate_extra_agenda_transaction(
+        data: &DelegationTransactionData,
+        proof: TypedSignature<DelegationTransactionData>,
+    ) -> Commit {
+        Commit::ExtraAgendaTransaction(ExtraAgendaTransaction::Delegate(TxDelegate {
+            data: data.clone(),
+            proof,
+        }))
+    }
+
     fn generate_unanimous_finalization_proof(
         validator_keypair: &[(PublicKey, PrivateKey)],
         header: &BlockHeader,
@@ -1233,9 +1243,53 @@ mod test {
     #[test]
     /// Test the case where the transaction commit is invalid because it is extra-agenda transaction phase.
     /// This test case is ignored because the extra-agenda transaction is not implemented yet.
-    // TODO: enable this test case when the extra-agenda transaction is implemented.
     fn phase_mismatch_for_transaction_commit3() {
-        todo!("Implement this test");
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
+        // Apply agenda commit
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
+        let agenda: Agenda = Agenda {
+            author: reserved_state.query_name(&validator_keypair[0].0).unwrap(),
+            timestamp: 1,
+            transactions_hash: agenda_transactions_hash,
+            height: csv.header.height + 1,
+            previous_block_hash: csv.header.to_hash256(),
+        };
+
+        // delegator: member-0, delegatee: member-1
+        let delegator = reserved_state.members[0].clone();
+        let delegator_private_key = validator_keypair[0].1.clone();
+        let delegatee = reserved_state.members[1].clone();
+
+        let delegation_transaction_data: DelegationTransactionData = DelegationTransactionData {
+            delegator: delegator.name,
+            delegatee: delegatee.name,
+            governance: true,
+            block_height: csv.header.height + 1,
+            timestamp: 2,
+            chain_name: reserved_state.genesis_info.chain_name,
+        };
+
+        csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
+        // Apply agenda-proof commit
+        csv.apply_commit(&generate_agenda_proof_commit(
+            &validator_keypair,
+            &agenda,
+            agenda.to_hash256(),
+        ))
+        .unwrap();
+
+        let proof =
+            TypedSignature::sign(&delegation_transaction_data, &delegator_private_key).unwrap();
+
+        csv.apply_commit(&generate_extra_agenda_transaction(
+            &delegation_transaction_data,
+            proof,
+        ))
+        .unwrap();
+
+        // Apply transaction commit at extra agenda transaction phase
+        csv.apply_commit(&generate_empty_transaction_commit())
+            .unwrap_err();
     }
 
     #[test]
