@@ -1254,21 +1254,6 @@ mod test {
             height: csv.header.height + 1,
             previous_block_hash: csv.header.to_hash256(),
         };
-
-        // delegator: member-0, delegatee: member-1
-        let delegator = reserved_state.members[0].clone();
-        let delegator_private_key = validator_keypair[0].1.clone();
-        let delegatee = reserved_state.members[1].clone();
-
-        let delegation_transaction_data: DelegationTransactionData = DelegationTransactionData {
-            delegator: delegator.name,
-            delegatee: delegatee.name,
-            governance: true,
-            block_height: csv.header.height + 1,
-            timestamp: 2,
-            chain_name: reserved_state.genesis_info.chain_name,
-        };
-
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply agenda-proof commit
         csv.apply_commit(&generate_agenda_proof_commit(
@@ -1277,17 +1262,27 @@ mod test {
             agenda.to_hash256(),
         ))
         .unwrap();
-
+        // Apply extra-agenda transaction commit
+        // delegator: member-0, delegatee: member-1
+        let delegator = reserved_state.members[0].clone();
+        let delegator_private_key = validator_keypair[0].1.clone();
+        let delegatee = reserved_state.members[1].clone();
+        let delegation_transaction_data: DelegationTransactionData = DelegationTransactionData {
+            delegator: delegator.name,
+            delegatee: delegatee.name,
+            governance: true,
+            block_height: csv.header.height + 1,
+            timestamp: 2,
+            chain_name: reserved_state.genesis_info.chain_name,
+        };
         let proof =
             TypedSignature::sign(&delegation_transaction_data, &delegator_private_key).unwrap();
-
         csv.apply_commit(&generate_extra_agenda_transaction(
             &delegation_transaction_data,
             proof,
         ))
         .unwrap();
-
-        // Apply transaction commit at extra agenda transaction phase
+        // Apply transaction commit at extra-agenda transaction phase
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap_err();
     }
