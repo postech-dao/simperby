@@ -187,7 +187,7 @@ async fn sync_by_push() {
 
     // Step 0: create an agenda and let the client push that
     let (agenda, agenda_commit) = client_node_repo
-        .create_agenda(rs.query_name(&keys[0].0).unwrap())
+        .create_agenda(rs.query_name(&keys[1].0).unwrap())
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
@@ -212,7 +212,7 @@ async fn sync_by_push() {
 
     // Step 1: create a block and let the client push that
     let (block, block_commit) = client_node_repo
-        .create_block(keys[0].0.clone())
+        .create_block(keys[1].0.clone())
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
