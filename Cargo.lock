@@ -1870,6 +1870,7 @@ dependencies = [
  "hex",
  "rand 0.7.3",
  "secp256k1",
+ "semver",
  "serde",
  "serde_json",
  "sha3",
