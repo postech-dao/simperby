@@ -367,7 +367,7 @@ fn on_4f_nil_precommit(
     if target_round != state.round {
         return Vec::new();
     }
-    if state.get_total_precommits_on_nil(target_round) * 2 > state.get_total_voting_power() * 3 {
+    if state.get_total_precommits_on_nil(target_round) * 3 > state.get_total_voting_power() * 2 {
         start_round(state, target_round + 1, timestamp)
     } else {
         Vec::new()
