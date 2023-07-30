@@ -42,6 +42,8 @@ impl IntegrityError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
     pub dms_key: String,
+    /// The `PublicKey` of all eligible members designated in the current block.
+    /// All members must belong to the `members` even if they are not part of the `Peers`.
     pub members: Vec<PublicKey>,
 }
 
