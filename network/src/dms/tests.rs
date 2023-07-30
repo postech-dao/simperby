@@ -192,12 +192,156 @@ async fn multi_1() {
     }
 }
 
+async fn setup_client_nodes_with_specific_ports(
+    client_n: usize,
+    ports: Vec<u16>,
+    pub_keys: Vec<PublicKey>,
+) -> (Vec<(ClientNetworkConfig, PrivateKey)>, Vec<PublicKey>) {
+    let mut clients = Vec::new();
+    for _ in 0..client_n {
+        let (_, private_key) = generate_keypair_random();
+        let mut peers = Vec::new();
+
+        for (port, key) in ports.iter().zip(pub_keys.iter()) {
+            peers.push(Peer {
+                public_key: key.clone(),
+                name: "server".to_owned(),
+                address: "127.0.0.1:1".parse().unwrap(),
+                ports: vec![("dms-test_dms_message".to_owned(), *port)]
+                    .into_iter()
+                    .collect::<std::collections::BTreeMap<String, u16>>(),
+                message: "".to_owned(),
+                recently_seen_timestamp: 0,
+            });
+        }
+
+        let network_config = ClientNetworkConfig { peers };
+        clients.push((network_config, private_key));
+    }
+    let pubkeys = clients
+        .iter()
+        .map(|(_, private_key)| private_key.public_key())
+        .chain(pub_keys.into_iter())
+        .collect::<Vec<_>>();
+    (clients, pubkeys)
+}
+
 #[tokio::test]
-#[ignore]
 async fn multi_2() {
-    // TODO: test with multiple servers while clients are connected to a part of them.
-    // In other words, you must test whether the clients are capable of propagating messages
-    // from server to server.
+    let key = "multi_2".to_owned();
+    // `server_a` and `server_b` each form a network topology with `client_a` and `client_b`, respectively.
+    // `client_c` represents another network topology that connects both `server_a` and `server_b`.
+    let (
+        (server_a_network_config, server_a_private_key),
+        client_a_network_config_and_keys,
+        members_a,
+    ) = setup_server_client_nodes(2).await;
+    let (
+        (server_b_network_config, server_b_private_key),
+        client_b_network_config_and_keys,
+        members_b,
+    ) = setup_server_client_nodes(2).await;
+    let (client_c_network_config_and_keys, members_c) = setup_client_nodes_with_specific_ports(
+        1,
+        vec![server_a_network_config.port, server_b_network_config.port],
+        vec![
+            server_a_private_key.public_key().clone(),
+            server_b_private_key.public_key().clone(),
+        ],
+    )
+    .await;
+
+    let members = members_a
+        .clone()
+        .into_iter()
+        .chain(members_b.clone().into_iter())
+        .chain(members_c.clone().into_iter())
+        .collect::<Vec<_>>();
+
+    let server_a_dms = Arc::new(RwLock::new(
+        create_dms(
+            Config {
+                dms_key: key.clone(),
+                members: members.clone(),
+            },
+            server_a_private_key,
+        )
+        .await,
+    ));
+
+    let server_b_dms = Arc::new(RwLock::new(
+        create_dms(
+            Config {
+                dms_key: key.clone(),
+                members: members.clone(),
+            },
+            server_b_private_key,
+        )
+        .await,
+    ));
+
+    let mut tasks = Vec::new();
+    let mut client_dmses = Vec::new();
+
+    let client_network_config_and_keys = client_a_network_config_and_keys
+        .iter()
+        .chain(client_b_network_config_and_keys.iter())
+        .chain(client_b_network_config_and_keys.iter())
+        .chain(client_c_network_config_and_keys.iter())
+        .collect::<Vec<_>>();
+
+    let range_step = 10;
+    for (i, (client_network_config, private_key)) in
+        client_network_config_and_keys.iter().enumerate()
+    {
+        let dms = Arc::new(RwLock::new(
+            create_dms(
+                Config {
+                    dms_key: key.clone(),
+                    members: members.clone(),
+                },
+                private_key.clone(),
+            )
+            .await,
+        ));
+        tasks.push(run_client_node(
+            Arc::clone(&dms),
+            (i * range_step..(i + 1) * range_step).collect(),
+            client_network_config.clone(),
+            Some(Duration::from_millis(400)),
+            Some(Duration::from_millis(400)),
+            Duration::from_millis(50),
+            Duration::from_millis(20000),
+        ));
+        client_dmses.push(dms);
+    }
+    tokio::spawn(Dms::serve(
+        Arc::clone(&server_a_dms),
+        server_a_network_config,
+    ));
+    tokio::spawn(Dms::serve(
+        Arc::clone(&server_b_dms),
+        server_b_network_config,
+    ));
+    join_all(tasks).await;
+
+    for dms in client_dmses {
+        let messages = dms
+            .read()
+            .await
+            .read_messages()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|x| x.message)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            (0..(range_step * client_network_config_and_keys.len()))
+                .map(|x| format!("{x}"))
+                .collect::<std::collections::BTreeSet<_>>(),
+            messages
+        );
+    }
 }
 
 #[tokio::test]
