@@ -42,6 +42,10 @@ We have to verify 3 things here:
 3. blah
 ```
 
+### How to set commit message template
+
+- `git config --global commit.template .gitmessage`
+
 ## Pull Request Convention
 
 - For the title, use imperative mood and capitalize it.
