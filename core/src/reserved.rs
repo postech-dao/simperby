@@ -88,6 +88,17 @@ impl ReservedState {
                 tx.data.delegator
             ));
         }
+        if let Some(key) = self.query_public_key(&tx.data.delegator) {
+            if &key != tx.proof.signer() {
+                return Err(
+                    "the key used for the proof does not match the key in the reserved state"
+                        .to_string(),
+                );
+            }
+        }
+        if !self.is_member(&tx.data.delegatee) {
+            return Err("delegatee not found by name".to_string());
+        }
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
         }
@@ -139,6 +150,15 @@ impl ReservedState {
             }
         }
         None
+    }
+
+    pub fn is_member(&self, name: &MemberName) -> bool {
+        for member in &self.members {
+            if &member.name == name {
+                return true;
+            }
+        }
+        false
     }
 }
 
