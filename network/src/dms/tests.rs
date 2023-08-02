@@ -164,7 +164,7 @@ async fn multi_1() {
             Some(Duration::from_millis(400)),
             Some(Duration::from_millis(400)),
             Duration::from_millis(50),
-            Duration::from_millis(3000),
+            Duration::from_millis(10000),
         ));
         client_dmses.push(dms);
     }
