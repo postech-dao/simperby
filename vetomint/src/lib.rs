@@ -61,6 +61,59 @@ pub enum ConsensusEvent {
     Timer,
 }
 
+/// The report and trace of a misbehavior committed by a malicious node.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub enum Misbehavior {
+    DoubleProposal {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The two conflicting proposals.
+        proposals: (BlockIdentifier, BlockIdentifier),
+    },
+    DoublePrevote {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The two conflicting proposals that the node has prevoted.
+        proposals: (Option<BlockIdentifier>, Option<BlockIdentifier>),
+    },
+    DoublePrecommit {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The two conflicting proposals that the node has precommitted.
+        proposals: (Option<BlockIdentifier>, Option<BlockIdentifier>),
+    },
+    InvalidProposal {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The proposal that the node has proposed.
+        proposal: BlockIdentifier,
+    },
+    InvalidPrevote {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The proposal that the node has prevoted.
+        proposal: BlockIdentifier,
+    },
+    InvalidPrecommit {
+        /// The malicious node.
+        byzantine_node: ValidatorIndex,
+        /// The round in which the misbehavior is committed.
+        round: Round,
+        /// The proposal that the node has precommitted.
+        proposal: BlockIdentifier,
+    },
+}
+
 /// A response that the consensus might emit for a given event, which must be properly handled by the lower layer.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ConsensusResponse {
@@ -84,7 +137,7 @@ pub enum ConsensusResponse {
     },
     ViolationReport {
         violator: ValidatorIndex,
-        description: String,
+        misbehavior: Misbehavior,
     },
 }
 

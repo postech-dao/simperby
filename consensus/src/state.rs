@@ -358,7 +358,7 @@ impl State {
             }
             ConsensusResponse::ViolationReport {
                 violator,
-                description,
+                misbehavior,
             } => {
                 let pubkey = self
                     .block_header
@@ -368,7 +368,12 @@ impl State {
                     .0
                     .clone();
                 (
-                    ProgressResult::ViolationReported(pubkey, description, timestamp),
+                    // TODO: add misbehavior handling
+                    ProgressResult::ViolationReported(
+                        pubkey,
+                        format!("{misbehavior:?}"),
+                        timestamp,
+                    ),
                     None,
                 )
             }
