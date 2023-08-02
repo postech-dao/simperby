@@ -117,6 +117,14 @@ impl ReservedState {
     }
 
     pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
+        if let Some(key) = self.query_public_key(&tx.data.delegator) {
+            if &key != tx.proof.signer() {
+                return Err(
+                    "the key used for the proof does not match the key in the reserved state"
+                        .to_string(),
+                );
+            }
+        }
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
         }
