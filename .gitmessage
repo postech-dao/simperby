@@ -1,0 +1,20 @@
+# Title: Summary, imperative, omit articles, start upper case, don't end with a period
+# Wrap at 72 chars. ################################## which is here:  #
+
+# Remember blank line between title and body.
+
+# Body: Explain *what* and *why* (not *how*).
+# Wrap at 72 chars. ################################## which is here:  #
+
+
+# At the end: Include Co-authored-by for all contributors.
+# Include at least one empty line before it. Format:
+# Co-authored-by: name <user@users.noreply.github.com>
+#
+# Example
+# Add account check logic
+
+# We have to verify 3 things here:
+# 1. blah
+# 2. blah
+# 3. blah
