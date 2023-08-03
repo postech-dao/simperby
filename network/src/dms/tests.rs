@@ -201,7 +201,6 @@ async fn multi_2() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn multi_3() {
     let key = "multi_3".to_owned();
 
@@ -246,5 +245,40 @@ async fn multi_3() {
             Duration::from_millis(3000),
         ));
         client_dmses.push(dms);
+    }
+
+    let server_on_off_time = Duration::from_millis(1000);
+    let server_on_off_repetition = 3;
+
+    for _ in 0..server_on_off_repetition {
+        let server = tokio::spawn(Dms::serve(
+            Arc::clone(&server_dms),
+            server_network_config.clone(),
+        ));
+        tokio::time::sleep(server_on_off_time).await;
+        drop(server);
+        tokio::time::sleep(server_on_off_time).await;
+    }
+
+    join_all(tasks).await;
+
+    for dms in client_dmses {
+        let messages = dms
+            .read()
+            .await
+            .read_messages()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|x| x.message)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            (0..(range_step * client_network_config_and_keys.len()))
+                .map(|x| format!("{x}"))
+                .collect::<std::collections::BTreeSet<_>>(),
+            messages
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+        );
     }
 }
