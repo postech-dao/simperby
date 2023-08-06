@@ -376,8 +376,8 @@ fn on_4f_nil_precommit(
 
 fn on_4f_non_nil_precommit(
     state: &mut ConsensusState,
-    target_proposal: BlockIdentifier,
     target_round: Round,
+    target_proposal: BlockIdentifier,
 ) -> Vec<ConsensusResponse> {
     let valid_proposer = decide_proposer(target_round, &state.height_info);
     let proposal = if let Some(proposal) = state.proposals.get(&target_proposal) {
