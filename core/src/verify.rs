@@ -1952,6 +1952,7 @@ mod test {
             consensus_voting_power: 100,
             governance_delegatee: None,
             consensus_delegatee: None,
+            expelled: false,
         };
         let delegatee = reserved_state.members[0].clone();
         let delegation_transaction_data: DelegationTransactionData = DelegationTransactionData {
