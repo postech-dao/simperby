@@ -114,6 +114,9 @@ impl ReservedState {
         }
         for delegator in &mut self.members {
             if delegator.name == tx.data.delegator {
+                if delegator.consensus_delegatee.is_some() {
+                    return Err("consensus_delegatee is already set".to_string());
+                }
                 if tx.data.governance {
                     delegator.governance_delegatee = Some(tx.data.delegatee.clone());
                     delegator.consensus_delegatee = Some(tx.data.delegatee.clone());
