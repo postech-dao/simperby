@@ -126,10 +126,15 @@ impl Client {
                 let path = this.path.clone();
                 let config = this.config.clone();
                 let auth = this.auth.clone();
+                let peers = this.peers.list_peers().await?;
                 drop(this);
                 storage::clear(&path).await?;
                 storage::init(&path).await?;
-                self.inner = Some(Self::open(&path, config, auth).await?.inner.unwrap());
+                let mut this = Self::open(&path, config, auth).await?.inner.unwrap();
+                for peer in peers {
+                    this.peers.add_peer(peer.name, peer.address).await?;
+                }
+                self.inner = Some(this);
                 return Ok(report);
             }
         }
