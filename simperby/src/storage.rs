@@ -108,5 +108,6 @@ pub(crate) async fn clear(path: &str) -> Result<()> {
     let _ = tokio::fs::remove_dir_all(&governance_dms_path(path)).await;
     let _ = tokio::fs::remove_dir_all(&consensus_dms_path(path)).await;
     let _ = tokio::fs::remove_dir_all(&consensus_state_path(path)).await;
+    let _ = tokio::fs::remove_file(&peers_path(path)).await;
     Ok(())
 }
