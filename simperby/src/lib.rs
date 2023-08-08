@@ -319,12 +319,14 @@ impl Client {
                 continue;
             };
             let url = format!("git://{}:{port}/", peer.address.ip());
-            this.repository
+            // TODO: skip only "already exists" error
+            let _ = this
+                .repository
                 .get_raw()
                 .write()
                 .await
                 .add_remote(peer.name.clone(), url)
-                .await?;
+                .await;
         }
         Ok(())
     }
