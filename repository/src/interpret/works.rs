@@ -17,6 +17,8 @@ async fn advance_finalized_branch(
     raw.checkout(FP_BRANCH_NAME.into()).await?;
     raw.create_semantic_commit(format::fp_to_semantic_commit(&finalization_proof))
         .await?;
+    raw.checkout_detach(to_be_finalized_block_commit_hash)
+        .await?;
     Ok(())
 }
 
