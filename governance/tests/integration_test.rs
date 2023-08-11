@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 #[tokio::test]
 async fn basic_1() {
     setup_test();
-
+    let agenda_hash = Hash256::hash("agenda");
     let network_id = "governance".to_string();
     let ((server_network_config, server_private_key), client_network_configs_and_keys, members, fi) =
         setup_server_client_nodes(network_id.clone(), 4).await;
@@ -18,6 +18,7 @@ async fn basic_1() {
             create_test_dms(network_id.clone(), members.clone(), server_private_key).await,
         )),
         fi.clone(),
+        vec![agenda_hash].into_iter().collect(),
     )
     .await
     .unwrap();
@@ -30,6 +31,7 @@ async fn basic_1() {
                     create_test_dms(network_id.clone(), members.clone(), private_key.clone()).await,
                 )),
                 fi.clone(),
+                vec![agenda_hash].into_iter().collect(),
             )
             .await
             .unwrap(),
@@ -37,7 +39,6 @@ async fn basic_1() {
         ));
     }
 
-    let agenda_hash = Hash256::hash("agenda");
     server_node.vote(agenda_hash).await.unwrap();
 
     let serve_task = tokio::spawn(async move {
