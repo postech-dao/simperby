@@ -84,22 +84,30 @@ impl ReservedState {
     }
 
     pub fn apply_delegate(&mut self, tx: &TxDelegate) -> Result<Self, String> {
+        match self.is_expelled(&tx.data.delegator) {
+            Some(false) => {}
+            Some(true) => return Err("delegator is expelled".to_string()),
+            None => return Err("delegator not found by name".to_string()),
+        }
         if tx.data.delegator == tx.data.delegatee {
             return Err(format!(
                 "delegator and delegatee are the same: {}",
                 tx.data.delegator
             ));
         }
-        if let Some(key) = self.query_public_key(&tx.data.delegator) {
-            if &key != tx.proof.signer() {
-                return Err(
-                    "the key used for the proof does not match the key in the reserved state"
-                        .to_string(),
-                );
-            }
+        let key = self
+            .query_public_key(&tx.data.delegator)
+            .expect("delegator exists");
+        if &key != tx.proof.signer() {
+            return Err(
+                "the key used for the proof does not match the key in the reserved state"
+                    .to_string(),
+            );
         }
-        if !self.is_member(&tx.data.delegatee) {
-            return Err("delegatee not found by name".to_string());
+        match self.is_expelled(&tx.data.delegatee) {
+            Some(false) => {}
+            Some(true) => return Err("delegatee is expelled".to_string()),
+            None => return Err("delegatee not found by name".to_string()),
         }
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
@@ -119,13 +127,19 @@ impl ReservedState {
     }
 
     pub fn apply_undelegate(&mut self, tx: &TxUndelegate) -> Result<Self, String> {
-        if let Some(key) = self.query_public_key(&tx.data.delegator) {
-            if &key != tx.proof.signer() {
-                return Err(
-                    "the key used for the proof does not match the key in the reserved state"
-                        .to_string(),
-                );
-            }
+        match self.is_expelled(&tx.data.delegator) {
+            Some(false) => {}
+            Some(true) => return Err("delegator is expelled".to_string()),
+            None => return Err("delegator not found by name".to_string()),
+        }
+        let key = self
+            .query_public_key(&tx.data.delegator)
+            .expect("delegator exists");
+        if &key != tx.proof.signer() {
+            return Err(
+                "the key used for the proof does not match the key in the reserved state"
+                    .to_string(),
+            );
         }
         if tx.proof.verify(&tx.data).is_err() {
             return Err("delegation proof verification failed".to_string());
@@ -162,13 +176,13 @@ impl ReservedState {
         None
     }
 
-    pub fn is_member(&self, name: &MemberName) -> bool {
+    pub fn is_expelled(&self, name: &MemberName) -> Option<bool> {
         for member in &self.members {
             if &member.name == name {
-                return true;
+                return Some(member.expelled);
             }
         }
-        false
+        None
     }
 }
 
@@ -705,8 +719,6 @@ mod tests {
         let (mut reserved_state, keys) = generate_standard_genesis(5); // Increased to 5 members
 
         // Create expelled members
-        reserved_state.members[0] =
-            create_expelled_member_with_consensus_delegation(keys.clone(), 0, 2);
         reserved_state.members[1] =
             create_expelled_member_with_consensus_delegation(keys.clone(), 1, 2);
         reserved_state.members[3] = create_expelled_member(keys.clone(), 3);
@@ -743,7 +755,7 @@ mod tests {
                 .find(|v| v.0 == existing_delegatee.public_key)
                 .unwrap()
                 .1,
-            1
+            2
         );
 
         // assert that non_existing_delegatee should not exists on the validator_set
@@ -764,8 +776,6 @@ mod tests {
         let (mut reserved_state, keys) = generate_standard_genesis(5); // Increased to 5 members
 
         // Create expelled members
-        reserved_state.members[0] =
-            create_expelled_member_with_governance_delegation(keys.clone(), 0, 2);
         reserved_state.members[1] =
             create_expelled_member_with_governance_delegation(keys.clone(), 1, 2);
         reserved_state.members[3] = create_expelled_member(keys.clone(), 3);
@@ -802,7 +812,7 @@ mod tests {
                 .find(|v| v.0 == existing_delegatee.public_key)
                 .unwrap()
                 .1,
-            1
+            2
         );
 
         // assert that non_existing_delegatee should not exists on the governance_set
