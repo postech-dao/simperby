@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use simperby_core::utils::get_timestamp;
 use simperby_core::*;
 use simperby_network::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -11,7 +11,7 @@ pub type Error = eyre::Error;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceStatus {
     /// Agenda hashes and their voters.
-    pub votes: HashMap<Hash256, HashMap<PublicKey, Signature>>,
+    pub votes: BTreeMap<Hash256, BTreeMap<PublicKey, Signature>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,18 +60,29 @@ impl DmsMessage for Vote {
 pub struct Governance {
     dms: Arc<RwLock<Dms<Vote>>>,
     fi: FinalizationInfo,
+    /// Note that this is not stored in the storage.
+    /// That's because the set of all verified agendas can be derived from repository.
+    verified_agendas: BTreeSet<Hash256>,
 }
 
 impl Governance {
-    pub async fn new(dms: Arc<RwLock<Dms<Vote>>>, fi: FinalizationInfo) -> Result<Self, Error> {
+    pub async fn new(
+        dms: Arc<RwLock<Dms<Vote>>>,
+        fi: FinalizationInfo,
+        verified_agendas: BTreeSet<Hash256>,
+    ) -> Result<Self, Error> {
         // TODO: this must set the DMS to accept messages only from
         // the eligible governance set for this height.
-        Ok(Self { dms, fi })
+        Ok(Self {
+            dms,
+            fi,
+            verified_agendas,
+        })
     }
 
     pub async fn read(&self) -> Result<GovernanceStatus, Error> {
         let votes = self.dms.read().await.read_messages().await?;
-        let mut result = HashMap::<Hash256, HashMap<PublicKey, Signature>>::default();
+        let mut result = BTreeMap::<Hash256, BTreeMap<PublicKey, Signature>>::default();
         for vote in votes {
             for committers in vote.committers {
                 result
@@ -84,6 +95,14 @@ impl Governance {
         Ok(status)
     }
 
+    pub async fn register_verified_agenda_hash(
+        &mut self,
+        agenda_hash: Hash256,
+    ) -> Result<(), Error> {
+        self.verified_agendas.insert(agenda_hash);
+        Ok(())
+    }
+
     pub async fn get_eligible_agendas(&self) -> Result<Vec<(Hash256, AgendaProof)>, Error> {
         let governance_set = self
             .fi
@@ -92,7 +111,7 @@ impl Governance {
             // TODO: handle integrity error
             .unwrap()
             .into_iter()
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
         let governance_state = self.read().await?;
         let votes: Vec<(Hash256, VotingPower)> = governance_state
             .votes
@@ -106,6 +125,7 @@ impl Governance {
                         .sum(),
                 )
             })
+            .filter(|(agenda, _)| self.verified_agendas.contains(agenda))
             .collect();
         let mut result = Vec::new();
         let total_voting_power = governance_set.values().sum::<VotingPower>();

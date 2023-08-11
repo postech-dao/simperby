@@ -56,15 +56,19 @@ impl Client {
         let (governance_dms, consensus_dms, consensus_state, repository, peers) =
             storage::open(path, config.clone(), auth.clone()).await?;
         let lfi = repository.read_last_finalization_info().await?;
-
+        let agendas = repository.read_agendas().await?;
         Ok(Self {
             inner: Some(ClientInner {
                 config,
                 auth: auth.clone(),
                 path: path.to_string(),
                 repository,
-                governance: Governance::new(Arc::new(RwLock::new(governance_dms)), lfi.clone())
-                    .await?,
+                governance: Governance::new(
+                    Arc::new(RwLock::new(governance_dms)),
+                    lfi.clone(),
+                    agendas.into_iter().map(|(_, hash)| hash).collect(),
+                )
+                .await?,
                 consensus: Consensus::new(
                     Arc::new(RwLock::new(consensus_dms)),
                     consensus_state,
@@ -253,6 +257,13 @@ impl Client {
             .fetch_all(true)
             .await?;
         this.repository.sync_all().await?;
+
+        let agendas = this.repository.read_agendas().await?;
+        for (_, agenda_hash) in agendas {
+            this.governance
+                .register_verified_agenda_hash(agenda_hash)
+                .await?;
+        }
 
         // Update governance
         this.governance.update().await?;
