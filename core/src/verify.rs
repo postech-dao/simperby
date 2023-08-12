@@ -633,20 +633,20 @@ mod test {
         }
     }
 
-    fn generate_empty_transaction_commit() -> Commit {
+    fn generate_empty_transaction_commit(time: Timestamp) -> Commit {
         Commit::Transaction(Transaction {
             author: "doesn't matter".to_owned(),
-            timestamp: 0,
+            timestamp: time,
             head: "Test empty commit".to_string(),
             body: "This is important!".to_string(),
             diff: Diff::None,
         })
     }
 
-    fn generate_non_reserved_diff_transaction_commit() -> Commit {
+    fn generate_non_reserved_diff_transaction_commit(time: Timestamp) -> Commit {
         Commit::Transaction(Transaction {
             author: "doesn't matter".to_owned(),
-            timestamp: 0,
+            timestamp: time,
             head: "Test non-reserved-diff commit".to_string(),
             body: serde_spb::to_string(&json!({
                 "type": "transfer-ft",
@@ -824,10 +824,10 @@ mod test {
     fn correct_commit_sequence1() {
         let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply non-reserved-diff commit
-        csv.apply_commit(&generate_non_reserved_diff_transaction_commit())
+        csv.apply_commit(&generate_non_reserved_diff_transaction_commit(2))
             .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
@@ -1214,7 +1214,7 @@ mod test {
     fn phase_mismatch_for_block_commit2() {
         let (validator_keypair, _, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply block commit at transaction phase
         csv.apply_commit(&generate_block_commit(
@@ -1233,10 +1233,10 @@ mod test {
     fn phase_mismatch_for_block_commit3() {
         let (mut validator_keypair, mut reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply non-reserved-diff commit
-        csv.apply_commit(&generate_non_reserved_diff_transaction_commit())
+        csv.apply_commit(&generate_non_reserved_diff_transaction_commit(2))
             .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
@@ -1282,7 +1282,7 @@ mod test {
         };
         csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
         // Apply transaction commit at agenda phase
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(2))
             .unwrap_err();
     }
 
@@ -1308,7 +1308,7 @@ mod test {
         ))
         .unwrap();
         // Apply transaction commit at agenda proof phase
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(2))
             .unwrap_err();
     }
 
@@ -1356,7 +1356,7 @@ mod test {
         ))
         .unwrap();
         // Apply transaction commit at extra-agenda transaction phase
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(3))
             .unwrap_err();
     }
 
@@ -1384,7 +1384,7 @@ mod test {
         let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply agenda commit with invalid agenda hash
         let agenda_transactions_hash = if let Commit::Transaction(transaction) =
-            generate_empty_transaction_commit()
+            generate_empty_transaction_commit(1)
         {
             Agenda::calculate_transactions_hash(&[transaction])
         } else {
@@ -1392,7 +1392,7 @@ mod test {
         };
         let agenda: Agenda = Agenda {
             author: reserved_state.query_name(&validator_keypair[0].0).unwrap(),
-            timestamp: 1,
+            timestamp: 2,
             transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
             previous_block_hash: csv.header.to_hash256(),
@@ -1406,7 +1406,7 @@ mod test {
     fn invalid_agenda_commit_with_invalid_agenda_hash2() {
         let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply agenda commit with invalid agenda hash
         let agenda_transactions_hash = Agenda::calculate_transactions_hash(&[]);
@@ -1426,7 +1426,7 @@ mod test {
     fn invalid_agenda_commit_with_invalid_timestamp() {
         let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply agenda commit with invalid timestamp
         let agenda: Agenda = Agenda {
@@ -1657,7 +1657,7 @@ mod test {
     fn phase_mismatch_for_agenda_proof_commit2() {
         let (validator_keypair, reserved_state, mut csv) = setup_test(4);
         // Apply empty transaction commit
-        csv.apply_commit(&generate_empty_transaction_commit())
+        csv.apply_commit(&generate_empty_transaction_commit(1))
             .unwrap();
         // Apply agenda-proof commit at transaction phase
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
