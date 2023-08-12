@@ -44,6 +44,7 @@ fn build_simple_git_server() -> String {
     )
 }
 
+/// Make only one block without server participation.
 #[ignore]
 #[tokio::test]
 async fn normal_1() {
@@ -51,7 +52,7 @@ async fn normal_1() {
     let (fi, keys) = test_utils::generate_fi(4);
     let server_config = generate_server_config();
 
-    // Setup repository and server
+    // Setup repository and server.
     let server_dir = create_temp_dir();
     setup_pre_genesis_repository(&server_dir, fi.reserved_state.clone()).await;
     Client::genesis(&server_dir).await.unwrap();
@@ -66,7 +67,7 @@ async fn normal_1() {
     ))
     .await;
 
-    // Setup clients
+    // Setup clients.
     let mut clients = Vec::new();
     for (_, key) in keys.iter().take(3) {
         let dir = create_temp_dir();
@@ -86,7 +87,7 @@ async fn normal_1() {
         clients.push(client);
     }
 
-    // Run server
+    // Run server.
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
@@ -106,13 +107,13 @@ async fn normal_1() {
         task.await.unwrap().unwrap();
     });
 
-    // Setup peer network
+    // Setup peer network.
     sleep_ms(200).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
 
-    // Step 1: create an agenda and propagate it
+    // Step 1: create an agenda and propagate it.
     log::info!("STEP 1");
     let (_, agenda_commit) = clients[0]
         .repository_mut()
@@ -126,7 +127,7 @@ async fn normal_1() {
     }
     sync_each_other(&mut clients).await;
 
-    // Step 2: create block and run consensus
+    // Step 2: create block and run consensus.
     log::info!("STEP 2");
     let proposer_public_key = clients[0].auth().private_key.public_key();
     clients[0]
@@ -152,7 +153,7 @@ async fn normal_1() {
     }
     sync_each_other(&mut clients).await;
 
-    // Step 3: check the result
+    // Step 3: check the result.
     for client in clients {
         let raw_repo = client.repository().get_raw();
         let raw_repo_ = raw_repo.read().await;
