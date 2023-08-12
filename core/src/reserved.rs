@@ -887,7 +887,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_delegate_on_consensus_failure() {
+    fn test_apply_delegate_on_consensus_failure1() {
         let (mut state, keys) = generate_standard_genesis(1);
 
         let delegator = state.members[0].clone();
@@ -910,6 +910,37 @@ mod tests {
 
         if new_state.is_ok() {
             panic!("it must fail when the delegator and the delegatee are the same");
+        }
+    }
+
+    #[test]
+    fn test_apply_delegate_on_consensus_failure2() {
+        let (mut state, keys) = generate_standard_genesis(4);
+
+        state.members[0] = create_expelled_member(keys.clone(), 0);
+
+        // delegator: member-0000, delegatee: member-0002
+        let delegator = state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
+        let delegatee = state.members[2].clone();
+
+        let data = DelegationTransactionData {
+            // delegator and delegatee are the same
+            delegator: delegator.name,
+            delegatee: delegatee.name,
+            governance: false,
+            block_height: 0,
+            timestamp: 0,
+            chain_name: state.genesis_info.chain_name.clone(),
+        };
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxDelegate { data, proof };
+
+        let new_state = state.apply_delegate(&tx);
+
+        if new_state.is_ok() {
+            panic!("it must fail when the delegator is expelled");
         }
     }
 
@@ -1019,5 +1050,33 @@ mod tests {
                 .1,
             1
         );
+    }
+
+    #[test]
+    fn test_apply_undelegate_on_consensus_failure() {
+        let (mut state, keys) = generate_standard_genesis(4);
+
+        state.members[0] = create_expelled_member(keys.clone(), 0);
+
+        // delegator: member-0000
+        let delegator = state.members[0].clone();
+        let delegator_private_key = keys[0].1.clone();
+
+        let data = UndelegationTransactionData {
+            // delegator and delegatee are the same
+            delegator: delegator.name,
+            block_height: 0,
+            timestamp: 0,
+            chain_name: state.genesis_info.chain_name.clone(),
+        };
+        let proof = TypedSignature::sign(&data, &delegator_private_key).unwrap();
+
+        let tx = TxUndelegate { data, proof };
+
+        let new_state = state.apply_undelegate(&tx);
+
+        if new_state.is_ok() {
+            panic!("it must fail when the delegator is expelled");
+        }
     }
 }
