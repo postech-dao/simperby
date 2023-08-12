@@ -643,11 +643,11 @@ mod test {
         })
     }
 
-    fn generate_general_diff_transaction_commit() -> Commit {
+    fn generate_non_reserved_diff_transaction_commit() -> Commit {
         Commit::Transaction(Transaction {
             author: "doesn't matter".to_owned(),
             timestamp: 0,
-            head: "Test general-diff commit".to_string(),
+            head: "Test non-reserved-diff commit".to_string(),
             body: serde_spb::to_string(&json!({
                 "type": "transfer-ft",
                 "asset": "ETH",
@@ -826,8 +826,8 @@ mod test {
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
-        // Apply general-diff commit
-        csv.apply_commit(&generate_general_diff_transaction_commit())
+        // Apply non-reserved-diff commit
+        csv.apply_commit(&generate_non_reserved_diff_transaction_commit())
             .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
@@ -1235,8 +1235,8 @@ mod test {
         // Apply empty transaction commit
         csv.apply_commit(&generate_empty_transaction_commit())
             .unwrap();
-        // Apply general-diff commit
-        csv.apply_commit(&generate_general_diff_transaction_commit())
+        // Apply non-reserved-diff commit
+        csv.apply_commit(&generate_non_reserved_diff_transaction_commit())
             .unwrap();
         // Apply reserved-diff commit
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
