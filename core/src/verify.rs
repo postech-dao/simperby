@@ -662,10 +662,11 @@ mod test {
     fn generate_reserved_diff_transaction_commit(
         validator_keypair: &mut Vec<(PublicKey, PrivateKey)>,
         reserved_state: &mut ReservedState,
+        seed: u8,
         time: Timestamp,
     ) -> Commit {
         // Update reserved reserved_state
-        validator_keypair.push(generate_keypair([4]));
+        validator_keypair.push(generate_keypair([seed]));
         let new_member_name = format!("member{}", validator_keypair.len() - 1);
         reserved_state.members.push(Member {
             public_key: validator_keypair.last().unwrap().0.clone(),
@@ -684,6 +685,44 @@ mod test {
             head: "Test reserved-diff commit".to_string(),
             body: String::new(),
             diff: Diff::Reserved(Box::new(reserved_state.clone())),
+        })
+    }
+
+    fn genearte_general_diff_transaction_commit(
+        validator_keypair: &mut Vec<(PublicKey, PrivateKey)>,
+        reserved_state: &mut ReservedState,
+        seed: u8,
+        time: Timestamp,
+    ) -> Commit {
+        // Update reserved reserved_state
+        validator_keypair.push(generate_keypair([seed]));
+        let new_member_name = format!("member{}", validator_keypair.len() - 1);
+        reserved_state.members.push(Member {
+            public_key: validator_keypair.last().unwrap().0.clone(),
+            name: new_member_name.clone(),
+            governance_voting_power: 1,
+            consensus_voting_power: 1,
+            governance_delegatee: None,
+            consensus_delegatee: None,
+            expelled: false,
+        });
+        reserved_state.consensus_leader_order.push(new_member_name);
+        reserved_state.consensus_leader_order.sort();
+        Commit::Transaction(Transaction {
+            author: "doesn't matter".to_owned(),
+            timestamp: time,
+            head: "Test non-reserved-diff commit".to_string(),
+            body: serde_spb::to_string(&json!({
+                "type": "transfer-ft",
+                "asset": "ETH",
+                "amount": "0.1",
+                "recipient": "<key:some-addr-in-ethereum>",
+            }))
+            .unwrap(),
+            diff: Diff::General(
+                Box::new(reserved_state.clone()),
+                Hash256::hash("The actual content of the diff".as_bytes()),
+            ),
         })
     }
 
@@ -833,14 +872,23 @@ mod test {
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
             &mut validator_keypair,
             &mut reserved_state,
+            4,
             3,
+        ))
+        .unwrap();
+        // Apply general-diff commit
+        csv.apply_commit(&genearte_general_diff_transaction_commit(
+            &mut validator_keypair,
+            &mut reserved_state,
+            5,
+            4,
         ))
         .unwrap();
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: reserved_state.query_name(&validator_keypair[0].0).unwrap(),
-            timestamp: 4,
+            timestamp: 5,
             transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
             previous_block_hash: csv.header.to_hash256(),
@@ -1242,14 +1290,23 @@ mod test {
         csv.apply_commit(&generate_reserved_diff_transaction_commit(
             &mut validator_keypair,
             &mut reserved_state,
+            4,
             3,
+        ))
+        .unwrap();
+        // Apply general-diff commit
+        csv.apply_commit(&genearte_general_diff_transaction_commit(
+            &mut validator_keypair,
+            &mut reserved_state,
+            5,
+            4,
         ))
         .unwrap();
         // Apply agenda commit
         let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
         let agenda: Agenda = Agenda {
             author: reserved_state.query_name(&validator_keypair[0].0).unwrap(),
-            timestamp: 4,
+            timestamp: 5,
             transactions_hash: agenda_transactions_hash,
             height: csv.header.height + 1,
             previous_block_hash: csv.header.to_hash256(),
