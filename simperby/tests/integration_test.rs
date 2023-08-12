@@ -108,7 +108,7 @@ async fn normal_1() {
     });
 
     // Setup peer network.
-    sleep_ms(200).await;
+    sleep_ms(1200).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
@@ -167,5 +167,198 @@ async fn normal_1() {
             .unwrap()
             .title;
         assert_eq!(title, ">block: 1");
+    }
+}
+
+/// Make two blocks with server participation.
+#[ignore]
+#[tokio::test]
+async fn normal_2() {
+    setup_test();
+    let (fi, keys) = test_utils::generate_fi(4);
+    let server_config = generate_server_config();
+
+    // Setup repository and server.
+    let server_dir = create_temp_dir();
+    setup_pre_genesis_repository(&server_dir, fi.reserved_state.clone()).await;
+    Client::genesis(&server_dir).await.unwrap();
+    Client::init(&server_dir).await.unwrap();
+    // Add push configs to server repository.
+    run_command(format!(
+        "cd {server_dir} && git config receive.advertisePushOptions true"
+    ))
+    .await;
+    run_command(format!(
+        "cd {server_dir} && git config sendpack.sideband false"
+    ))
+    .await;
+
+    // Setup clients.
+    let mut clients = Vec::new();
+    for (_, key) in keys.iter() {
+        let dir = create_temp_dir();
+        run_command(format!("cp -a {server_dir}/. {dir}/")).await;
+        let auth = Auth {
+            private_key: key.clone(),
+        };
+        let port = server_config.peers_port;
+        let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+        client
+            .add_peer(
+                fi.reserved_state.members[3].name.clone(),
+                format!("127.0.0.1:{port}").parse().unwrap(),
+            )
+            .await
+            .unwrap();
+        clients.push(client);
+    }
+
+    // Run server.
+    let auth = Auth {
+        private_key: keys[3].1.clone(),
+    };
+    let server_config_ = server_config.clone();
+    let server_dir_ = server_dir.clone();
+
+    tokio::spawn(async move {
+        let client = Client::open(&server_dir_, Config {}, auth).await.unwrap();
+        let task = client
+            .serve(
+                server_config_,
+                simperby_repository::server::PushVerifier::VerifierExecutable(
+                    build_simple_git_server(),
+                ),
+            )
+            .await
+            .unwrap();
+        task.await.unwrap().unwrap();
+    });
+
+    // Setup peer network.
+    sleep_ms(200).await;
+    for client in clients.iter_mut() {
+        client.update_peer().await.unwrap();
+    }
+
+    // Make a first block, Step 1 ~ 3.
+    // Step 1: create an agenda and propagate it.
+    log::info!("STEP 1");
+    let (_, agenda_commit) = clients[0]
+        .repository_mut()
+        .create_agenda(fi.reserved_state.members[0].name.clone())
+        .await
+        .unwrap();
+
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.vote(agenda_commit).await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+
+    // Step 2: create block and run consensus.
+    log::info!("STEP 2");
+    let proposer_public_key = clients[0].auth().private_key.public_key();
+    clients[0]
+        .repository_mut()
+        .create_block(proposer_public_key)
+        .await
+        .unwrap();
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+
+    // Step 3: check the result.
+    log::info!("STEP 3");
+    for client in clients.iter() {
+        let raw_repo = client.repository().get_raw();
+        let raw_repo_ = raw_repo.read().await;
+        let finalized = raw_repo_
+            .locate_branch("finalized".to_owned())
+            .await
+            .unwrap();
+        let title = raw_repo_
+            .read_semantic_commit(finalized)
+            .await
+            .unwrap()
+            .title;
+        assert_eq!(title, ">block: 1");
+    }
+
+    // Setup peer network.
+    sleep_ms(200).await;
+    for client in clients.iter_mut() {
+        client.update_peer().await.unwrap();
+    }
+
+    // Make a second block, Step 4 ~ 6.
+    // Step 4: create an agenda and propagate it.
+    log::info!("STEP 4");
+    let (_, agenda_commit) = clients[1]
+        .repository_mut()
+        .create_agenda(fi.reserved_state.members[1].name.clone())
+        .await
+        .unwrap();
+
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.vote(agenda_commit).await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+
+    // Step 5: create block and run consensus.
+    log::info!("STEP 5");
+    let proposer_public_key = clients[1].auth().private_key.public_key();
+    clients[1]
+        .repository_mut()
+        .create_block(proposer_public_key)
+        .await
+        .unwrap();
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+    for client in clients.iter_mut() {
+        client.progress_for_consensus().await.unwrap();
+    }
+    sync_each_other(&mut clients).await;
+
+    // Step 6: check the result.
+    log::info!("STEP 6");
+    for client in clients.iter() {
+        let raw_repo = client.repository().get_raw();
+        let raw_repo_ = raw_repo.read().await;
+        let finalized = raw_repo_
+            .locate_branch("finalized".to_owned())
+            .await
+            .unwrap();
+        let title = raw_repo_
+            .read_semantic_commit(finalized)
+            .await
+            .unwrap()
+            .title;
+        assert_eq!(title, ">block: 2");
     }
 }
