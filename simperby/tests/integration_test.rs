@@ -362,3 +362,207 @@ async fn normal_2() {
         assert_eq!(title, ">block: 2");
     }
 }
+
+async fn make_repository_with_one_block(
+    fi: FinalizationInfo,
+    keys: Vec<(PublicKey, PrivateKey)>,
+    dir: String,
+) {
+    use simperby_core::verify::CommitSequenceVerifier;
+    use simperby_repository::format::{fp_to_semantic_commit, to_semantic_commit};
+    use simperby_repository::{
+        BRANCH_NAME_HASH_DIGITS, FINALIZED_BRANCH_NAME, FP_BRANCH_NAME, TAG_NAME_HASH_DIGITS,
+    };
+
+    // Setup clients
+    setup_pre_genesis_repository(&dir, fi.reserved_state.clone()).await;
+    Client::genesis(&dir).await.unwrap();
+    Client::init(&dir).await.unwrap();
+    let auth = Auth {
+        private_key: keys[3].1.clone(),
+    };
+    let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+
+    let rs = fi.reserved_state;
+    let genesis_info = rs.genesis_info.clone();
+    let genesis_header = rs.genesis_info.header.clone();
+
+    let mut csv = CommitSequenceVerifier::new(genesis_header.clone(), rs.clone()).unwrap();
+
+    // Create agenda commit
+    let transactions = Vec::new();
+    let agenda = Agenda {
+        height: 1,
+        author: rs.query_name(&keys[3].0).unwrap(),
+        timestamp: 0,
+        transactions_hash: Agenda::calculate_transactions_hash(&transactions),
+        previous_block_hash: csv.get_header().to_hash256(),
+    };
+    let agenda_commit = Commit::Agenda(agenda.clone());
+    let semantic_commit = to_semantic_commit(&agenda_commit, rs.clone()).unwrap();
+
+    let raw = client.repository_mut().get_raw();
+    raw.write().await.checkout_clean().await.unwrap();
+    let result = raw
+        .write()
+        .await
+        .create_semantic_commit(semantic_commit)
+        .await
+        .unwrap();
+    let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
+    agenda_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+    let agenda_branch_name = format!("a-{agenda_branch_name}");
+    raw.write()
+        .await
+        .create_branch(agenda_branch_name.clone(), result)
+        .await
+        .unwrap();
+    csv.apply_commit(&agenda_commit).unwrap();
+
+    // Create tag
+    let mut vote_tag_name = agenda_commit.to_hash256().to_string();
+    vote_tag_name.truncate(TAG_NAME_HASH_DIGITS);
+    let vote_tag_name = format!("vote-{vote_tag_name}");
+    raw.write()
+        .await
+        .create_tag(vote_tag_name, result)
+        .await
+        .unwrap();
+
+    // Create agenda proof commit
+    for i in (0..3).rev() {
+        let commit_hash = raw
+            .read()
+            .await
+            .locate_branch(agenda_branch_name.clone())
+            .await
+            .unwrap();
+        raw.write()
+            .await
+            .checkout_detach(commit_hash)
+            .await
+            .unwrap();
+        let agenda_proof = AgendaProof {
+            height: 1,
+            agenda_hash: agenda.to_hash256(),
+            proof: keys
+                .iter()
+                .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
+                .collect::<Vec<_>>(),
+            timestamp: i,
+        };
+        let agenda_proof_commit = Commit::AgendaProof(agenda_proof.clone());
+        let semantic_commit = to_semantic_commit(&agenda_proof_commit, rs.clone()).unwrap();
+        let result = raw
+            .write()
+            .await
+            .create_semantic_commit(semantic_commit)
+            .await
+            .unwrap();
+
+        let agenda_proof_branch_name = format!(
+            "a-{}",
+            &agenda_proof_commit.to_hash256().to_string()[0..BRANCH_NAME_HASH_DIGITS]
+        );
+        raw.write()
+            .await
+            .create_branch(agenda_proof_branch_name.clone(), result)
+            .await
+            .unwrap();
+    }
+    raw.write()
+        .await
+        .delete_branch(agenda_branch_name.clone())
+        .await
+        .unwrap();
+
+    // Create block commit
+    let block_header = BlockHeader {
+        author: keys[3].0.clone(),
+        prev_block_finalization_proof: genesis_info.genesis_proof,
+        previous_hash: csv.get_header().to_hash256(),
+        height: 1,
+        timestamp: 0,
+        commit_merkle_root: BlockHeader::calculate_commit_merkle_root(
+            &csv.get_total_commits()[1..],
+        ),
+        repository_merkle_root: Hash256::zero(),
+        validator_set: genesis_info.header.validator_set.clone(),
+        version: genesis_info.header.version,
+    };
+
+    let block_commit = Commit::Block(block_header.clone());
+    let semantic_commit = to_semantic_commit(&block_commit, rs.clone()).unwrap();
+    let head = raw.read().await.get_head().await.unwrap();
+    raw.write().await.checkout_clean().await.unwrap();
+    raw.write().await.checkout_detach(head).await.unwrap();
+    let result = raw
+        .write()
+        .await
+        .create_semantic_commit(semantic_commit)
+        .await
+        .unwrap();
+    let mut block_branch_name = block_commit.to_hash256().to_string();
+    block_branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+    let block_branch_name = format!("b-{block_branch_name}");
+    raw.write()
+        .await
+        .create_branch(block_branch_name.clone(), result)
+        .await
+        .unwrap();
+    raw.write().await.checkout(block_branch_name).await.unwrap();
+
+    raw.write()
+        .await
+        .move_branch(FINALIZED_BRANCH_NAME.to_string(), result)
+        .await
+        .unwrap();
+
+    // Create fp commit
+    let signatures = keys
+        .iter()
+        .map(|(_, private_key)| {
+            TypedSignature::sign(
+                &FinalizationSignTarget {
+                    block_hash: block_header.to_hash256(),
+                    round: 0,
+                },
+                private_key,
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let fp = FinalizationProof {
+        round: 0,
+        signatures,
+    };
+    raw.write()
+        .await
+        .move_branch(FP_BRANCH_NAME.to_string(), result)
+        .await
+        .unwrap();
+    raw.write()
+        .await
+        .checkout(FP_BRANCH_NAME.into())
+        .await
+        .unwrap();
+    raw.write()
+        .await
+        .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
+            height: 1,
+            proof: fp.clone(),
+        }))
+        .await
+        .unwrap();
+    let commit_hash = raw
+        .read()
+        .await
+        .locate_branch(FINALIZED_BRANCH_NAME.into())
+        .await
+        .unwrap();
+    raw.write()
+        .await
+        .checkout_detach(commit_hash)
+        .await
+        .unwrap();
+}
