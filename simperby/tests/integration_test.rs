@@ -108,7 +108,7 @@ async fn normal_1() {
     });
 
     // Setup peer network.
-    sleep_ms(1200).await;
+    sleep_ms(500).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
@@ -235,7 +235,7 @@ async fn normal_2() {
     });
 
     // Setup peer network.
-    sleep_ms(200).await;
+    sleep_ms(500).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
@@ -328,7 +328,7 @@ async fn normal_2() {
     });
 
     // Setup peer network.
-    sleep_ms(200).await;
+    sleep_ms(500).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
@@ -481,7 +481,7 @@ async fn normal_2_premade() {
     });
 
     // Setup peer network.
-    sleep_ms(200).await;
+    sleep_ms(500).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
@@ -576,7 +576,7 @@ async fn normal_2_premade() {
     });
 
     // Setup peer network.
-    sleep_ms(200).await;
+    sleep_ms(500).await;
     for client in clients.iter_mut() {
         client.update_peer().await.unwrap();
     }
