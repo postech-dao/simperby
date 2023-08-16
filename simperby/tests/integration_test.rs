@@ -45,7 +45,6 @@ fn build_simple_git_server() -> String {
 }
 
 /// Make only one block without server participation.
-#[ignore]
 #[tokio::test]
 async fn normal_1() {
     setup_test();
@@ -171,7 +170,6 @@ async fn normal_1() {
 }
 
 /// Make two blocks with server participation.
-#[ignore]
 #[tokio::test]
 async fn normal_2() {
     setup_test();
@@ -390,7 +388,6 @@ async fn normal_2() {
 }
 
 /// Make two blocks with server participation and premade one-block repository.
-#[ignore]
 #[tokio::test]
 async fn normal_2_premade() {
     setup_test();
