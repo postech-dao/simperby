@@ -219,10 +219,11 @@ async fn normal_2() {
     };
     let server_config_ = server_config.clone();
     let server_dir_ = server_dir.clone();
+    let auth_ = auth.clone();
 
-    tokio::spawn(async move {
-        let client = Client::open(&server_dir_, Config {}, auth).await.unwrap();
-        let task = client
+    let server_task = tokio::spawn(async move {
+        let client = Client::open(&server_dir_, Config {}, auth_).await.unwrap();
+        client
             .serve(
                 server_config_,
                 simperby_repository::server::PushVerifier::VerifierExecutable(
@@ -230,8 +231,7 @@ async fn normal_2() {
                 ),
             )
             .await
-            .unwrap();
-        task.await.unwrap().unwrap();
+            .unwrap()
     });
 
     // Setup peer network.
@@ -297,6 +297,35 @@ async fn normal_2() {
             .title;
         assert_eq!(title, ">block: 1");
     }
+
+    // Stop and restart the server.
+    server_task.await.unwrap().abort();
+
+    run_command(format!(
+        "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {server_dir}/.simperby/consensus/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {server_dir}/.simperby/consensus/state/ && rm state.json"
+    ))
+    .await;
+    tokio::spawn(async move {
+        let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
+        let task = client
+            .serve(
+                server_config,
+                simperby_repository::server::PushVerifier::VerifierExecutable(
+                    build_simple_git_server(),
+                ),
+            )
+            .await
+            .unwrap();
+        task.await.unwrap().unwrap();
+    });
 
     // Setup peer network.
     sleep_ms(200).await;
@@ -436,27 +465,11 @@ async fn normal_2_premade() {
     };
     let server_config_ = server_config.clone();
     let server_dir_ = server_dir.clone();
+    let auth_ = auth.clone();
 
-    tokio::spawn(async move {
-        let mut client = Client::open(&server_dir_, Config {}, auth).await.unwrap();
-        let tag = client
-            .repository()
-            .get_raw()
-            .read()
-            .await
-            .list_tags()
-            .await
-            .unwrap()[0]
-            .clone();
+    let server_task = tokio::spawn(async move {
+        let client = Client::open(&server_dir_, Config {}, auth_).await.unwrap();
         client
-            .repository_mut()
-            .get_raw()
-            .write()
-            .await
-            .remove_tag(tag)
-            .await
-            .unwrap();
-        let task = client
             .serve(
                 server_config_,
                 simperby_repository::server::PushVerifier::VerifierExecutable(
@@ -464,8 +477,7 @@ async fn normal_2_premade() {
                 ),
             )
             .await
-            .unwrap();
-        task.await.unwrap().unwrap();
+            .unwrap()
     });
 
     // Setup peer network.
@@ -533,6 +545,35 @@ async fn normal_2_premade() {
             .title;
         assert_eq!(title, ">block: 2");
     }
+
+    // Stop and restart the server.
+    server_task.await.unwrap().abort();
+
+    run_command(format!(
+        "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {server_dir}/.simperby/consensus/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {server_dir}/.simperby/consensus/state/ && rm state.json"
+    ))
+    .await;
+    tokio::spawn(async move {
+        let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
+        let task = client
+            .serve(
+                server_config,
+                simperby_repository::server::PushVerifier::VerifierExecutable(
+                    build_simple_git_server(),
+                ),
+            )
+            .await
+            .unwrap();
+        task.await.unwrap().unwrap();
+    });
 
     // Setup peer network.
     sleep_ms(200).await;
