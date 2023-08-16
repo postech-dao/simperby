@@ -217,22 +217,19 @@ async fn normal_2() {
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
-    let server_config_ = server_config.clone();
-    let server_dir_ = server_dir.clone();
-    let auth_ = auth.clone();
-
-    let server_task = tokio::spawn(async move {
-        let client = Client::open(&server_dir_, Config {}, auth_).await.unwrap();
+    let client = Client::open(&server_dir.clone(), Config {}, auth.clone())
+        .await
+        .unwrap();
+    let server_task =
         client
             .serve(
-                server_config_,
+                server_config.clone(),
                 simperby_repository::server::PushVerifier::VerifierExecutable(
                     build_simple_git_server(),
                 ),
             )
             .await
-            .unwrap()
-    });
+            .unwrap();
 
     // Setup peer network.
     sleep_ms(500).await;
@@ -299,7 +296,7 @@ async fn normal_2() {
     }
 
     // Stop and restart the server.
-    server_task.await.unwrap().abort();
+    server_task.abort();
 
     run_command(format!(
         "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
@@ -463,22 +460,19 @@ async fn normal_2_premade() {
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
-    let server_config_ = server_config.clone();
-    let server_dir_ = server_dir.clone();
-    let auth_ = auth.clone();
-
-    let server_task = tokio::spawn(async move {
-        let client = Client::open(&server_dir_, Config {}, auth_).await.unwrap();
+    let client = Client::open(&server_dir.clone(), Config {}, auth.clone())
+        .await
+        .unwrap();
+    let server_task =
         client
             .serve(
-                server_config_,
+                server_config.clone(),
                 simperby_repository::server::PushVerifier::VerifierExecutable(
                     build_simple_git_server(),
                 ),
             )
             .await
-            .unwrap()
-    });
+            .unwrap();
 
     // Setup peer network.
     sleep_ms(500).await;
@@ -547,7 +541,7 @@ async fn normal_2_premade() {
     }
 
     // Stop and restart the server.
-    server_task.await.unwrap().abort();
+    server_task.abort();
 
     run_command(format!(
         "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
