@@ -26,18 +26,18 @@ pub struct PayloadBranch {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Message {
+pub enum RepositoryMessage {
     Commit(PayloadCommit),
     Branch(PayloadBranch),
 }
 
-impl ToHash256 for Message {
+impl ToHash256 for RepositoryMessage {
     fn to_hash256(&self) -> Hash256 {
         Hash256::hash(serde_spb::to_vec(self).unwrap())
     }
 }
 
-impl DmsMessage for Message {
+impl DmsMessage for RepositoryMessage {
     const DMS_TAG: &'static str = "repository";
 
     fn check(&self) -> Result<(), Error> {
@@ -47,7 +47,7 @@ impl DmsMessage for Message {
 
 pub async fn flush(
     _raw: Arc<RwLock<RawRepository>>,
-    _dms: Arc<RwLock<Dms<Message>>>,
+    _dms: Arc<RwLock<Dms<RepositoryMessage>>>,
 ) -> Result<(), Error> {
     todo!()
 }
@@ -58,7 +58,7 @@ pub async fn flush(
 /// Finalization is done by the consensus module, or the `sync` method.
 pub async fn update(
     _raw: Arc<RwLock<RawRepository>>,
-    _dms: Arc<RwLock<Dms<Message>>>,
+    _dms: Arc<RwLock<Dms<RepositoryMessage>>>,
 ) -> Result<(), Error> {
     todo!()
 }
