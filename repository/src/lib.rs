@@ -21,6 +21,8 @@ use std::{collections::HashSet, fmt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
+pub use interpret::RepositoryMessage;
+
 pub type Branch = String;
 pub type Tag = String;
 
