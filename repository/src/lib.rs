@@ -15,6 +15,7 @@ use simperby_core::reserved::ReservedState;
 use simperby_core::utils::get_timestamp;
 use simperby_core::verify::CommitSequenceVerifier;
 use simperby_core::*;
+use simperby_network::*;
 use std::sync::Arc;
 use std::{collections::HashSet, fmt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
@@ -61,6 +62,7 @@ pub struct Config {
 /// - It **verifies** all the incoming changes and applies them to the local repository
 /// only if they are valid.
 pub struct DistributedRepository {
+    dms: Option<Arc<RwLock<Dms<RepositoryMessage>>>>,
     /// We keep the `RawRepository` in a `RwLock` for possible concurrent accesses in some operations.
     raw: Arc<RwLock<RawRepository>>,
     _config: Config,
@@ -72,12 +74,18 @@ impl DistributedRepository {
         Arc::clone(&self.raw)
     }
 
+    pub fn get_dms(&self) -> Option<Arc<RwLock<Dms<RepositoryMessage>>>> {
+        self.dms.as_ref().map(|dms| Arc::clone(dms))
+    }
+
     pub async fn new(
+        dms: Option<Arc<RwLock<Dms<RepositoryMessage>>>>,
         raw: Arc<RwLock<RawRepository>>,
         config: Config,
         private_key: Option<PrivateKey>,
     ) -> Result<Self, Error> {
         Ok(Self {
+            dms,
             raw,
             _config: config,
             private_key,

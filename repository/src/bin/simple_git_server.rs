@@ -42,7 +42,7 @@ async fn main() {
     let config = Config {
         long_range_attack_distance: 1,
     };
-    let mut drepo = simperby_repository::DistributedRepository::new(raw, config, None)
+    let mut drepo = simperby_repository::DistributedRepository::new(None, raw, config, None)
         .await
         .unwrap();
 
