@@ -19,6 +19,7 @@ async fn sync_by_fetch() {
         .await
         .unwrap();
     let mut server_node_repo = DistributedRepository::new(
+        None,
         Arc::new(RwLock::new(
             RawRepository::open(&server_node_dir).await.unwrap(),
         )),
@@ -41,6 +42,7 @@ async fn sync_by_fetch() {
     .await;
 
     let mut client_node_repo = DistributedRepository::new(
+        None,
         Arc::new(RwLock::new(
             RawRepository::open(&client_node_dir).await.unwrap(),
         )),
@@ -151,6 +153,7 @@ async fn sync_by_push() {
         .await
         .unwrap();
     let server_node_repo = DistributedRepository::new(
+        None,
         Arc::new(RwLock::new(
             RawRepository::open(&server_node_dir).await.unwrap(),
         )),
@@ -176,6 +179,7 @@ async fn sync_by_push() {
     ))
     .await;
     let mut client_node_repo = DistributedRepository::new(
+        None,
         Arc::new(RwLock::new(
             RawRepository::open(&client_node_dir).await.unwrap(),
         )),
