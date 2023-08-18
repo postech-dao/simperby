@@ -53,8 +53,18 @@ impl Client {
     }
 
     pub async fn open(path: &str, config: types::Config, auth: Auth) -> Result<Self> {
-        let (governance_dms, consensus_dms, consensus_state, repository, peers) =
+        let (governance_dms, consensus_dms, consensus_state, repository_dms, peers) =
             storage::open(path, config.clone(), auth.clone()).await?;
+        let repository = DistributedRepository::new(
+            Some(Arc::new(RwLock::new(repository_dms))),
+            Arc::new(RwLock::new(RawRepository::open(path).await?)),
+            simperby_repository::Config {
+                long_range_attack_distance: 3,
+            },
+            Some(auth.private_key.clone()),
+        )
+        .await?;
+
         let lfi = repository.read_last_finalization_info().await?;
         let agendas = repository.read_agendas().await?;
         Ok(Self {
