@@ -44,21 +44,3 @@ impl DmsMessage for RepositoryMessage {
         Ok(())
     }
 }
-
-pub async fn flush(
-    _raw: Arc<RwLock<RawRepository>>,
-    _dms: Arc<RwLock<Dms<RepositoryMessage>>>,
-) -> Result<(), Error> {
-    todo!()
-}
-
-/// Updates the repository module with the latest messages from the DMS.
-///
-/// Note that it never finalizes a block.
-/// Finalization is done by the consensus module, or the `sync` method.
-pub async fn update(
-    _raw: Arc<RwLock<RawRepository>>,
-    _dms: Arc<RwLock<Dms<RepositoryMessage>>>,
-) -> Result<(), Error> {
-    todo!()
-}
