@@ -77,7 +77,7 @@ impl DistributedRepository {
     }
 
     pub fn get_dms(&self) -> Option<Arc<RwLock<Dms<RepositoryMessage>>>> {
-        self.dms.as_ref().map(|dms| Arc::clone(dms))
+        self.dms.as_ref().map(Arc::clone)
     }
 
     pub async fn new(
@@ -243,6 +243,10 @@ impl DistributedRepository {
         todo!()
     }
 
+    /// Updates the repository module with the latest messages from the DMS.
+    ///
+    /// Note that it never finalizes a block.
+    /// Finalization is done by the consensus module, or the `sync` method.
     pub async fn update(&mut self, _no_network: bool) -> Result<(), Error> {
         todo!()
     }
