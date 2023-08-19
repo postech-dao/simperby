@@ -169,6 +169,25 @@ async fn normal_1() {
     }
 }
 
+async fn remove_state_file(dir: String) {
+    run_command(format!(
+        "cd {dir}/.simperby/governance/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {dir}/.simperby/consensus/dms/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {dir}/.simperby/consensus/state/ && rm state.json"
+    ))
+    .await;
+    run_command(format!(
+        "cd {dir}/.simperby/repository/dms/ && rm state.json"
+    ))
+    .await;
+}
+
 /// Make two blocks with server participation.
 #[tokio::test]
 async fn normal_2() {
@@ -295,19 +314,7 @@ async fn normal_2() {
 
     // Stop and restart the server.
     server_task.abort();
-
-    run_command(format!(
-        "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/state/ && rm state.json"
-    ))
-    .await;
+    remove_state_file(server_dir.clone()).await;
     tokio::spawn(async move {
         let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
         let task = client
@@ -407,18 +414,7 @@ async fn normal_2_premade() {
             private_key: key.clone(),
         };
         let port = server_config.peers_port;
-        run_command(format!(
-            "cd {dir}/.simperby/governance/dms/ && rm state.json"
-        ))
-        .await;
-        run_command(format!(
-            "cd {dir}/.simperby/consensus/dms/ && rm state.json"
-        ))
-        .await;
-        run_command(format!(
-            "cd {dir}/.simperby/consensus/state/ && rm state.json"
-        ))
-        .await;
+        remove_state_file(dir.clone()).await;
         let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
         client
             .add_peer(
@@ -439,19 +435,7 @@ async fn normal_2_premade() {
         "cd {server_dir} && git config sendpack.sideband false"
     ))
     .await;
-
-    run_command(format!(
-        "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/state/ && rm state.json"
-    ))
-    .await;
+    remove_state_file(server_dir.clone()).await;
 
     // Run server.
     let auth = Auth {
@@ -539,19 +523,7 @@ async fn normal_2_premade() {
 
     // Stop and restart the server.
     server_task.abort();
-
-    run_command(format!(
-        "cd {server_dir}/.simperby/governance/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/dms/ && rm state.json"
-    ))
-    .await;
-    run_command(format!(
-        "cd {server_dir}/.simperby/consensus/state/ && rm state.json"
-    ))
-    .await;
+    remove_state_file(server_dir.clone()).await;
     tokio::spawn(async move {
         let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
         let task = client
