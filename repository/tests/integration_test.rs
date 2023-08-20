@@ -300,3 +300,270 @@ async fn sync_each_other(paths: &[String], client_drepos: &mut [DistributedRepos
     }
     sleep_ms(200).await;
 }
+
+// Make two blocks with multiple agendas.
+#[tokio::test]
+async fn sync_by_push_and_fetch() {
+    setup_test();
+    let port = dispense_port();
+    let (rs, keys) = test_utils::generate_standard_genesis(4);
+    let config = Config {
+        long_range_attack_distance: 1,
+    };
+
+    // Setup repository and server.
+    let server_node_dir = create_temp_dir();
+    setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
+    // Add push configs to server repository.
+    simperby_test_suite::run_command(format!(
+        "cd {server_node_dir} && git config receive.advertisePushOptions true"
+    ))
+    .await;
+    simperby_test_suite::run_command(format!(
+        "cd {server_node_dir} && git config sendpack.sideband false"
+    ))
+    .await;
+
+    DistributedRepository::genesis(RawRepository::open(&server_node_dir).await.unwrap())
+        .await
+        .unwrap();
+    let server_node_repo = DistributedRepository::new(
+        None,
+        Arc::new(RwLock::new(
+            RawRepository::open(&server_node_dir).await.unwrap(),
+        )),
+        config.clone(),
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Setup clients.
+    let mut client_dirs = Vec::new();
+    let mut client_drepos = Vec::new();
+    for (_, key) in keys.iter().take(3) {
+        let client_node_dir = create_temp_dir();
+        simperby_test_suite::run_command(format!("cp -a {server_node_dir}/. {client_node_dir}/"))
+            .await;
+        simperby_test_suite::run_command(format!(
+            "cd {client_node_dir} && git remote add peer git://127.0.0.1:{port}/"
+        ))
+        .await;
+
+        let client_node_repo = DistributedRepository::new(
+            None,
+            Arc::new(RwLock::new(
+                RawRepository::open(&client_node_dir).await.unwrap(),
+            )),
+            config.clone(),
+            Some(key.clone()),
+        )
+        .await
+        .unwrap();
+        client_dirs.push(client_node_dir);
+        client_drepos.push(client_node_repo);
+    }
+
+    // Run server.
+    let _git_server = simperby_repository::server::run_server(
+        &server_node_dir,
+        port,
+        PushVerifier::VerifierExecutable(build_simple_git_server()),
+    )
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // Make a first block with multiple agendas, Step 0 ~ 2.
+    // Step 0: create multiple agendas at different times and let the client update that
+    let (agenda1, agenda_commit1) = client_drepos[0]
+        .create_agenda(rs.query_name(&keys[0].0).unwrap())
+        .await
+        .unwrap();
+
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    for drepo in client_drepos.iter_mut() {
+        drepo.vote(agenda_commit1).await.unwrap();
+    }
+    let (_agenda2, _agenda_commit2) = client_drepos[1]
+        .create_agenda(rs.query_name(&keys[1].0).unwrap())
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    let (_agenda3, _agenda_commit3) = client_drepos[2]
+        .create_agenda(rs.query_name(&keys[2].0).unwrap())
+        .await
+        .unwrap();
+    for (timestamp, client_drepo) in client_drepos.iter_mut().enumerate() {
+        client_drepo
+            .approve(
+                &agenda1.to_hash256(),
+                keys.iter()
+                    .map(|(_, private_key)| TypedSignature::sign(&agenda1, private_key).unwrap())
+                    .collect(),
+                timestamp.try_into().unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+    assert_eq!(server_node_repo.read_agendas().await.unwrap().len(), 2);
+    assert_eq!(client_drepos[0].read_agendas().await.unwrap().len(), 2);
+    assert_eq!(client_drepos[1].read_agendas().await.unwrap().len(), 2);
+    assert_eq!(client_drepos[2].read_agendas().await.unwrap().len(), 3);
+
+    // Step 1: create a block and let the client push that
+    let (block, block_commit) = client_drepos[0]
+        .create_block(keys[0].0.clone())
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    assert_eq!(
+        server_node_repo.read_blocks().await.unwrap(),
+        vec![(block_commit, block.to_hash256())]
+    );
+    for client_drepo in client_drepos.iter().take(3) {
+        assert_eq!(
+            client_drepo.read_blocks().await.unwrap(),
+            vec![(block_commit, block.to_hash256())]
+        );
+    }
+
+    // Step 2: finalize a block and let the client update that
+    let signatures = keys
+        .iter()
+        .map(|(_, private_key)| {
+            TypedSignature::sign(
+                &FinalizationSignTarget {
+                    round: 0,
+                    block_hash: block.to_hash256(),
+                },
+                private_key,
+            )
+            .unwrap()
+        })
+        .collect();
+    client_drepos[0]
+        .finalize(
+            block_commit,
+            FinalizationProof {
+                signatures,
+                round: 0,
+            },
+        )
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    assert_eq!(
+        server_node_repo
+            .read_last_finalization_info()
+            .await
+            .unwrap()
+            .header,
+        block
+    );
+    for client_drepo in client_drepos.iter().take(3) {
+        assert_eq!(
+            client_drepo
+                .read_last_finalization_info()
+                .await
+                .unwrap()
+                .header,
+            block
+        );
+    }
+
+    // Make a second block, Step 3 ~ 5.
+    // Step 3: create an agenda and let the client update that
+    let (agenda1, agenda_commit1) = client_drepos[1]
+        .create_agenda(rs.query_name(&keys[1].0).unwrap())
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    assert_eq!(
+        server_node_repo.read_agendas().await.unwrap(),
+        vec![(agenda_commit1, agenda1.to_hash256())]
+    );
+    for client_drepo in client_drepos.iter().take(3) {
+        assert_eq!(
+            client_drepo.read_agendas().await.unwrap(),
+            vec![(agenda_commit1, agenda1.to_hash256())]
+        );
+    }
+
+    for drepo in client_drepos.iter_mut() {
+        drepo.vote(agenda_commit1).await.unwrap();
+    }
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    for (timestamp, client_drepo) in client_drepos.iter_mut().enumerate() {
+        client_drepo
+            .approve(
+                &agenda1.to_hash256(),
+                keys.iter()
+                    .map(|(_, private_key)| TypedSignature::sign(&agenda1, private_key).unwrap())
+                    .collect(),
+                timestamp.try_into().unwrap(),
+            )
+            .await
+            .unwrap();
+    }
+
+    // Step 4: create a block and let the client push that
+    let (block, block_commit) = client_drepos[1]
+        .create_block(keys[1].0.clone())
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    assert_eq!(
+        server_node_repo.read_blocks().await.unwrap(),
+        vec![(block_commit, block.to_hash256())]
+    );
+    for client_drepo in client_drepos.iter().take(3) {
+        assert_eq!(
+            client_drepo.read_blocks().await.unwrap(),
+            vec![(block_commit, block.to_hash256())]
+        );
+    }
+
+    // Step 5: finalize a block and let the client update that
+    let signatures = keys
+        .iter()
+        .map(|(_, private_key)| {
+            TypedSignature::sign(
+                &FinalizationSignTarget {
+                    round: 0,
+                    block_hash: block.to_hash256(),
+                },
+                private_key,
+            )
+            .unwrap()
+        })
+        .collect();
+    client_drepos[1]
+        .finalize(
+            block_commit,
+            FinalizationProof {
+                signatures,
+                round: 0,
+            },
+        )
+        .await
+        .unwrap();
+    sync_each_other(&client_dirs, &mut client_drepos).await;
+    assert_eq!(
+        server_node_repo
+            .read_last_finalization_info()
+            .await
+            .unwrap()
+            .header,
+        block
+    );
+    for client_drepo in client_drepos.iter().take(3) {
+        assert_eq!(
+            client_drepo
+                .read_last_finalization_info()
+                .await
+                .unwrap()
+                .header,
+            block
+        );
+    }
+}
