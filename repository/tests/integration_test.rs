@@ -285,3 +285,18 @@ async fn sync_by_push() {
         block
     );
 }
+
+async fn sync_each_other(paths: &[String], client_drepos: &mut [DistributedRepository]) {
+    for client_drepo in client_drepos.iter_mut() {
+        client_drepo.broadcast().await.unwrap();
+    }
+    sleep_ms(200).await;
+    for path in paths.iter() {
+        simperby_test_suite::run_command(format!("cd {path} && git fetch --all --prune")).await;
+    }
+    sleep_ms(200).await;
+    for client_drepo in client_drepos.iter_mut() {
+        client_drepo.sync_all().await.unwrap();
+    }
+    sleep_ms(200).await;
+}
