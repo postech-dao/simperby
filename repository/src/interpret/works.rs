@@ -135,19 +135,23 @@ pub async fn sync(
         {
             Commit::Agenda(agenda) => {
                 let approved_agendas = read::read_governance_approved_agendas(raw).await?;
-
-                for (commit_hash, _) in approved_agendas {
-                    if let Commit::AgendaProof(agenda_proof) =
-                        read::read_commit(raw, commit_hash).await?
-                    {
-                        if agenda_proof.agenda_hash == agenda.to_hash256() {
-                            return Ok(Err("agenda proof already exists.".to_owned()));
+                if approved_agendas
+                    .iter()
+                    .any(|&(_, hash)| hash == agenda.to_hash256())
+                {
+                    for (commit_hash, _) in approved_agendas {
+                        if let Commit::AgendaProof(agenda_proof) =
+                            read::read_commit(raw, commit_hash).await?
+                        {
+                            if agenda_proof.agenda_hash == agenda.to_hash256() {
+                                return Ok(Err("agenda proof already exists.".to_owned()));
+                            }
+                        } else {
+                            return Err(eyre!(IntegrityError::new(format!(
+                                "commit {} is not an agenda proof",
+                                commit_hash
+                            ))));
                         }
-                    } else {
-                        return Err(eyre!(IntegrityError::new(format!(
-                            "commit {} is not an agenda proof",
-                            commit_hash
-                        ))));
                     }
                 }
 
