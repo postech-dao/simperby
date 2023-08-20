@@ -54,7 +54,7 @@ async fn sync_by_fetch() {
 
     // Step 0: create an agenda and let the client update that
     let (agenda, agenda_commit) = server_node_repo
-        .create_agenda(rs.query_name(&keys[0].0).unwrap())
+        .create_agenda(rs.query_name(&keys[3].0).unwrap())
         .await
         .unwrap();
     simperby_test_suite::run_command(format!("cd {client_node_dir} && git fetch --all")).await;
@@ -80,7 +80,7 @@ async fn sync_by_fetch() {
 
     // Step 1: create a block and let the client update that
     let (block, block_commit) = server_node_repo
-        .create_block(keys[0].0.clone())
+        .create_block(keys[3].0.clone())
         .await
         .unwrap();
     simperby_test_suite::run_command(format!("cd {client_node_dir} && git fetch --all")).await;
@@ -184,14 +184,14 @@ async fn sync_by_push() {
             RawRepository::open(&client_node_dir).await.unwrap(),
         )),
         config,
-        Some(keys[1].1.clone()),
+        Some(keys[0].1.clone()),
     )
     .await
     .unwrap();
 
     // Step 0: create an agenda and let the client push that
     let (agenda, agenda_commit) = client_node_repo
-        .create_agenda(rs.query_name(&keys[1].0).unwrap())
+        .create_agenda(rs.query_name(&keys[0].0).unwrap())
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
@@ -216,7 +216,7 @@ async fn sync_by_push() {
 
     // Step 1: create a block and let the client push that
     let (block, block_commit) = client_node_repo
-        .create_block(keys[1].0.clone())
+        .create_block(keys[0].0.clone())
         .await
         .unwrap();
     client_node_repo.broadcast().await.unwrap();
