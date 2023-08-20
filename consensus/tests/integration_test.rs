@@ -138,6 +138,21 @@ async fn basic_1() {
     serve_task.await.unwrap();
 }
 
+/// Same as `basic_1` but all the nodes (including the 'server node') participate in consensus.
+#[ignore]
+#[tokio::test]
+async fn basic_2() {}
+
+/// Same as `basic_1` but the number of participants are parmeterized as `n`.
+#[ignore]
+#[tokio::test]
+async fn basic_3() {}
+
+/// Same as `basic_3` but the number of sleeping participants are parmeterized as `m` as well (5 * n > 6 * m).
+#[ignore]
+#[tokio::test]
+async fn basic_4() {}
+
 /// Tendermint lock happens and it helps to keep the safety by reaching the consensus in the second round.
 #[ignore]
 #[tokio::test]
