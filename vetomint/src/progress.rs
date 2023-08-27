@@ -23,6 +23,10 @@ pub(crate) fn progress(
             round,
             favor,
         } => {
+            if valid == false {
+                // TODO: add possible invalid proposal logcis
+                return misbehavior::check_invalid_proposal(proposer, round, proposal);
+            }
             state.proposals.insert(
                 proposal,
                 Proposal {
@@ -46,6 +50,7 @@ pub(crate) fn progress(
                 state, round, proposal,
             ));
             response.extend(on_4f_non_nil_precommit(state, round, proposal));
+            response.extend(misbehavior::check_double_proposal(state, round));
             response
         }
         ConsensusEvent::SkipRound { round } => progress(
@@ -86,6 +91,7 @@ pub(crate) fn progress(
                 response.extend(on_4f_nil_prevote(state, round));
             }
             response.extend(on_5f_prevote(state, round, proposal));
+            response.extend(misbehavior::check_double_prevote(state, round));
             response
         }
         ConsensusEvent::Precommit {
@@ -104,6 +110,7 @@ pub(crate) fn progress(
             if let Some(proposal) = proposal {
                 response.extend(on_4f_non_nil_precommit(state, round, proposal));
             }
+            response.extend(misbehavior::check_double_precommit(state, round));
             response
         }
         ConsensusEvent::Timer => {
