@@ -86,6 +86,7 @@ pub(crate) fn progress(
                 response.extend(on_4f_nil_prevote(state, round));
             }
             response.extend(on_5f_prevote(state, round, proposal));
+            response.extend(misbehavior::check_double_prevote(state, round));
             response
         }
         ConsensusEvent::Precommit {
@@ -104,6 +105,7 @@ pub(crate) fn progress(
             if let Some(proposal) = proposal {
                 response.extend(on_4f_non_nil_precommit(state, round, proposal));
             }
+            response.extend(misbehavior::check_double_precommit(state, round));
             response
         }
         ConsensusEvent::Timer => {
