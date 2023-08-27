@@ -1,4 +1,4 @@
-use crate::{raw::SemanticCommit, UNKNOWN_COMMIT_AUTHOR};
+use crate::{raw::RawCommit, raw::SemanticCommit, UNKNOWN_COMMIT_AUTHOR};
 use eyre::{eyre, Error};
 use regex::Regex;
 use simperby_core::{reserved::ReservedState, *};
@@ -284,6 +284,26 @@ pub fn fp_from_semantic_commit(
         Ok(proof)
     } else {
         Err(eyre!("unknown commit type: {}", semantic_commit.title))
+    }
+}
+
+pub fn raw_commit_to_semantic_commit(raw_commit: RawCommit) -> SemanticCommit {
+    let (title, body) = if let Some((title, body)) = raw_commit.message.split_once("\n\n") {
+        (title.to_string(), body.to_string())
+    } else {
+        (String::new(), String::new())
+    };
+    SemanticCommit {
+        title,
+        body,
+        diff: if raw_commit.diff.is_none() {
+            Diff::None
+        } else {
+            // TODO: should handle cases, `Reserved`, `NonReserved, `General`.
+            unimplemented!()
+        },
+        author: raw_commit.author,
+        timestamp: raw_commit.timestamp,
     }
 }
 
