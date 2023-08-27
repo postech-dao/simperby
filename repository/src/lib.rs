@@ -117,9 +117,9 @@ impl DistributedRepository {
     /// Reads the finalization information at specific height.
     pub async fn read_finalization_info(
         &self,
-        _height: BlockHeight,
+        height: BlockHeight,
     ) -> Result<FinalizationInfo, Error> {
-        todo!()
+        read_finalization_info(&*self.raw.read().await, height).await
     }
 
     /// Reads the given commit.
