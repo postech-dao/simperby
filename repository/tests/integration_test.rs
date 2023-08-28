@@ -1,8 +1,216 @@
 use simperby_core::*;
+use simperby_network::{dms, ClientNetworkConfig, Dms};
 use simperby_repository::{format::from_semantic_commit, raw::*, server::*, *};
 use simperby_test_suite::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+async fn sync_dms(client_nodes: &mut [(DistributedRepository, ClientNetworkConfig, String)]) {
+    for (drepo, network_config, _) in client_nodes.iter_mut() {
+        drepo.flush().await.unwrap();
+        dms::DistributedMessageSet::broadcast(drepo.get_dms().unwrap(), network_config)
+            .await
+            .unwrap();
+    }
+    for (drepo, network_config, _) in client_nodes.iter_mut() {
+        dms::DistributedMessageSet::fetch(drepo.get_dms().unwrap(), network_config)
+            .await
+            .unwrap();
+        drepo.update(false).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn sync_by_dms() {
+    setup_test();
+
+    let network_id = "repository".to_string();
+    let ((server_network_config, server_private_key), client_network_configs_and_keys, members, _) =
+        setup_server_client_nodes(network_id.clone(), 4).await;
+    let (rs, keys) = test_utils::generate_standard_genesis(4);
+    let config = Config {
+        long_range_attack_distance: 1,
+    };
+    let server_node_dir = create_temp_dir();
+    setup_pre_genesis_repository(&server_node_dir, rs.clone()).await;
+    DistributedRepository::genesis(RawRepository::open(&server_node_dir).await.unwrap())
+        .await
+        .unwrap();
+
+    let mut server_node_repo = DistributedRepository::new(
+        Some(Arc::new(RwLock::new(
+            create_test_dms(
+                network_id.clone(),
+                members.clone(),
+                server_private_key.clone(),
+            )
+            .await,
+        ))),
+        Arc::new(RwLock::new(
+            RawRepository::open(&server_node_dir).await.unwrap(),
+        )),
+        config.clone(),
+        None,
+    )
+    .await
+    .unwrap();
+    let serve_task = tokio::spawn(async move {
+        let task = tokio::spawn(Dms::serve(
+            server_node_repo.get_dms().unwrap(),
+            server_network_config,
+        ));
+        sleep_ms(5000).await;
+        task.abort();
+        let _ = task.await;
+        server_node_repo.update(false).await.unwrap();
+        assert_eq!(
+            server_node_repo
+                .read_last_finalization_info()
+                .await
+                .unwrap()
+                .header
+                .height,
+            1
+        );
+    });
+
+    let mut client_nodes = Vec::new();
+    for (network_config, private_key) in client_network_configs_and_keys {
+        let client_node_dir = create_temp_dir();
+        simperby_test_suite::run_command(format!("cp -a {server_node_dir}/. {client_node_dir}/"))
+            .await;
+
+        client_nodes.push((
+            DistributedRepository::new(
+                Some(Arc::new(RwLock::new(
+                    create_test_dms(network_id.clone(), members.clone(), private_key.clone()).await,
+                ))),
+                Arc::new(RwLock::new(
+                    RawRepository::open(&client_node_dir).await.unwrap(),
+                )),
+                config.clone(),
+                Some(keys[0].1.clone()),
+            )
+            .await
+            .unwrap(),
+            network_config,
+            client_node_dir,
+        ));
+    }
+
+    // Step 0: create an agenda and let the client push that
+    let (agenda, agenda_commit) = client_nodes[0]
+        .0
+        .create_agenda(rs.query_name(&keys[0].0).unwrap())
+        .await
+        .unwrap();
+    sync_dms(client_nodes.as_mut_slice()).await;
+    for (client_node, _, _) in &client_nodes {
+        assert_eq!(
+            client_node.read_agendas().await.unwrap(),
+            vec![(agenda_commit, agenda.to_hash256())]
+        );
+    }
+
+    let agenda_proof_commit = client_nodes[0]
+        .0
+        .approve(
+            &agenda.to_hash256(),
+            keys.iter()
+                .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
+                .collect(),
+            0,
+        )
+        .await
+        .unwrap();
+    simperby_test_suite::run_command(format!(
+        "cd {} && git reset --hard {agenda_proof_commit}",
+        client_nodes[0].2
+    ))
+    .await;
+
+    // Step 1: create a block and let the client push that
+    let (block, block_commit) = client_nodes[0]
+        .0
+        .create_block(keys[0].0.clone())
+        .await
+        .unwrap();
+    sync_dms(client_nodes.as_mut_slice()).await;
+    for (client_node, _, _) in &client_nodes {
+        assert_eq!(
+            client_node.read_blocks().await.unwrap(),
+            vec![(block_commit, block.to_hash256())]
+        );
+    }
+
+    let agenda_proof = from_semantic_commit(
+        client_nodes[0]
+            .0
+            .get_raw()
+            .read()
+            .await
+            .read_semantic_commit(agenda_proof_commit)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let agenda_proof = match agenda_proof {
+        Commit::AgendaProof(agenda_proof) => Ok(agenda_proof),
+        _ => Err("not an agenda proof commit"),
+    }
+    .unwrap();
+    sync_dms(client_nodes.as_mut_slice()).await;
+    for (client_node, _, _) in &client_nodes {
+        assert_eq!(
+            client_node
+                .read_governance_approved_agendas()
+                .await
+                .unwrap(),
+            vec![
+                (agenda_proof_commit, agenda_proof.to_hash256()),
+                (agenda_commit, agenda.to_hash256())
+            ]
+        );
+    }
+
+    // Step 2: finalize a block and let the client push that
+    let signatures = keys
+        .iter()
+        .map(|(_, private_key)| {
+            TypedSignature::sign(
+                &FinalizationSignTarget {
+                    round: 0,
+                    block_hash: block.to_hash256(),
+                },
+                private_key,
+            )
+            .unwrap()
+        })
+        .collect();
+    client_nodes[0]
+        .0
+        .finalize(
+            block_commit,
+            FinalizationProof {
+                signatures,
+                round: 0,
+            },
+        )
+        .await
+        .unwrap();
+    sync_dms(client_nodes.as_mut_slice()).await;
+    for (client_node, _, _) in &client_nodes {
+        assert_eq!(
+            client_node
+                .read_last_finalization_info()
+                .await
+                .unwrap()
+                .header,
+            block
+        );
+    }
+    serve_task.await.unwrap();
+}
 
 #[tokio::test]
 async fn sync_by_fetch() {

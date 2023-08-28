@@ -2,13 +2,13 @@ pub mod format;
 pub mod interpret;
 pub mod raw;
 // TODO: integrate the server feature with `DistributedRepository`
+mod network;
 pub mod server;
 
 use eyre::eyre;
 use format::*;
 use futures::prelude::*;
 use interpret::*;
-use log::info;
 use raw::{RawCommit, RawRepository};
 use serde::{Deserialize, Serialize};
 use simperby_core::reserved::ReservedState;
@@ -21,7 +21,7 @@ use std::{collections::HashSet, fmt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
-pub use interpret::RepositoryMessage;
+pub use network::RepositoryMessage;
 
 pub type Branch = String;
 pub type Tag = String;
@@ -240,7 +240,7 @@ impl DistributedRepository {
     // ---------------
 
     pub async fn flush(&mut self) -> Result<(), Error> {
-        todo!()
+        self.flush_().await
     }
 
     /// Updates the repository module with the latest messages from the DMS.
@@ -248,7 +248,7 @@ impl DistributedRepository {
     /// Note that it never finalizes a block.
     /// Finalization is done by the consensus module, or the `sync` method.
     pub async fn update(&mut self, _no_network: bool) -> Result<(), Error> {
-        todo!()
+        self.update_().await
     }
 
     // ---------------

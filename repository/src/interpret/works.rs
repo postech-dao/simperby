@@ -1,7 +1,7 @@
 use super::*;
 use read::*;
 
-async fn advance_finalized_branch(
+pub(crate) async fn advance_finalized_branch(
     raw: &mut RawRepository,
     to_be_finalized_block_commit_hash: CommitHash,
     finalization_proof: LastFinalizationProof,
