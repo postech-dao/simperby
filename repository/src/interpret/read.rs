@@ -142,7 +142,26 @@ pub async fn read_last_finalization_info(raw: &RawRepository) -> Result<Finaliza
     })
 }
 
-pub async fn read_commits(
+pub(crate) async fn read_raw_commits(
+    raw: &RawRepository,
+    ancestor: CommitHash,
+    descendant: CommitHash,
+) -> Result<Vec<(RawCommit, CommitHash)>, Error> {
+    let commits = raw.query_commit_path(ancestor, descendant).await?;
+    let commits = stream::iter(
+        commits
+            .iter()
+            .cloned()
+            .map(|c| async move { raw.read_commit(c).await.map(|x| (x, c)) }),
+    )
+    .buffered(256)
+    .collect::<Vec<_>>()
+    .await;
+    let commits = commits.into_iter().collect::<Result<Vec<_>, _>>()?;
+    Ok(commits)
+}
+
+pub(crate) async fn read_commits(
     raw: &RawRepository,
     ancestor: CommitHash,
     descendant: CommitHash,
