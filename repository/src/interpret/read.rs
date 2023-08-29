@@ -315,10 +315,6 @@ pub async fn read_governance_approved_agendas(
                     if agenda_proof.height == last_header.height + 1 {
                         agendas.push((hash, agenda_proof.to_hash256()));
                     }
-
-                    let agenda_commit_hash = raw.list_ancestors(hash, Some(1)).await?[0];
-
-                    agendas.push((agenda_commit_hash, agenda_proof.agenda_hash));
                 }
             }
         }
