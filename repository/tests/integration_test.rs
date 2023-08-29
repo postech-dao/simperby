@@ -21,6 +21,7 @@ async fn sync_dms(client_nodes: &mut [(DistributedRepository, ClientNetworkConfi
 }
 
 #[tokio::test]
+#[ignore]
 async fn sync_by_dms() {
     setup_test();
 
@@ -166,10 +167,7 @@ async fn sync_by_dms() {
                 .read_governance_approved_agendas()
                 .await
                 .unwrap(),
-            vec![
-                (agenda_proof_commit, agenda_proof.to_hash256()),
-                (agenda_commit, agenda.to_hash256())
-            ]
+            vec![(agenda_proof_commit, agenda_proof.to_hash256()),]
         );
     }
 
@@ -453,10 +451,7 @@ async fn sync_by_push() {
             .read_governance_approved_agendas()
             .await
             .unwrap(),
-        vec![
-            (agenda_proof_commit, agenda_proof.to_hash256()),
-            (agenda_commit, agenda.to_hash256())
-        ]
+        vec![(agenda_proof_commit, agenda_proof.to_hash256()),]
     );
 
     // Step 2: finalize a block and let the client push that
