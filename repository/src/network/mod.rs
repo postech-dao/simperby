@@ -100,14 +100,13 @@ impl DistributedRepository {
         let mut branch_name = tip_commit.to_hash256().to_string();
         branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
         let branch_name = format!("{branch_prefix}-{branch_name}");
-
-        match self
+        let result = self
             .raw
             .read()
             .await
             .locate_branch(branch_name.clone())
-            .await
-        {
+            .await;
+        match result {
             Err(raw::Error::NotFound(_)) => {
                 let mut raw_repo = self.raw.write().await;
                 raw_repo.checkout_clean().await?;
