@@ -116,7 +116,16 @@ impl RawRepositoryInner {
     }
 
     pub(crate) fn locate_branch(&self, branch: Branch) -> Result<CommitHash, Error> {
-        let branch = self.repo.find_branch(&branch, BranchType::Local)?;
+        let branch = self
+            .repo
+            .find_branch(&branch, BranchType::Local)
+            .map_err(|err| {
+                if err.code() == git2::ErrorCode::NotFound {
+                    Error::NotFound("branch not found".to_string())
+                } else {
+                    Error::Unknown("err".to_string())
+                }
+            })?;
         let oid = branch
             .get()
             .target()
