@@ -91,34 +91,49 @@ impl DistributedRepository {
         branch: &PayloadBranch,
         lfi: &FinalizationInfo,
     ) -> Result<(), Error> {
-        let mut raw_repo = self.raw.write().await;
-        raw_repo.checkout_clean().await?;
-        let lfb_commit_hash = raw_repo
-            .locate_branch(FINALIZED_BRANCH_NAME.to_owned())
-            .await?;
-        raw_repo.checkout_detach(lfb_commit_hash).await?;
-        for commit in branch.commits.clone() {
-            raw_repo.create_commit(commit).await?;
-        }
-        let tip_commit = branch.tip_commit.clone().into_commit();
-        raw_repo
-            .create_semantic_commit(format::to_semantic_commit(
-                &tip_commit,
-                lfi.reserved_state.clone(),
-            )?)
-            .await?;
-        let mut branch_name = tip_commit.to_hash256().to_string();
-        branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
         let branch_prefix = match branch.tip_commit {
             TipCommit::Block(_) => "b",
             TipCommit::Agenda(_) => "a",
             TipCommit::AgendaProof(_) => "a",
         };
-        let head = raw_repo.get_head().await?;
-        raw_repo
-            .create_branch(format!("{branch_prefix}-{branch_name}"), head)
-            .await?;
-        Ok(())
+        let tip_commit = branch.tip_commit.clone().into_commit();
+        let mut branch_name = tip_commit.to_hash256().to_string();
+        branch_name.truncate(BRANCH_NAME_HASH_DIGITS);
+        let branch_name = format!("{branch_prefix}-{branch_name}");
+
+        match self
+            .raw
+            .read()
+            .await
+            .locate_branch(branch_name.clone())
+            .await
+        {
+            Err(raw::Error::NotFound(_)) => {
+                let mut raw_repo = self.raw.write().await;
+                raw_repo.checkout_clean().await?;
+                let lfb_commit_hash = raw_repo
+                    .locate_branch(FINALIZED_BRANCH_NAME.to_owned())
+                    .await?;
+                raw_repo.checkout_detach(lfb_commit_hash).await?;
+                for commit in branch.commits.clone() {
+                    raw_repo.create_commit(commit).await?;
+                }
+                raw_repo
+                    .create_semantic_commit(format::to_semantic_commit(
+                        &tip_commit,
+                        lfi.reserved_state.clone(),
+                    )?)
+                    .await?;
+                let head = raw_repo.get_head().await?;
+                raw_repo.create_branch(branch_name, head).await?;
+                Ok(())
+            }
+            Err(err) => Err(err.into()),
+            Ok(_) => {
+                // Branch already exists; skip
+                Ok(())
+            }
+        }
     }
 
     pub async fn update_(&self) -> Result<(), Error> {
