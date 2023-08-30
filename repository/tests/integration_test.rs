@@ -18,6 +18,13 @@ async fn sync_dms(client_nodes: &mut [(DistributedRepository, ClientNetworkConfi
             .unwrap();
         drepo.update(false).await.unwrap();
     }
+    for (_, _, client_node_dir) in client_nodes {
+        println!("\n\n");
+        simperby_test_suite::run_command(format!(
+            "cd {client_node_dir} && git log --all --decorate --oneline --graph"
+        ))
+        .await;
+    }
 }
 
 #[tokio::test]
