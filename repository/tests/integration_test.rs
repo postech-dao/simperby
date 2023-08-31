@@ -127,7 +127,7 @@ async fn sync_by_dms() {
             keys.iter()
                 .map(|(_, private_key)| TypedSignature::sign(&agenda, private_key).unwrap())
                 .collect(),
-            0,
+            simperby_core::utils::get_timestamp(),
         )
         .await
         .unwrap();
