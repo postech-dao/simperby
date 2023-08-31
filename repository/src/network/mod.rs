@@ -118,10 +118,10 @@ impl DistributedRepository {
                     raw_repo.create_commit(commit).await?;
                 }
                 raw_repo
-                    .create_semantic_commit(format::to_semantic_commit(
-                        &tip_commit,
-                        lfi.reserved_state.clone(),
-                    )?)
+                    .create_semantic_commit(
+                        format::to_semantic_commit(&tip_commit, lfi.reserved_state.clone())?,
+                        true,
+                    )
                     .await?;
                 let head = raw_repo.get_head().await?;
                 raw_repo.create_branch(branch_name, head).await?;

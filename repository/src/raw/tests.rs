@@ -629,13 +629,16 @@ async fn reserved_state() {
 
     let (rs1, _) = generate_standard_genesis(10);
     let commit_hash1 = repo
-        .create_semantic_commit(SemanticCommit {
-            title: "test".to_owned(),
-            body: "test-body".to_owned(),
-            diff: Diff::Reserved(Box::new(rs1.clone())),
-            author: "doesn't matter".to_owned(),
-            timestamp: 0,
-        })
+        .create_semantic_commit(
+            SemanticCommit {
+                title: "test".to_owned(),
+                body: "test-body".to_owned(),
+                diff: Diff::Reserved(Box::new(rs1.clone())),
+                author: "doesn't matter".to_owned(),
+                timestamp: 0,
+            },
+            false,
+        )
         .await
         .unwrap();
     let rs1_retrieve = repo.read_reserved_state().await.unwrap();
@@ -650,13 +653,16 @@ async fn reserved_state() {
 
     let (rs2, _) = generate_standard_genesis(5);
     let commit_hash2 = repo
-        .create_semantic_commit(SemanticCommit {
-            title: "test".to_owned(),
-            body: "test-body".to_owned(),
-            diff: Diff::Reserved(Box::new(rs2.clone())),
-            author: "doesn't matter".to_owned(),
-            timestamp: 0,
-        })
+        .create_semantic_commit(
+            SemanticCommit {
+                title: "test".to_owned(),
+                body: "test-body".to_owned(),
+                diff: Diff::Reserved(Box::new(rs2.clone())),
+                author: "doesn't matter".to_owned(),
+                timestamp: 0,
+            },
+            false,
+        )
         .await
         .unwrap();
     let rs2_retrieve = repo.read_reserved_state().await.unwrap();

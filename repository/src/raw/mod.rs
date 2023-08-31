@@ -233,11 +233,20 @@ impl RawRepository {
     /// Creates a semantic commit from the currently checked out branch.
     ///
     /// It fails if the `diff` is not `Diff::Reserved` or `Diff::None`.
+    /// If `authored_by_simperby` is true, the author of commit will be Simperby,
+    /// otherwise, that will be user.
     pub async fn create_semantic_commit(
         &mut self,
         commit: SemanticCommit,
+        authored_by_simperby: bool,
     ) -> Result<CommitHash, Error> {
-        helper_1_mut(self, RawRepositoryInner::create_semantic_commit, commit).await
+        helper_2_mut(
+            self,
+            RawRepositoryInner::create_semantic_commit,
+            commit,
+            authored_by_simperby,
+        )
+        .await
     }
 
     /// Reads the semantic commmit at given commit hash.

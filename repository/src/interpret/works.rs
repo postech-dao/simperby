@@ -15,7 +15,7 @@ pub(crate) async fn advance_finalized_branch(
     raw.move_branch(FP_BRANCH_NAME.into(), to_be_finalized_block_commit_hash)
         .await?;
     raw.checkout(FP_BRANCH_NAME.into()).await?;
-    raw.create_semantic_commit(format::fp_to_semantic_commit(&finalization_proof))
+    raw.create_semantic_commit(format::fp_to_semantic_commit(&finalization_proof), true)
         .await?;
     raw.checkout_detach(to_be_finalized_block_commit_hash)
         .await?;
