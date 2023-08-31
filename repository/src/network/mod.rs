@@ -117,12 +117,16 @@ impl DistributedRepository {
                 for commit in branch.commits.clone() {
                     raw_repo.create_commit(commit).await?;
                 }
-                raw_repo
-                    .create_semantic_commit(
-                        format::to_semantic_commit(&tip_commit, lfi.reserved_state.clone())?,
-                        true,
-                    )
-                    .await?;
+                let semantic_commit =
+                    format::to_semantic_commit(&tip_commit, lfi.reserved_state.clone())?;
+                let raw_commit = RawCommit {
+                    message: format!("{}\n\n{}", semantic_commit.title, semantic_commit.body),
+                    diff: None,
+                    author: "Simperby".to_string(),
+                    email: "hi@simperby.net".to_string(),
+                    timestamp: semantic_commit.timestamp / 1000,
+                };
+                raw_repo.create_commit(raw_commit).await?;
                 let head = raw_repo.get_head().await?;
                 raw_repo.create_branch(branch_name, head).await?;
                 Ok(())
