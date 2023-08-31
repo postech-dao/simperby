@@ -303,7 +303,7 @@ pub fn raw_commit_to_semantic_commit(raw_commit: RawCommit) -> SemanticCommit {
             unimplemented!()
         },
         author: raw_commit.author,
-        timestamp: raw_commit.timestamp,
+        timestamp: raw_commit.timestamp / 1000,
     }
 }
 

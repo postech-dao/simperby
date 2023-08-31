@@ -278,7 +278,7 @@ impl RawRepositoryInner {
 
         let result = {
             // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
-            let time = git2::Time::new(commit.timestamp, -540);
+            let time = git2::Time::new(commit.timestamp, 540);
             let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
             let mut index = self.repo.index()?;
             let head = self.get_head()?;
@@ -338,7 +338,7 @@ impl RawRepositoryInner {
 
     pub(crate) fn create_commit_all(&mut self, commit: RawCommit) -> Result<CommitHash, Error> {
         // The `time` specified is in seconds since the epoch, and the `offset` is the time zone offset in minutes.
-        let time = git2::Time::new(commit.timestamp, -540);
+        let time = git2::Time::new(commit.timestamp, 540);
         let signature = git2::Signature::new(&commit.author, &commit.email, &time)?;
 
         // Add all files to the index.
