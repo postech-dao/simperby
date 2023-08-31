@@ -20,7 +20,7 @@ pub async fn genesis(raw: &mut RawRepository) -> Result<(), Error> {
             }
             _ => eyre!(e),
         })?;
-    let result = raw.create_semantic_commit(semantic_commit).await?;
+    let result = raw.create_semantic_commit(semantic_commit, true).await?;
     // TODO: ignore only if the error is 'already exists'. Otherwise, propagate the error.
     let _ = raw.create_branch(FP_BRANCH_NAME.into(), result).await;
     raw.checkout(FP_BRANCH_NAME.into())
@@ -33,10 +33,13 @@ pub async fn genesis(raw: &mut RawRepository) -> Result<(), Error> {
             }
             _ => eyre!(e),
         })?;
-    raw.create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
-        height: 0,
-        proof: reserved_state.genesis_info.genesis_proof.clone(),
-    }))
+    raw.create_semantic_commit(
+        fp_to_semantic_commit(&LastFinalizationProof {
+            height: 0,
+            proof: reserved_state.genesis_info.genesis_proof.clone(),
+        }),
+        true,
+    )
     .await?;
     let finalized_commit_hash = raw.locate_branch(FINALIZED_BRANCH_NAME.to_owned()).await?;
     raw.checkout_detach(finalized_commit_hash).await?;

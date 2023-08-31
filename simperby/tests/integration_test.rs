@@ -646,7 +646,7 @@ async fn make_repository_with_one_block(
     let result = raw
         .write()
         .await
-        .create_semantic_commit(semantic_commit)
+        .create_semantic_commit(semantic_commit, true)
         .await
         .unwrap();
     let mut agenda_branch_name = agenda_commit.to_hash256().to_string();
@@ -696,7 +696,7 @@ async fn make_repository_with_one_block(
         let result = raw
             .write()
             .await
-            .create_semantic_commit(semantic_commit)
+            .create_semantic_commit(semantic_commit, true)
             .await
             .unwrap();
 
@@ -739,7 +739,7 @@ async fn make_repository_with_one_block(
     let result = raw
         .write()
         .await
-        .create_semantic_commit(semantic_commit)
+        .create_semantic_commit(semantic_commit, true)
         .await
         .unwrap();
     let mut block_branch_name = block_commit.to_hash256().to_string();
@@ -788,10 +788,13 @@ async fn make_repository_with_one_block(
         .unwrap();
     raw.write()
         .await
-        .create_semantic_commit(fp_to_semantic_commit(&LastFinalizationProof {
-            height: 1,
-            proof: fp.clone(),
-        }))
+        .create_semantic_commit(
+            fp_to_semantic_commit(&LastFinalizationProof {
+                height: 1,
+                proof: fp.clone(),
+            }),
+            true,
+        )
         .await
         .unwrap();
     let commit_hash = raw
