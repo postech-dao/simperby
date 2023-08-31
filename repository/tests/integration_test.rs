@@ -18,13 +18,6 @@ async fn sync_dms(client_nodes: &mut [(DistributedRepository, ClientNetworkConfi
             .unwrap();
         drepo.update(false).await.unwrap();
     }
-    for (_, _, client_node_dir) in client_nodes {
-        println!("\n\n");
-        simperby_test_suite::run_command(format!(
-            "cd {client_node_dir} && git log --all --decorate --oneline --graph"
-        ))
-        .await;
-    }
 }
 
 #[tokio::test]
@@ -67,7 +60,8 @@ async fn sync_by_dms() {
             server_node_repo.get_dms().unwrap(),
             server_network_config,
         ));
-        sleep_ms(5000).await;
+        // It can fail if server runs less than 7 seconds.
+        sleep_ms(7000).await;
         task.abort();
         let _ = task.await;
         server_node_repo.update(false).await.unwrap();
