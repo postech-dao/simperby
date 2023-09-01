@@ -1,6 +1,6 @@
 [package]
 name = "simperby-network"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
 license = "MIT"
@@ -20,12 +20,12 @@ chrono = { version = "0.4", features = ["serde"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 futures = "0.3"
 log = "0.4"
-simperby-core = { version = "0.1.0", path = "../core" }
+simperby-core = { version = "0.2.0", path = "../core" }
 # libp2p = { version = "0.50.0", features = ["tcp", "tokio", "yamux", "noise", "kad", "identify", "macros"], optional = true }
 thiserror = "1.0"
 serde-tc = "0.4.1"
 reqwest = "0.11"
-fs2 = { version = "0.4.3"}
+fs2 = { version = "0.4.3" }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 ip_rfc = "0.1.0"
 parking_lot = "0.12.1"

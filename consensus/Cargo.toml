@@ -1,6 +1,6 @@
 [package]
 name = "simperby-consensus"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
 license = "MIT"
@@ -18,9 +18,9 @@ tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
 log = "0.4"
 thiserror = "1.0.32"
-simperby-core = { version = "0.1.0", path = "../core" }
-simperby-network = { version = "0.1.0", path = "../network" }
-vetomint = { version = "0.1.0", path = "../vetomint" }
+simperby-core = { version = "0.2.0", path = "../core" }
+simperby-network = { version = "0.2.0", path = "../network" }
+vetomint = { version = "0.2.0", path = "../vetomint" }
 parking_lot = "0.12.1"
 hex = "0.4.3"
 

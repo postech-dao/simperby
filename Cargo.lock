@@ -1797,7 +1797,7 @@ checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
 name = "simperby"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1844,7 +1844,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-consensus"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "eyre",
@@ -1864,7 +1864,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "hex",
@@ -1880,7 +1880,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-governance"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "env_logger",
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-network"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-repository"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -1949,7 +1949,7 @@ dependencies = [
 
 [[package]]
 name = "simperby-settlement"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "env_logger",
@@ -2367,7 +2367,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vetomint"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "eyre",
  "log",

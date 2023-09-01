@@ -1,6 +1,6 @@
 [package]
 name = "simperby"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["PDAO Team <hello@postech-dao.xyz>"]
 edition = "2021"
 license = "MIT"
@@ -18,11 +18,11 @@ tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 log = "0.4"
-simperby-core = { version = "0.1.0", path = "../core" }
-simperby-network = { version = "0.1.0", path = "../network" }
-simperby-governance = { version = "0.1.0", path = "../governance" }
-simperby-consensus = { version = "0.1.0", path = "../consensus" }
-simperby-repository = { version = "0.1.0", path = "../repository" }
+simperby-core = { version = "0.2.0", path = "../core" }
+simperby-network = { version = "0.2.0", path = "../network" }
+simperby-governance = { version = "0.2.0", path = "../governance" }
+simperby-consensus = { version = "0.2.0", path = "../consensus" }
+simperby-repository = { version = "0.2.0", path = "../repository" }
 thiserror = "1.0.32"
 semver = "1.0.0"
 
