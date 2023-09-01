@@ -101,6 +101,19 @@ pub async fn approve(
     Ok(agenda_proof_commit_hash)
 }
 
+pub async fn create_transaction(
+    raw: &mut RawRepository,
+    transaction: Transaction,
+) -> Result<CommitHash, Error> {
+    let reserved_state = read_last_finalized_reserved_state(raw).await?;
+    Ok(raw
+        .create_semantic_commit(
+            format::to_semantic_commit(&Commit::Transaction(transaction), reserved_state)?,
+            true,
+        )
+        .await?)
+}
+
 pub async fn create_agenda(
     raw: &mut RawRepository,
     author: MemberName,

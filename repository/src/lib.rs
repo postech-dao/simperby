@@ -270,6 +270,14 @@ impl DistributedRepository {
         approve(&mut *self.raw.write().await, agenda_hash, proof, timestamp).await
     }
 
+    /// Creates a transaction commit on top of the HEAD.
+    pub async fn create_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<CommitHash, Error> {
+        create_transaction(&mut *self.raw.write().await, transaction).await
+    }
+
     /// Creates an agenda commit on top of the HEAD.
     pub async fn create_agenda(
         &mut self,
