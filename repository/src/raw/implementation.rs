@@ -375,7 +375,7 @@ impl RawRepositoryInner {
         let diff = if commit.parent_count() == 0 {
             None
         } else {
-            let diff = self.get_patch(commit_hash)?;
+            let diff = self.get_diff_patch(commit_hash)?;
             if diff.is_empty() {
                 None
             } else {
@@ -495,8 +495,8 @@ impl RawRepositoryInner {
         let diff = if diff.deltas().len() == 0 {
             Diff::None
         } else {
-            let patch = self.show_commit(commit_hash)?;
-            let hash = patch.to_hash256();
+            let diff_patch = self.get_diff_patch(commit_hash)?;
+            let hash = diff_patch.to_hash256();
             Diff::NonReserved(hash)
         };
         /* TODO: If reserved state
@@ -701,7 +701,7 @@ impl RawRepositoryInner {
         Ok(CommitHash { hash })
     }
 
-    pub(crate) fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+    pub(crate) fn get_diff_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let commit = self.repo.find_commit(oid)?;
         let tree = commit.tree()?;
@@ -724,7 +724,7 @@ impl RawRepositoryInner {
         Ok(patch)
     }
 
-    pub(crate) fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
+    pub(crate) fn get_email_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let commit = self.repo.find_commit(oid)?;
 

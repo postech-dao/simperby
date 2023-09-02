@@ -52,7 +52,7 @@ pub struct SemanticCommit {
 }
 
 /// A commit related to the actual git commit.
-/// - `diff` is a string of git patch which is used to make a git commit.
+/// - `diff` is a string of git diff which is used to make a git commit.
 /// - `author` is same as the author of git commit.
 /// The committer is always same as the author.
 /// - `timestamp` is a git timestamp which represents up to seconds.
@@ -336,14 +336,14 @@ impl RawRepository {
         helper_0(self, RawRepositoryInner::get_initial_commit).await
     }
 
-    /// Returns the patch of the given commit.
-    pub async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryInner::get_patch, commit_hash).await
+    /// Returns the diff patch of the given commit.
+    pub async fn get_diff_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::get_diff_patch, commit_hash).await
     }
 
-    /// Returns the diff of the given commit.
-    pub async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryInner::show_commit, commit_hash).await
+    /// Returns the email patch of the given commit.
+    pub async fn get_email_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::get_email_patch, commit_hash).await
     }
 
     /// Lists the ancestor commits of the given commit (The first element is the direct parent).
