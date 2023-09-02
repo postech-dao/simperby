@@ -1,3 +1,5 @@
+use std::io::{BufRead, Write};
+
 use super::*;
 
 type Error = super::Error;
@@ -532,6 +534,34 @@ impl RawRepositoryInner {
         Ok(semantic_commit)
     }
 
+    pub(crate) fn commit_gitignore(&mut self) -> Result<(), Error> {
+        self.check_clean()?;
+        if self.check_gitignore()? {
+            return Err(Error::Unknown(
+                ".simperby/ entry already exists in .gitignore".to_string(),
+            ));
+        }
+        let path = self.get_working_directory_path()?;
+        let path = std::path::Path::new(&path).join(".gitignore");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path.clone())
+            .map_err(|_| Error::Unknown(format!("failed to open file '{}'", path.display())))?;
+        file.write_all(b".simperby/\n")
+            .map_err(|_| Error::Unknown(format!("failed to write file '{}'", path.display())))?;
+
+        let commit = RawCommit {
+            message: "Add `.simperby/` entry to .gitignore".to_string(),
+            diff: None,
+            author: "Simperby".to_string(),
+            email: "hi@simperby.net".to_string(),
+            timestamp: get_timestamp() / 1000,
+        };
+        self.create_commit_all(commit)?;
+        Ok(())
+    }
+
     pub(crate) fn run_garbage_collection(&mut self) -> Result<(), Error> {
         todo!()
     }
@@ -647,6 +677,25 @@ impl RawRepositoryInner {
             ))?;
         }
         Ok(())
+    }
+
+    pub(crate) fn check_gitignore(&self) -> Result<bool, Error> {
+        let path = self.get_working_directory_path()?;
+        let path = std::path::Path::new(&path).join(".gitignore");
+        if !path.exists() {
+            return Ok(false);
+        }
+        let file = std::fs::File::open(path)
+            .map_err(|_| Error::Unknown("unable to open file".to_string()))?;
+        let reader = std::io::BufReader::new(file);
+
+        for line in reader.lines() {
+            let line = line.map_err(|_| Error::Unknown("unable to read file".to_string()))?;
+            if line == ".simperby/" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub(crate) fn get_working_directory_path(&self) -> Result<String, Error> {

@@ -18,7 +18,6 @@ use simperby_core::*;
 use simperby_network::*;
 use std::sync::Arc;
 use std::{collections::HashSet, fmt};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
 pub use network::RepositoryMessage;
@@ -156,12 +155,6 @@ impl DistributedRepository {
     pub async fn check(&self, _starting_height: BlockHeight) -> Result<bool, Error> {
         // TODO
         Ok(true)
-    }
-
-    /// Checks the existence of `.gitignore` file and `.simperby/` entry in `.gitignore`.
-    /// This returns true if both exist.
-    pub async fn check_gitignore(&self) -> Result<bool, Error> {
-        check_gitignore(&*self.raw.read().await).await
     }
 
     // ---------------
@@ -309,12 +302,6 @@ impl DistributedRepository {
         proof: FinalizationProof,
     ) -> Result<CommitHash, Error> {
         finalize(&mut *self.raw.write().await, block_commit_hash, proof).await
-    }
-
-    /// Creates a commit that adds `.simperby/` entry to `.gitignore`.
-    /// It fails if it exists normally.
-    pub async fn commit_gitignore(&mut self) -> Result<(), Error> {
-        commit_gitignore(&mut *self.raw.write().await).await
     }
 
     // ---------------

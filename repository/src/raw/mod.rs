@@ -257,6 +257,12 @@ impl RawRepository {
         helper_1(self, RawRepositoryInner::read_semantic_commit, commit_hash).await
     }
 
+    /// Creates a commit that adds `.simperby/` entry to `.gitignore`.
+    /// It fails if it exists normally.
+    pub async fn commit_gitignore(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::commit_gitignore).await
+    }
+
     /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     pub async fn run_garbage_collection(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::run_garbage_collection).await
@@ -307,6 +313,12 @@ impl RawRepository {
     /// Checks if there are no unstaged, staged and untracked files.
     pub async fn check_clean(&self) -> Result<(), Error> {
         helper_0(self, RawRepositoryInner::check_clean).await
+    }
+
+    /// Checks the existence of `.gitignore` file and `.simperby/` entry in `.gitignore`.
+    /// This returns true if both exist.
+    pub async fn check_gitignore(&self) -> Result<bool, Error> {
+        helper_0(self, RawRepositoryInner::check_gitignore).await
     }
 
     // ---------------
