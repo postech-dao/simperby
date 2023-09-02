@@ -60,7 +60,7 @@ fn normal_1() {
         );
     }
 
-    let mut nodes = vec![vec![proposer], nodes].concat();
+    let mut nodes = [vec![proposer], nodes].concat();
 
     for (i, node) in nodes.iter_mut().enumerate() {
         let response = node.progress(
