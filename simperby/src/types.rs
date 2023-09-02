@@ -43,7 +43,11 @@ pub enum CommitInfo {
 
 /// A configuration for a node.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Config {}
+pub struct Config {
+    /// Whether to use `git push` and `git fetch` to communicate with peers.
+    /// If false, the node will use the DMS protocol instead (which is recommended).
+    pub git_network: bool,
+}
 
 /// Hosting a server node requires extra configuration.
 #[derive(Debug, Serialize, Deserialize, Clone)]

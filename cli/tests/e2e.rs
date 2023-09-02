@@ -73,7 +73,7 @@ async fn cli() {
         clients_path.push(dir.clone());
         run_command(format!("cp -a {server_dir}/. {dir}/")).await;
 
-        let config = Config {};
+        let config = Config { git_network: false };
         let config = serde_spb::to_string(&config).unwrap();
         let auth = Auth {
             private_key: key.clone(),
@@ -95,7 +95,7 @@ async fn cli() {
     }
 
     // Add files for cli.
-    let config = Config {};
+    let config = Config { git_network: false };
     let config = serde_spb::to_string(&config).unwrap();
     let auth = Auth {
         private_key: keys[3].1.clone(),
