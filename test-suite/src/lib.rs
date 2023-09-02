@@ -1,6 +1,7 @@
 use path_slash::PathExt as _;
 use simperby_core::*;
 use simperby_network::*;
+use simperby_repository::raw::RawRepository;
 use tempfile::TempDir;
 
 pub fn setup_test() {
@@ -41,6 +42,11 @@ pub async fn run_command(command: impl AsRef<str>) {
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
     run_command(format!("cd {path} && git init")).await;
+    let mut repository = RawRepository::open(path).await.unwrap();
+    if !repository.check_gitignore().await.unwrap() {
+        repository.commit_gitignore().await.unwrap();
+    }
+
     simperby_repository::raw::reserved_state::write_reserved_state(path, &reserved_state)
         .await
         .unwrap();
