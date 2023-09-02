@@ -349,18 +349,30 @@ impl RawRepositoryInner {
         index.write()?;
         let id = index.write_tree()?;
         let tree = self.repo.find_tree(id)?;
-        let head = self.get_head()?;
-        let parent_oid = Oid::from_bytes(&head.hash)?;
-        let parent_commit = self.repo.find_commit(parent_oid)?;
 
-        let oid = self.repo.commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            &commit.message,
-            &tree,
-            &[&parent_commit],
-        )?;
+        let oid = match self.repo.head() {
+            Ok(_) => {
+                let head = self.get_head()?;
+                let parent_oid = Oid::from_bytes(&head.hash)?;
+                let parent_commit = self.repo.find_commit(parent_oid)?;
+                self.repo.commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    &commit.message,
+                    &tree,
+                    &[&parent_commit],
+                )?
+            }
+            Err(_) => self.repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                &commit.message,
+                &tree,
+                &[],
+            )?,
+        };
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
         Ok(CommitHash { hash })

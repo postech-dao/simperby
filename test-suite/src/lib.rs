@@ -42,6 +42,10 @@ pub async fn run_command(command: impl AsRef<str>) {
 /// and initializes a pre-genesis repository.
 pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedState) {
     run_command(format!("cd {path} && git init")).await;
+    run_command(format!(
+        "cd {path} && git config user.name 'Test' && git config user.email 'test@test.com'"
+    ))
+    .await;
     let mut repository = RawRepository::open(path).await.unwrap();
     if !repository.check_gitignore().await.unwrap() {
         repository.commit_gitignore().await.unwrap();
@@ -53,10 +57,6 @@ pub async fn setup_pre_genesis_repository(path: &str, reserved_state: ReservedSt
     println!("> Pre-genesis repository is created at {path}");
 
     run_command(format!("cd {path} && git add -A")).await;
-    run_command(format!(
-        "cd {path} && git config user.name 'Test' && git config user.email 'test@test.com'"
-    ))
-    .await;
     run_command(format!("cd {path} && git commit -m 'genesis'")).await;
 }
 
