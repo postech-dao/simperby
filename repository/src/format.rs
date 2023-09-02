@@ -291,7 +291,7 @@ pub fn raw_commit_to_semantic_commit(raw_commit: RawCommit) -> SemanticCommit {
     let (title, body) = if let Some((title, body)) = raw_commit.message.split_once("\n\n") {
         (title.to_string(), body.to_string())
     } else {
-        (String::new(), String::new())
+        (raw_commit.message, String::new())
     };
     SemanticCommit {
         title,
