@@ -271,7 +271,7 @@ impl RawRepositoryInner {
             let statuses = self.repo.statuses(None)?;
             has_changes = statuses
                 .iter()
-                .any(|entry| entry.status() != Status::WT_NEW);
+                .any(|entry| entry.status() == Status::WT_NEW);
         }
         // Stash before creating a commit if those files exist.
         if has_changes {
