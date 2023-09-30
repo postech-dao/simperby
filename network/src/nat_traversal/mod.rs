@@ -23,76 +23,16 @@ use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 use std::time::Duration;
 
-/*
-//////////////////////////////////////////////////////////////
-Here is an example for the server behind NAT.
-//////////////////////////////////////////////////////////////
+// send_stun_request sends a request to the given stun addr using the given conn.
+async fn send_stun_request(conn: Arc<UdpSocket>, addr: String) -> Result<(), Error> {
+    let mut msg = Message::new();
+    msg.build(&[Box::<TransactionId>::default(), Box::new(BINDING_REQUEST)])?;
 
-let bind_addr = SocketAddr::from(([0, 0, 0, 0], bind_port));
-let sock = UdpSocket::bind(bind_addr).await?;
-let conn = Arc::new(sock);
-
-tokio::spawn(keep_connecting_to_available_stun(
-    conn.clone(),
-    stun_cands_file,
-    request_period,
-));
-
-tokio::spawn(keep_connecting_to_clients(
-    conn.clone(),
-    allowed_clients_file,
-    request_period,
-));
-
-println!("Listening on: {}", conn.clone().local_addr()?);
-let mut msg = Message::new();
-let mut buf = [0; 1024];
-loop {
-    match conn.recv_from(&mut buf).await {
-        Ok((len, addr)) => {
-            if !is_stun_response(buf) {
-                // Handle the DMS message.
-            }
-        },
-        Err(_) => {
-            println!("error!");
-        }
-    }
+    conn.send_to(&msg.raw, addr).await?;
+    Ok(())
 }
-*/
 
-/*
-//////////////////////////////////////////////////////////////
-Here is an example for the client behind NAT.
-//////////////////////////////////////////////////////////////
-
-let bind_addr = SocketAddr::from(([0, 0, 0, 0], bind_port));
-let sock = UdpSocket::bind(bind_addr).await?;
-let conn = Arc::new(sock);
-
-tokio::spawn(keep_connecting_to_available_stun(
-    conn.clone(),
-    stun_cands_file,
-    request_period,
-));
-
-println!("Send a request to the peer: {}", peer_addr);
-conn.send_to(b"DMS:CONSENSUS:PING", peer_addr.clone())
-    .await?;
-
-match conn.recv_from(&mut buf).await {
-    Ok((len, addr)) => {
-        if !is_stun_response(buf) {
-            // Handle the DMS message.
-        }
-    },
-    Err(_) => {
-        println!("error!");
-    }
-}
-*/
-
-// keep_connecting_to_available_stun helps the given conn keep the public address
+// keep_connecting_to_available_stun helps the given conn to maintain the public address
 // by periodically sending a request to the available STUN server.
 pub async fn keep_connecting_to_available_stun(
     conn: Arc<UdpSocket>,
@@ -103,14 +43,9 @@ pub async fn keep_connecting_to_available_stun(
         let file = File::open(stun_cands_file_name.clone())?;
         let reader = BufReader::new(file);
 
-        let mut msg = Message::new();
-        msg.build(&[Box::<TransactionId>::default(), Box::new(BINDING_REQUEST)])?;
-
         for line in reader.lines() {
             match line {
-                Ok(addr) => {
-                    conn.send_to(&msg.raw, addr).await?;
-                }
+                Ok(addr) => send_stun_request(conn.clone(), addr).await?,
                 Err(err) => {
                     eprintln!("Error reading line: {}", err);
                 }
@@ -145,20 +80,130 @@ pub async fn keep_connecting_to_clients(
     }
 }
 
-// is_stun_response returns whether the given data represents a response from the STUN server, and
-// prints out the peer's current public address.
-// You should broadcast your address to other peers somehow.
-pub fn is_stun_response(data: &Vec<u8>) -> bool {
+// decode_stun_response returns the public address by decoding the response from the stun server.
+// Note(sejongk): You should broadcast your public address to other peers somehow for hole-punching.
+pub fn decode_stun_response(data: &[u8]) -> Option<String> {
     let mut msg = Message::new();
-    match msg.unmarshal_binary(&data) {
+    match msg.unmarshal_binary(data) {
         Ok(_) => {
             let mut xor_addr = XorMappedAddress::default();
             xor_addr.get_from(&msg).unwrap();
-            println!("Your current public address: {xor_addr}");
-            return true;
+            Some(xor_addr.to_string())
         }
-        Err(_) => {
-            return false;
+        Err(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regex::Regex;
+    use std::net::SocketAddr;
+
+    #[tokio::test]
+    async fn get_public_address_via_stun() {
+        let bind_port = 8080;
+        let bind_addr = SocketAddr::from(([0, 0, 0, 0], bind_port));
+        let sock = UdpSocket::bind(bind_addr).await.unwrap();
+        let conn = Arc::new(sock);
+
+        let stun_addr = "stun.l.google.com:19302";
+        send_stun_request(conn.clone(), stun_addr.to_string())
+            .await
+            .unwrap();
+
+        let mut buf = [0; 1024];
+        let (_len, _addr) = conn.recv_from(&mut buf).await.unwrap();
+        let public_addr = decode_stun_response(&buf);
+        assert!(public_addr.is_some());
+
+        let re = Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}:\d{1,5}$").unwrap();
+        assert!(re.is_match(&public_addr.unwrap()));
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn run_server_behind_nat() {
+        let bind_port = 8080;
+        let bind_addr = SocketAddr::from(([0, 0, 0, 0], bind_port));
+        let sock = UdpSocket::bind(bind_addr).await.unwrap();
+        let conn = Arc::new(sock);
+
+        let request_period = Duration::from_secs(10);
+        let stun_cands_file = "stun_cands.txt".to_string();
+        let allowed_clients_file = "allowed_clients.txt".to_string();
+
+        tokio::spawn(keep_connecting_to_available_stun(
+            conn.clone(),
+            stun_cands_file,
+            request_period,
+        ));
+
+        tokio::spawn(keep_connecting_to_clients(
+            conn.clone(),
+            allowed_clients_file,
+            request_period,
+        ));
+
+        println!("Listening on: {}", conn.clone().local_addr().unwrap());
+        let mut buf = [0; 1024];
+        loop {
+            match conn.recv_from(&mut buf).await {
+                Ok((len, addr)) => match decode_stun_response(&buf) {
+                    Some(public_addr) => {
+                        println!("Public addr: {}", public_addr)
+                    }
+                    None => {
+                        // Handle the DMS message
+                        println!("{:?} bytes received from the Peer ({:?})", len, addr);
+                        let len = conn.send_to(&buf[..len], addr).await.unwrap();
+                        println!("{:?} bytes sent to the Peer ({:?})", len, addr);
+                    }
+                },
+                Err(_) => {
+                    println!("error!");
+                }
+            }
+        }
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn run_client_behind_nat() {
+        let bind_port = 8080;
+        let bind_addr = SocketAddr::from(([0, 0, 0, 0], bind_port));
+        let sock = UdpSocket::bind(bind_addr).await.unwrap();
+        let conn = Arc::new(sock);
+
+        let request_period = Duration::from_secs(10);
+        let stun_cands_file = "stun_cands.txt".to_string();
+
+        tokio::spawn(keep_connecting_to_available_stun(
+            conn.clone(),
+            stun_cands_file,
+            request_period,
+        ));
+
+        let server_addr = "127.0.0.1:8888".to_string();
+        println!("Send a request to the peer: {}", server_addr);
+        conn.send_to(b"DMS:CONSENSUS:PING", server_addr)
+            .await
+            .unwrap();
+
+        let mut buf = [0; 1024];
+        match conn.recv_from(&mut buf).await {
+            Ok((len, addr)) => match decode_stun_response(&buf) {
+                Some(public_addr) => {
+                    println!("Public addr: {}", public_addr)
+                }
+                None => {
+                    // Handle the DMS message
+                    println!("{:?} bytes received from the Server ({:?})", len, addr);
+                }
+            },
+            Err(_) => {
+                println!("error!");
+            }
         }
     }
 }
