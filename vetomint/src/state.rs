@@ -128,3 +128,58 @@ impl ConsensusState {
             .sum()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_default_consensus_state() -> ConsensusState {
+        let height_info = HeightInfo {
+            validators: vec![1, 1, 1, 1],
+            this_node_index: Some(0),
+            timestamp: 0,
+            consensus_params: ConsensusParams {
+                timeout_ms: 100,
+                repeat_round_for_first_leader: 1,
+            },
+            initial_block_candidate: 0,
+        };
+        ConsensusState::new(height_info)
+    }
+
+    #[test]
+    fn test_get_total_voting_power() {
+        let consensus_state = create_default_consensus_state();
+        assert_eq!(consensus_state.get_total_voting_power(), 4);
+    }
+
+    #[test]
+    fn get_total_prevotes() {
+        // TODO: modify the default consensus state to test this.
+    }
+
+    #[test]
+    fn get_total_precommits() {
+        // TODO: modify the default consensus state to test this.
+    }
+
+    #[test]
+    fn get_total_prevotes_on_proposal() {
+        // TODO: modify the default consensus state to test this.
+    }
+
+    #[test]
+    fn get_total_precommits_on_proposal() {
+        // TODO: modify the default consensus state to test this.
+    }
+
+    #[test]
+    fn get_total_prevotes_on_nil() {
+        // TODO: modify the default consensus state to test this.
+    }
+
+    #[test]
+    fn get_total_precommits_on_nil() {
+        // TODO: modify the default consensus state to test this.
+    }
+}
