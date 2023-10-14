@@ -155,31 +155,31 @@ mod tests {
 
     #[test]
     fn get_total_prevotes() {
-        // TODO: modify the default consensus state to test this.
+        // TODO
     }
 
     #[test]
     fn get_total_precommits() {
-        // TODO: modify the default consensus state to test this.
+        // TODO
     }
 
     #[test]
     fn get_total_prevotes_on_proposal() {
-        // TODO: modify the default consensus state to test this.
+        // TODO: modify the default consensus state (e.g., add prevotes) to test this.
     }
 
     #[test]
     fn get_total_precommits_on_proposal() {
-        // TODO: modify the default consensus state to test this.
+        // TODO: modify the default consensus state (e.g., add precommits) to test this.
     }
 
     #[test]
     fn get_total_prevotes_on_nil() {
-        // TODO: modify the default consensus state to test this.
+        // TODO: modify the default consensus state (e.g., add prevotes) to test this.
     }
 
     #[test]
     fn get_total_precommits_on_nil() {
-        // TODO: modify the default consensus state to test this.
+        // TODO: modify the default consensus state (e.g., add precommits) to test this.
     }
 }
