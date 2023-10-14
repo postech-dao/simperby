@@ -265,3 +265,11 @@ pub struct FinalizationInfo {
     pub reserved_state: ReservedState,
     pub proof: FinalizationProof,
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn en_decode_commit_hash() {
+        // TODO: test a successful encode/decode of CommitHash
+    }
+}
