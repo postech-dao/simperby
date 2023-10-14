@@ -163,6 +163,16 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn remove_file() {
+        // TODO: test whether `remove_file()` actually removes the file.
+    }
+
+    #[tokio::test]
+    async fn remove_all_files() {
+        // TODO: test whether `remove_all_files()` actually removes all the file.
+    }
+
+    #[tokio::test]
     async fn never_interrupted() {
         let dir = gerenate_random_storage_directory();
         StorageImpl::create(&dir).await.unwrap();
