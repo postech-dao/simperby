@@ -500,6 +500,11 @@ mod tests {
     }
 
     #[test]
+    fn pretty_format2() {
+        // TODO: like `pretty_format`, but initialize the hash with `zero()`
+    }
+
+    #[test]
     fn hash_encode_decode() {
         let hash = Hash256::hash("hello world");
         let encoded = serde_spb::to_string(&hash).unwrap();
