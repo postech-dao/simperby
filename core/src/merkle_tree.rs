@@ -206,6 +206,12 @@ mod test {
     }
 
     #[test]
+    /// Check the root of the tree with a single item, with the manual calculation.
+    fn root_of_single_item_tree() {
+        // TODO
+    }
+
+    #[test]
     /// Test if verification fails for data not in the tree.
     fn verification_failure() {
         let hash_list: Vec<Hash256> = create_hash_list(16);
