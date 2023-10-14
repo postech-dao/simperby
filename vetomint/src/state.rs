@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_total_voting_power() {
+    fn get_total_voting_power() {
         let consensus_state = create_default_consensus_state();
         assert_eq!(consensus_state.get_total_voting_power(), 4);
     }
