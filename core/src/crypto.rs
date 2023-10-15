@@ -501,7 +501,18 @@ mod tests {
 
     #[test]
     fn pretty_format2() {
-        // TODO: like `pretty_format`, but initialize the hash with `zero()`
+        let hash = Hash256::zero();
+        assert_eq!(hash.to_string().len(), 64);
+        let encoded = serde_spb::to_string(&hash).unwrap();
+        assert_eq!(encoded.len(), 66);
+        let (public_key, private_key) = generate_keypair_random();
+        let signature = Signature::sign(hash, &private_key).unwrap();
+        let encoded = serde_spb::to_string(&signature).unwrap();
+        assert_eq!(encoded.len(), 132);
+        let encoded = serde_spb::to_string(&public_key).unwrap();
+        assert_eq!(encoded.len(), 132);
+        let encoded = serde_spb::to_string(&private_key).unwrap();
+        assert_eq!(encoded.len(), 66);
     }
 
     #[test]
