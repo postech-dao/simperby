@@ -155,7 +155,24 @@ mod tests {
 
     #[test]
     fn get_total_prevotes() {
-        // TODO
+        let mut consensus_state = create_default_consensus_state();
+        consensus_state.prevotes.insert(Vote{
+            proposal:None,
+            signer:0,
+            round:0,
+        });
+
+        let total_prevotes_round = consensus_state.get_total_prevotes(0);;
+        assert_eq!(total_prevotes_round, 1, "total precommits should be 1");
+
+        consensus_state.prevotes.insert(Vote{
+            proposal:None,
+            signer:1,
+            round:0,
+        });
+
+        let total_prevotes_round = consensus_state.get_total_prevotes(0);
+        assert_eq!(total_prevotes_round, 2, "total precommits should be 2");
     }
 
     #[test]
@@ -184,21 +201,90 @@ mod tests {
 
     #[test]
     fn get_total_prevotes_on_proposal() {
-        // TODO: modify the default consensus state (e.g., add prevotes) to test this.
+        let mut consensus_state = create_default_consensus_state();
+        consensus_state.prevotes.insert(Vote {
+            proposal: Some(0),
+            signer: 0,
+            round: 0,
+        });
+        
+        let total_prevotes_on_proposal = consensus_state.get_total_prevotes_on_proposal(0, 0);
+        assert_eq!(total_prevotes_on_proposal, 1, "total prevotes on proposal should be 1");
+
+        consensus_state.prevotes.insert(Vote {
+            proposal: Some(0),
+            signer: 1,
+            round: 0,
+        });
+
+        let total_prevotes_on_proposal = consensus_state.get_total_prevotes_on_proposal(0, 0);
+        assert_eq!(total_prevotes_on_proposal, 2, "total prevotes on proposal should be 2");
     }
 
     #[test]
     fn get_total_precommits_on_proposal() {
-        // TODO: modify the default consensus state (e.g., add precommits) to test this.
+        let mut consensus_state = create_default_consensus_state();
+        consensus_state.precommits.insert(Vote {
+            proposal: Some(0),
+            signer: 0,
+            round: 0,
+        });
+
+        let total_precommits_on_proposal = consensus_state.get_total_precommits_on_proposal(0, 0);
+        assert_eq!(total_precommits_on_proposal, 1, "total precommits on proposal should be 1");
+
+        consensus_state.precommits.insert(Vote {
+            proposal: Some(0),
+            signer: 1,
+            round: 0,
+        });
+
+        let total_precommits_on_proposal = consensus_state.get_total_precommits_on_proposal(0, 0);
+        assert_eq!(total_precommits_on_proposal, 2, "total precommits on proposal should be 2");
     }
 
     #[test]
     fn get_total_prevotes_on_nil() {
-        // TODO: modify the default consensus state (e.g., add prevotes) to test this.
+        let mut consensus_state = create_default_consensus_state();
+        consensus_state.prevotes.insert(Vote {
+            proposal: None,
+            signer: 0,
+            round: 0,
+        });
+
+        let total_prevotes_on_nil = consensus_state.get_total_prevotes_on_nil(0);
+        assert_eq!(total_prevotes_on_nil, 1, "total prevotes on nil should be 1");
+
+        consensus_state.prevotes.insert(Vote {
+            proposal: None,
+            signer: 1,
+            round: 0,
+        });
+
+        let total_prevotes_on_nil = consensus_state.get_total_prevotes_on_nil(0);
+        assert_eq!(total_prevotes_on_nil, 2, "total prevotes on nil should be 2");
     }
 
     #[test]
     fn get_total_precommits_on_nil() {
-        // TODO: modify the default consensus state (e.g., add precommits) to test this.
+        let mut consensus_state = create_default_consensus_state();
+
+        consensus_state.precommits.insert(Vote {
+            proposal: None,
+            signer: 0,
+            round: 0,
+        });
+
+        let total_precommits_on_nil = consensus_state.get_total_precommits_on_nil(0);
+        assert_eq!(total_precommits_on_nil, 1, "total precommits on nil should be 1");
+
+        consensus_state.precommits.insert(Vote {
+            proposal: None,
+            signer: 1,
+            round: 0,
+        });
+
+        let total_precommits_on_nil = consensus_state.get_total_precommits_on_nil(0);
+        assert_eq!(total_precommits_on_nil, 2, "total precommits on nil should be 2");
     }
 }
