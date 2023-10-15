@@ -489,7 +489,7 @@ mod tests {
         assert_eq!(hash.to_string().len(), 64);
         let encoded = serde_spb::to_string(&hash).unwrap();
         assert_eq!(encoded.len(), 66);
-        let (public_key, private_key) = generate_keypair("hello world");
+        let (public_key, private_key) = generate_keypair("hello rustaceans");
         let signature = Signature::sign(hash, &private_key).unwrap();
         let encoded = serde_spb::to_string(&signature).unwrap();
         assert_eq!(encoded.len(), 132);
