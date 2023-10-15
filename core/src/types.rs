@@ -268,8 +268,15 @@ pub struct FinalizationInfo {
 
 #[cfg(test)]
 mod tests {
+    use super::CommitHash;
+    use serde_json::{from_str, to_string};
+
     #[test]
     fn en_decode_commit_hash() {
-        // TODO: test a successful encode/decode of CommitHash
+        let commit_hash = CommitHash { hash: [1; 20] };
+        let serialized = to_string(&commit_hash).unwrap();
+        assert_eq!(serialized, "\"0101010101010101010101010101010101010101\"");
+        let deserialized: CommitHash = from_str(&serialized).unwrap();
+        assert_eq!(deserialized, commit_hash);
     }
 }
