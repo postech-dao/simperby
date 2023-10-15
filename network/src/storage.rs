@@ -185,7 +185,30 @@ mod tests {
 
     #[tokio::test]
     async fn remove_all_files() {
-        // TODO: test whether `remove_all_files()` actually removes all the file.
+        let dir = gerenate_random_storage_directory();
+        StorageImpl::create(&dir).await.unwrap();
+        let mut storage = StorageImpl::open(&dir).await.unwrap();
+
+        let names = (0..10)
+            .map(|_| generate_random_string())
+            .collect::<Vec<_>>();
+
+        for name in names.iter() {
+            let content = generate_random_string();
+            storage
+                .add_or_overwrite_file(name, content.clone())
+                .await
+                .unwrap();
+            assert_eq!(storage.read_file(name).await.unwrap(), content);
+        }
+
+        let _ = storage.remove_all_files().await;
+
+        for name in names.iter() {
+            let path = std::path::Path::new(&dir).join(name);
+            assert!(!path.exists());
+            assert!(storage.read_file(name).await.is_err());
+        }
     }
 
     #[tokio::test]
