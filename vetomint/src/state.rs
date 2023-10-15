@@ -160,7 +160,26 @@ mod tests {
 
     #[test]
     fn get_total_precommits() {
-        // TODO
+        let mut consensus_state = create_default_consensus_state();
+        consensus_state.precommits.insert(Vote {
+            proposal: None,
+            signer: 0,
+            round: 0,
+        });
+        consensus_state.precommits.insert(Vote {
+            proposal: None,
+            signer: 1,
+            round: 0,
+        });
+        consensus_state.precommits.insert(Vote {
+            proposal: None,
+            signer: 2,
+            round: 1,
+        });
+
+        let total_precommits = consensus_state.get_total_precommits(0);
+
+        assert_eq!(total_precommits, 2, "total precommits should be 2");
     }
 
     #[test]
