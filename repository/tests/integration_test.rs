@@ -21,7 +21,6 @@ async fn sync_dms(client_nodes: &mut [(DistributedRepository, ClientNetworkConfi
 }
 
 #[tokio::test]
-#[ignore]
 async fn sync_by_dms() {
     setup_test();
 

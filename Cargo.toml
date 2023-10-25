@@ -11,3 +11,4 @@ members = [
     "settlement",
     "simperby"
 ]
+resolver = "2"

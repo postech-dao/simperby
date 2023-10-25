@@ -52,7 +52,7 @@ pub struct SemanticCommit {
 }
 
 /// A commit related to the actual git commit.
-/// - `diff` is a string of git patch which is used to make a git commit.
+/// - `diff` is a string of git diff which is used to make a git commit.
 /// - `author` is same as the author of git commit.
 /// The committer is always same as the author.
 /// - `timestamp` is a git timestamp which represents up to seconds.
@@ -257,6 +257,12 @@ impl RawRepository {
         helper_1(self, RawRepositoryInner::read_semantic_commit, commit_hash).await
     }
 
+    /// Creates a commit that adds `.simperby/` entry to `.gitignore`.
+    /// It fails if it exists normally.
+    pub async fn commit_gitignore(&mut self) -> Result<(), Error> {
+        helper_0_mut(self, RawRepositoryInner::commit_gitignore).await
+    }
+
     /// Removes orphaned commits. Same as `git gc --prune=now --aggressive`
     pub async fn run_garbage_collection(&mut self) -> Result<(), Error> {
         helper_0_mut(self, RawRepositoryInner::run_garbage_collection).await
@@ -309,6 +315,12 @@ impl RawRepository {
         helper_0(self, RawRepositoryInner::check_clean).await
     }
 
+    /// Checks the existence of `.gitignore` file and `.simperby/` entry in `.gitignore`.
+    /// This returns true if both exist.
+    pub async fn check_gitignore(&self) -> Result<bool, Error> {
+        helper_0(self, RawRepositoryInner::check_gitignore).await
+    }
+
     // ---------------
     // Various queries
     // ---------------
@@ -336,14 +348,14 @@ impl RawRepository {
         helper_0(self, RawRepositoryInner::get_initial_commit).await
     }
 
-    /// Returns the patch of the given commit.
-    pub async fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryInner::get_patch, commit_hash).await
+    /// Returns the diff patch of the given commit.
+    pub async fn get_diff_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::get_diff_patch, commit_hash).await
     }
 
-    /// Returns the diff of the given commit.
-    pub async fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
-        helper_1(self, RawRepositoryInner::show_commit, commit_hash).await
+    /// Returns the email patch of the given commit.
+    pub async fn get_email_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+        helper_1(self, RawRepositoryInner::get_email_patch, commit_hash).await
     }
 
     /// Lists the ancestor commits of the given commit (The first element is the direct parent).

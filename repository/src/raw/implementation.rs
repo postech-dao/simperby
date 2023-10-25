@@ -1,3 +1,5 @@
+use std::io::{BufRead, Write};
+
 use super::*;
 
 type Error = super::Error;
@@ -269,7 +271,7 @@ impl RawRepositoryInner {
             let statuses = self.repo.statuses(None)?;
             has_changes = statuses
                 .iter()
-                .any(|entry| entry.status() != Status::WT_NEW);
+                .any(|entry| entry.status() == Status::WT_NEW);
         }
         // Stash before creating a commit if those files exist.
         if has_changes {
@@ -347,18 +349,30 @@ impl RawRepositoryInner {
         index.write()?;
         let id = index.write_tree()?;
         let tree = self.repo.find_tree(id)?;
-        let head = self.get_head()?;
-        let parent_oid = Oid::from_bytes(&head.hash)?;
-        let parent_commit = self.repo.find_commit(parent_oid)?;
 
-        let oid = self.repo.commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            &commit.message,
-            &tree,
-            &[&parent_commit],
-        )?;
+        let oid = match self.repo.head() {
+            Ok(_) => {
+                let head = self.get_head()?;
+                let parent_oid = Oid::from_bytes(&head.hash)?;
+                let parent_commit = self.repo.find_commit(parent_oid)?;
+                self.repo.commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    &commit.message,
+                    &tree,
+                    &[&parent_commit],
+                )?
+            }
+            Err(_) => self.repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                &commit.message,
+                &tree,
+                &[],
+            )?,
+        };
         let hash =
             <[u8; 20]>::try_from(oid.as_bytes()).map_err(|_| Error::Unknown("err".to_string()))?;
         Ok(CommitHash { hash })
@@ -375,7 +389,7 @@ impl RawRepositoryInner {
         let diff = if commit.parent_count() == 0 {
             None
         } else {
-            let diff = self.get_patch(commit_hash)?;
+            let diff = self.get_diff_patch(commit_hash)?;
             if diff.is_empty() {
                 None
             } else {
@@ -495,8 +509,8 @@ impl RawRepositoryInner {
         let diff = if diff.deltas().len() == 0 {
             Diff::None
         } else {
-            let patch = self.show_commit(commit_hash)?;
-            let hash = patch.to_hash256();
+            let diff_patch = self.get_diff_patch(commit_hash)?;
+            let hash = diff_patch.to_hash256();
             Diff::NonReserved(hash)
         };
         /* TODO: If reserved state
@@ -530,6 +544,34 @@ impl RawRepositoryInner {
             timestamp: commit.author().when().seconds() * 1000,
         };
         Ok(semantic_commit)
+    }
+
+    pub(crate) fn commit_gitignore(&mut self) -> Result<(), Error> {
+        self.check_clean()?;
+        if self.check_gitignore()? {
+            return Err(Error::Unknown(
+                ".simperby/ entry already exists in .gitignore".to_string(),
+            ));
+        }
+        let path = self.get_working_directory_path()?;
+        let path = std::path::Path::new(&path).join(".gitignore");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path.clone())
+            .map_err(|_| Error::Unknown(format!("failed to open file '{}'", path.display())))?;
+        file.write_all(b".simperby/\n")
+            .map_err(|_| Error::Unknown(format!("failed to write file '{}'", path.display())))?;
+
+        let commit = RawCommit {
+            message: "Add `.simperby/` entry to .gitignore".to_string(),
+            diff: None,
+            author: "Simperby".to_string(),
+            email: "hi@simperby.net".to_string(),
+            timestamp: get_timestamp() / 1000,
+        };
+        self.create_commit_all(commit)?;
+        Ok(())
     }
 
     pub(crate) fn run_garbage_collection(&mut self) -> Result<(), Error> {
@@ -649,6 +691,25 @@ impl RawRepositoryInner {
         Ok(())
     }
 
+    pub(crate) fn check_gitignore(&self) -> Result<bool, Error> {
+        let path = self.get_working_directory_path()?;
+        let path = std::path::Path::new(&path).join(".gitignore");
+        if !path.exists() {
+            return Ok(false);
+        }
+        let file = std::fs::File::open(path)
+            .map_err(|_| Error::Unknown("unable to open file".to_string()))?;
+        let reader = std::io::BufReader::new(file);
+
+        for line in reader.lines() {
+            let line = line.map_err(|_| Error::Unknown("unable to read file".to_string()))?;
+            if line == ".simperby/" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub(crate) fn get_working_directory_path(&self) -> Result<String, Error> {
         let path = self
             .repo
@@ -701,7 +762,7 @@ impl RawRepositoryInner {
         Ok(CommitHash { hash })
     }
 
-    pub(crate) fn get_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
+    pub(crate) fn get_diff_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let commit = self.repo.find_commit(oid)?;
         let tree = commit.tree()?;
@@ -724,7 +785,7 @@ impl RawRepositoryInner {
         Ok(patch)
     }
 
-    pub(crate) fn show_commit(&self, commit_hash: CommitHash) -> Result<String, Error> {
+    pub(crate) fn get_email_patch(&self, commit_hash: CommitHash) -> Result<String, Error> {
         let oid = Oid::from_bytes(&commit_hash.hash)?;
         let commit = self.repo.find_commit(oid)?;
 

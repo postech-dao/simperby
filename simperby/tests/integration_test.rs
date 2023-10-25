@@ -75,7 +75,9 @@ async fn normal_1() {
             private_key: key.clone(),
         };
         let port = server_config.peers_port;
-        let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+        let mut client = Client::open(&dir, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         client
             .add_peer(
                 fi.reserved_state.members[3].name.clone(),
@@ -93,7 +95,9 @@ async fn normal_1() {
     let server_config_ = server_config.clone();
     let server_dir_ = server_dir.clone();
     tokio::spawn(async move {
-        let client = Client::open(&server_dir_, Config {}, auth).await.unwrap();
+        let client = Client::open(&server_dir_, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         let task = client
             .serve(
                 server_config_,
@@ -219,7 +223,9 @@ async fn normal_2() {
             private_key: key.clone(),
         };
         let port = server_config.peers_port;
-        let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+        let mut client = Client::open(&dir, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         client
             .add_peer(
                 fi.reserved_state.members[3].name.clone(),
@@ -234,9 +240,13 @@ async fn normal_2() {
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
-    let client = Client::open(&server_dir.clone(), Config {}, auth.clone())
-        .await
-        .unwrap();
+    let client = Client::open(
+        &server_dir.clone(),
+        Config { git_network: false },
+        auth.clone(),
+    )
+    .await
+    .unwrap();
     let server_task =
         client
             .serve(
@@ -316,7 +326,9 @@ async fn normal_2() {
     server_task.abort();
     remove_state_file(server_dir.clone()).await;
     tokio::spawn(async move {
-        let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
+        let client = Client::open(&server_dir, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         let task = client
             .serve(
                 server_config,
@@ -415,7 +427,9 @@ async fn normal_2_premade() {
         };
         let port = server_config.peers_port;
         remove_state_file(dir.clone()).await;
-        let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+        let mut client = Client::open(&dir, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         client
             .add_peer(
                 fi.reserved_state.members[3].name.clone(),
@@ -441,9 +455,13 @@ async fn normal_2_premade() {
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
-    let client = Client::open(&server_dir.clone(), Config {}, auth.clone())
-        .await
-        .unwrap();
+    let client = Client::open(
+        &server_dir.clone(),
+        Config { git_network: false },
+        auth.clone(),
+    )
+    .await
+    .unwrap();
     let server_task =
         client
             .serve(
@@ -525,7 +543,9 @@ async fn normal_2_premade() {
     server_task.abort();
     remove_state_file(server_dir.clone()).await;
     tokio::spawn(async move {
-        let client = Client::open(&server_dir, Config {}, auth).await.unwrap();
+        let client = Client::open(&server_dir, Config { git_network: false }, auth)
+            .await
+            .unwrap();
         let task = client
             .serve(
                 server_config,
@@ -621,7 +641,9 @@ async fn make_repository_with_one_block(
     let auth = Auth {
         private_key: keys[3].1.clone(),
     };
-    let mut client = Client::open(&dir, Config {}, auth).await.unwrap();
+    let mut client = Client::open(&dir, Config { git_network: false }, auth)
+        .await
+        .unwrap();
 
     let rs = fi.reserved_state;
     let genesis_info = rs.genesis_info.clone();

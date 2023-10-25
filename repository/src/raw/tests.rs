@@ -714,8 +714,8 @@ async fn semantic_commit() {
     let commit_file = repo.create_commit_all(commit).await.unwrap();
 
     let semantic_commit_nonreserved = repo.read_semantic_commit(commit_file).await.unwrap();
-    let patch = repo.show_commit(commit_file).await.unwrap();
-    let hash = patch.to_hash256();
+    let diff = repo.get_diff_patch(commit_file).await.unwrap();
+    let hash = diff.to_hash256();
     assert_eq!(semantic_commit_nonreserved.diff, Diff::NonReserved(hash));
 }
 
@@ -795,9 +795,9 @@ async fn retrieve_commit_hash() {
     assert_eq!(commit_hash_tag_a_retrieve, commit_hash_a);
 }
 
-/// Make two repositories, get patch from one repository and apply patch to the other repository.
+/// Make two repositories, get diff patch from one repository and apply diff patch to the other repository.
 #[tokio::test]
-async fn patch() {
+async fn diff_patch() {
     // Set up two repositories.
     let td = TempDir::new().unwrap();
     let mut repo = init_repository_with_initial_commit(td.path())
@@ -819,10 +819,10 @@ async fn patch() {
     let path2 = td2.path().to_str().unwrap();
     let mut repo2 = RawRepository::clone(path2, path1).await.unwrap();
 
-    let path = td.path().join("patch_file");
+    let path = td.path().join("diff_patch_file");
     std::fs::File::create(&path).unwrap();
-    std::fs::write(&path, "patch test").unwrap();
-    let message = "apply patch".to_string();
+    std::fs::write(&path, "diff_patch test").unwrap();
+    let message = "apply diff_patch".to_string();
     let author = "name".to_string();
     let email = "test@email.com".to_string();
     let timestamp = get_timestamp() / 1000;
@@ -833,25 +833,24 @@ async fn patch() {
         email: email.clone(),
         timestamp,
     };
-    let patch_commit_original = repo.create_commit_all(commit.clone()).await.unwrap();
+    let diff_commit_original = repo.create_commit_all(commit.clone()).await.unwrap();
 
-    // Apply a patch and make a commit.
+    // Apply a diff patch and make a commit.
     let head = repo.get_head().await.unwrap();
-    let patch = repo.get_patch(head).await.unwrap();
+    let diff = repo.get_diff_patch(head).await.unwrap();
     let commit = RawCommit {
         message,
-        diff: Some(patch),
+        diff: Some(diff.clone()),
         author,
         email,
         timestamp,
     };
-    let patch_commit = repo2.create_commit(commit.clone()).await.unwrap();
-    let commit_retrieve = repo2.read_commit(patch_commit).await.unwrap();
+    let diff_commit = repo2.create_commit(commit.clone()).await.unwrap();
+    let commit_retrieve = repo2.read_commit(diff_commit).await.unwrap();
     assert_eq!(commit, commit_retrieve);
 
-    assert_eq!(patch_commit_original, patch_commit);
-    let patch_retrieve = repo2.get_patch(patch_commit).await.unwrap();
-    // TODO: Add below lines when show_commit() is changed to return patch.
-    // assert_eq!(patch, patch_retrieve);
-    assert!(patch_retrieve.contains("patch_file"));
+    assert_eq!(diff_commit_original, diff_commit);
+    let diff_retrieve = repo2.get_diff_patch(diff_commit).await.unwrap();
+    assert_eq!(diff, diff_retrieve);
+    assert!(diff_retrieve.contains("diff_patch_file"));
 }

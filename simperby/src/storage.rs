@@ -25,7 +25,7 @@ fn peers_path(path: &str) -> String {
 }
 
 pub(crate) async fn init(path: &str) -> Result<()> {
-    let mut repository = DistributedRepository::new(
+    let repository = DistributedRepository::new(
         None,
         Arc::new(RwLock::new(RawRepository::open(path).await?)),
         simperby_repository::Config {
@@ -35,9 +35,6 @@ pub(crate) async fn init(path: &str) -> Result<()> {
     )
     .await?;
     repository.check(0).await?;
-    if !repository.check_gitignore().await? {
-        repository.commit_gitignore().await?;
-    }
 
     StorageImpl::create(&governance_dms_path(path)).await?;
     StorageImpl::create(&consensus_dms_path(path)).await?;
