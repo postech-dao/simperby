@@ -2277,10 +2277,42 @@ mod test {
     #[ignore]
     #[test]
     // Test the case where the `Undelegate` extra-agenda transaction is invalid because the delegator has not delegated.
-    /// This test case is ignored because the extra-agenda transaction is not implemented yet.
-    /// TODO: enable this test case when the extra-agenda transaction is implemented.
     fn invalid_undelegate_transaction_with_invalid_delegator2() {
-        todo!("Implement this test")
+        let (validator_keypair, reserved_state, mut csv) = setup_test(4);
+        // Apply agenda commit
+        let agenda_transactions_hash = calculate_agenda_transactions_hash(csv.phase.clone());
+        let agenda: Agenda = Agenda {
+            author: reserved_state.query_name(&validator_keypair[0].0).unwrap(),
+            timestamp: 1,
+            transactions_hash: agenda_transactions_hash,
+            height: csv.header.height + 1,
+            previous_block_hash: csv.header.to_hash256(),
+        };
+        csv.apply_commit(&generate_agenda_commit(&agenda)).unwrap();
+        // Apply agenda-proof commit
+        csv.apply_commit(&generate_agenda_proof_commit(
+            &validator_keypair,
+            &agenda,
+            agenda.to_hash256(),
+        ))
+        .unwrap();
+        // Apply 'Undelegate' extra-agenda transaction commit with the delegator has not delegated.
+        let delegator = reserved_state.members[1].clone();
+        let delegator_private_key = validator_keypair[1].1.clone();
+        let undelegation_transaction_data: UndelegationTransactionData =
+            UndelegationTransactionData {
+                delegator: delegator.name,
+                block_height: csv.header.height + 1,
+                timestamp: 2,
+                chain_name: reserved_state.genesis_info.chain_name,
+            };
+        let proof: TypedSignature<UndelegationTransactionData> =
+            TypedSignature::sign(&undelegation_transaction_data, &delegator_private_key).unwrap();
+        csv.apply_commit(&generate_undelegation_transaction_commit(
+            &undelegation_transaction_data,
+            proof,
+        ))
+        .unwrap_err();
     }
 
     #[ignore]
