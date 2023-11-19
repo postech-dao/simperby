@@ -428,6 +428,13 @@ impl CommitSequenceVerifier {
                         agenda_proof.agenda_hash
                     )));
                 }
+                // Check if agenda proof is in chronological order
+                if agenda.timestamp < agenda_proof.timestamp {
+                    return Err(Error::InvalidArgument(format!(
+                        "invalid extra-agenda Transaction timestamp: expected larger than or equal to the agenda proof timestamp {}, got {}",
+                        agenda_proof.timestamp, agenda.timestamp
+                    )));
+                }
                 // Verify the agenda proof
                 for signature in agenda_proof.proof.iter() {
                     signature.verify(agenda).map_err(|e| {
@@ -467,9 +474,16 @@ impl CommitSequenceVerifier {
                     agenda_proof: agenda_proof.clone(),
                 };
             }
-            (Commit::ExtraAgendaTransaction(tx), Phase::AgendaProof { agenda_proof: _ }) => {
+            (Commit::ExtraAgendaTransaction(tx), Phase::AgendaProof { agenda_proof }) => {
                 match tx {
                     ExtraAgendaTransaction::Delegate(tx) => {
+                        // Check if extra-agenda transactions are in chronological order
+                        if tx.data.timestamp < agenda_proof.timestamp {
+                            return Err(Error::InvalidArgument(format!(
+                                "invalid extra-agenda Transaction timestamp: expected larger than or equal to the agenda proof timestamp {}, got {}",
+                                agenda_proof.timestamp, tx.data.timestamp
+                            )));
+                        }
                         // Update reserved reserved_state by applying delegation
                         self.reserved_state.apply_delegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid delegation: {e}"))
@@ -479,6 +493,13 @@ impl CommitSequenceVerifier {
                         };
                     }
                     ExtraAgendaTransaction::Undelegate(tx) => {
+                        // Check if extra-agenda transactions are in chronological order
+                        if tx.data.timestamp < agenda_proof.timestamp {
+                            return Err(Error::InvalidArgument(format!(
+                                "invalid extra-agenda Transaction timestamp: expected larger than or equal to the agenda proof timestamp {}, got {}",
+                                agenda_proof.timestamp, tx.data.timestamp
+                            )));
+                        }
                         // Update reserved reserved_state by applying undelegation
                         self.reserved_state.apply_undelegate(tx).map_err(|e| {
                             Error::InvalidArgument(format!("invalid undelegation: {e}"))
