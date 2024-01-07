@@ -76,6 +76,8 @@ pub enum SignCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Dumps genesis block files to the path
+    DumpGenesis,
     // ----- Initialization Commands ----- //
     /// Create a genesis commit and initialize a Simberby repository
     /// from the given existing Git repository.

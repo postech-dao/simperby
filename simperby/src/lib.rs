@@ -14,6 +14,7 @@ use simperby_repository::raw::RawRepository;
 use simperby_repository::*;
 use std::net::SocketAddrV4;
 use std::sync::Arc;
+use tokio::fs;
 use tokio::sync::RwLock;
 
 pub use simperby_consensus;
@@ -41,6 +42,16 @@ pub struct Client {
 }
 
 impl Client {
+    pub async fn dump_genesis(path: &str) -> Result<()> {
+        let (rs, keys) = test_utils::generate_standard_genesis(4);
+
+        simperby_repository::raw::reserved_state::write_reserved_state(path, &rs)
+            .await
+            .unwrap();
+        let keys = serde_spb::to_string(&keys)?;
+        fs::write(format!("{}/{}", path, "keys.json"), keys).await?;
+        Ok(())
+    }
     pub async fn genesis(path: &str) -> Result<()> {
         let repository = RawRepository::open(path).await?;
         DistributedRepository::genesis(repository).await?;

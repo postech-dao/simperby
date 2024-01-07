@@ -21,6 +21,7 @@ async fn run(
     server_config: Option<ServerConfig>,
 ) -> eyre::Result<()> {
     match (args.command, config, auth, server_config) {
+        (Commands::DumpGenesis, _, _, _) => Client::dump_genesis(&path).await,
         (Commands::Genesis, _, _, _) => Client::genesis(&path).await,
         (Commands::Init, _, _, _) => Client::init(&path).await,
         (Commands::Clone { url }, _, _, _) => {
