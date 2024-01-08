@@ -345,8 +345,84 @@ async fn multi_2() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn multi_3() {
-    // TODO: test with the server turing off and on repeatedly.
-    // clients must be able to sync with each other even if the server is not available 100% of the time.
+    let key = "multi_3".to_owned();
+
+    let ((server_network_config, server_private_key), client_network_config_and_keys, members) =
+        setup_server_client_nodes(5).await;
+
+    let server_dms = Arc::new(RwLock::new(
+        create_dms(
+            Config {
+                dms_key: key.clone(),
+                members: members.clone(),
+            },
+            server_private_key,
+        )
+        .await,
+    ));
+
+    let mut client_dmses = Vec::new();
+    let mut tasks = Vec::new();
+
+    let range_step = 10;
+    for (i, (client_network_config, private_key)) in
+        client_network_config_and_keys.iter().enumerate()
+    {
+        let dms = Arc::new(RwLock::new(
+            create_dms(
+                Config {
+                    dms_key: key.clone(),
+                    members: members.clone(),
+                },
+                private_key.clone(),
+            )
+            .await,
+        ));
+        tasks.push(run_client_node(
+            Arc::clone(&dms),
+            (i * range_step..(i + 1) * range_step).collect(),
+            client_network_config.clone(),
+            Some(Duration::from_millis(400)),
+            Some(Duration::from_millis(400)),
+            Duration::from_millis(50),
+            Duration::from_millis(3000),
+        ));
+        client_dmses.push(dms);
+    }
+
+    let server_on_off_time = Duration::from_millis(1000);
+    let server_on_off_repetition = 3;
+
+    for _ in 0..server_on_off_repetition {
+        let server = tokio::spawn(Dms::serve(
+            Arc::clone(&server_dms),
+            server_network_config.clone(),
+        ));
+        tokio::time::sleep(server_on_off_time).await;
+        drop(server);
+        tokio::time::sleep(server_on_off_time).await;
+    }
+
+    join_all(tasks).await;
+
+    for dms in client_dmses {
+        let messages = dms
+            .read()
+            .await
+            .read_messages()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|x| x.message)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            (0..(range_step * client_network_config_and_keys.len()))
+                .map(|x| format!("{x}"))
+                .collect::<std::collections::BTreeSet<_>>(),
+            messages
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+    }
 }
